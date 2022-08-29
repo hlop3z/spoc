@@ -13,7 +13,7 @@ class Singleton:
             return it
         it = object.__new__(cls)
         setattr(cls, it_id, it)
-        it.init(*args, **kwargs)
+        it.init(cls, *args, **kwargs)
         return it
 
     def init(self, *args, **kwargs):

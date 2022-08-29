@@ -17,3 +17,15 @@ build-backend = "pdm.pep517.api"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.pdm.dev-dependencies]
+linters = [
+    "isort",
+    "black",
+    "pylint>=3.0.0a5",
+    "watchdog>=2.1.9",
+]
+
+[tool.pdm.scripts]
+linter = "python scripts/linter.py"
+test = "python tests/helloworld.py"
+

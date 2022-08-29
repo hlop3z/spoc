@@ -1,6 +1,6 @@
 import functools
 
-from .app import Settings as Spoc
+from .app import create_singleton as Spoc
 from .types import Plugin
 
 
