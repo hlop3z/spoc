@@ -1,25 +1,15 @@
-import functools
+"""
+    Module(INIT)
+"""
 
-from .app import create_singleton as Spoc
-from .types import Plugin
+import pathlib
+
+from .framework import framework
+from .plugins import plugin
+from .project import project
 
 
-# Function
-def plugin(
-    cls: object = None,
-    *,
-    config: dict = None,
-    metadata: dict = None,
-):
-    config = config or {}
-    metadata = config or {}
-    if cls is None:
-        return functools.partial(
-            plugin,
-            config=config,
-            metadata=metadata,
-        )
+def root(path):
+    """Easy Level-Up Folder(s)."""
 
-    # Real Wrapper
-    cls.__meta__ = Plugin(config=config, metadata=metadata)
-    return cls
+    return pathlib.Path(path).parents

@@ -1,3 +1,7 @@
+"""
+    DataClasses
+"""
+
 import dataclasses as dc
 import typing
 
@@ -6,9 +10,10 @@ import typing
 class Class:
     """Project Classes"""
 
+    name: str = None
     app: str = None
     module: str = None
-    name: str = None
+    key: str = None
     uri: str = None
     cls: typing.Any = None
 
@@ -21,7 +26,6 @@ class Definition:
     app: str
     module: str
     fields: dict[str, typing.Any]
-    is_ready: bool = False
 
 
 @dc.dataclass(frozen=True)
@@ -39,3 +43,11 @@ class Plugin:
     config: typing.Any = None
     metadata: typing.Any = None
     is_spoc_plugin: bool = True
+
+
+@dc.dataclass(frozen=True)
+class Global:
+    """Project Core"""
+
+    schema: typing.Any = None
+    globals: typing.Any = None

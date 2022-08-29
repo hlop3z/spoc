@@ -5,6 +5,7 @@
 import importlib
 import pkgutil
 
+from .frozendict import FrozenDict
 from .tools import get_attr, get_fields
 from .types import API, Definition
 
@@ -59,7 +60,7 @@ def get_plugins(plugins: list[str], apps: list = None):
                 path=app_path,
                 app=app_name,
                 module=app_module,
-                fields=current_fields,
+                fields=FrozenDict(current_fields),
             )
             plugin_dict[app_module].append(plugin)
 
