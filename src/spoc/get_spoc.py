@@ -18,7 +18,7 @@ def get_spoc_plugins(plugins: dict) -> dict:
         out_dict[module_key] = {}
         for current in module_list:
             for current_module, active_class in current.fields.items():
-                metadata = get_attr(active_class, "__meta__")
+                metadata = get_attr(active_class, "__spoc__")
                 if metadata:
                     is_spoc_plugin = get_attr(metadata, "is_spoc_plugin")
                     if is_spoc_plugin:
@@ -39,4 +39,4 @@ def get_spoc_plugins(plugins: dict) -> dict:
     # Return Plugin(s) Setup
     dataclass_globals = dc.make_dataclass("Schema", list(out_dict.keys()), frozen=True)
     app_schema = dataclass_globals(**out_dict)
-    return Global(schema=app_schema, globals=FrozenDict(**global_dict))
+    return Global(schema=app_schema, modules=FrozenDict(**global_dict))

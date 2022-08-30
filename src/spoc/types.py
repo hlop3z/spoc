@@ -3,6 +3,7 @@
 """
 
 import dataclasses as dc
+import pathlib
 import typing
 
 
@@ -30,7 +31,7 @@ class Definition:
 
 @dc.dataclass(frozen=True)
 class API:
-    """Project Core"""
+    """Project API"""
 
     modules: dict
     plugins: dict
@@ -47,7 +48,18 @@ class Plugin:
 
 @dc.dataclass(frozen=True)
 class Global:
-    """Project Core"""
+    """Project Globals"""
 
     schema: typing.Any = None
-    globals: typing.Any = None
+    modules: typing.Any = None
+
+
+@dc.dataclass(frozen=True)
+class Project:
+    """Project Core"""
+
+    schema: typing.Any
+    modules: typing.Any
+    settings: typing.Any
+    installed_apps: list[str]
+    toml: typing.Any

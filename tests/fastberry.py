@@ -15,10 +15,10 @@ import spoc
 
 
 @spoc.framework
-class Admin:
+class Framework:
     """Framework Builder"""
 
-    plugins = ["types"]
+    plugins = ["types", "graphql", "router", "commands"]
 
 
 @spoc.project
@@ -31,10 +31,9 @@ class Project:
         mode: str = "cli",
     ):
         """Class __init__ Replacement"""
-        print("Load Once")
 
-        # BASE_DIR <Collect: Some-How>
-        installed_apps = ["app_one", "app_two"]
+        # Step[1]: INIT { Admin }
+        Framework(base_dir=base_dir, mode=mode, app=self)
 
-        # Load
-        self.admin = Admin(base_dir=base_dir, mode=mode, installed_apps=installed_apps)
+        # Finally: Collect { Keys }
+        self.keys = [x for x in spoc.get_fields(self) if x not in ["init"]]

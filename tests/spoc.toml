@@ -3,21 +3,20 @@ name = "my-project"
 version = "0.1.0"
 
 [spoc.config]
-# development, production, staging
-mode = "development" 
+mode = "development" # development, production, staging, custom
 docs = "mydocs.md"
 
 [spoc.apps]
-production = []
-development = []
+production = ["app_one", "good_app"]
 staging = []
+development = ["app_two"]
 
 [spoc.graphql]
+generates = "graphql"
 items_per_page = 50
 max_depth = 4
-generates = "graphql"
 
-[spoc.fastapi]
+[spoc.api]
 allowed_hosts = []
 middleware = []
 extensions = []

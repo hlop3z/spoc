@@ -8,7 +8,7 @@ __________               __________                   __               __
 """
 
 
-from framework import Project
+from fastberry import Project
 
 import spoc
 
@@ -27,10 +27,15 @@ ___________              __
              \/     \/        
 """
 
-print(App.admin.keys)
-
-print(App.admin.modules["types.app_two.mytype"])
-
+# print(App.admin.keys)
+# print(App.admin.modules["types.app_two.mytype"])
 # print(Project().admin.plugins)
-print(Project().admin.schema)
+# print(Project().admin.schema)
 # print(Project().admin.schema.types["app_two.mytype"])
+# print(Project().admin.schema)
+# print(App.admin.keys)
+
+print(App.core.schema.types)
+print(App.core.schema.graphql)
+print(App.core.schema.router)
+print(App.core.schema.commands)

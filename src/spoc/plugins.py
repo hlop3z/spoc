@@ -23,5 +23,5 @@ def plugin(
         )
 
     # Real Wrapper
-    cls.__meta__ = Plugin(config=config, metadata=metadata)
+    cls.__spoc__ = Plugin(config=config, metadata=metadata)
     return cls
