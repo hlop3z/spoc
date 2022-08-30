@@ -42,13 +42,15 @@ def create_project(self, cls, base_dir):
     cls.admin = admin
     cls.base_dir = base_dir
     cls.mode = admin.app_mode
-    cls.project = admin.app_mode
+    cls.project = admin.project
     cls.core = Project(
         toml=self.toml,
         installed_apps=admin.installed_apps,
         schema=admin.schema,
-        modules=admin.modules,
+        modules=admin.plugins.modules,
+        plugins=admin.modules,
         settings=admin.settings,
+        keys=["modules", "schema", "plugins", "settings", "installed_apps", "toml"],
     )
     return cls
 
@@ -123,9 +125,11 @@ def init(
         sys.path.insert(0, os.path.join(base_dir, "apps"))
 
     # Step[4]: TOML { Config }
-    TOML.file = pathlib.Path(base_dir / "spoc.toml")
-    if not TOML.file.exists():
+    toml_file = pathlib.Path(base_dir / "spoc.toml")
+    if not toml_file.exists():
         TOML.init()
+    else:
+        TOML.file = toml_file
 
     # Step[5]: TOML-Collect { Apps }
     toml_data = TOML.read()
@@ -138,8 +142,8 @@ def init(
         import project
 
         self.project = project
-    except ImportError:
-        raise ValueError("Missing { project } module.")
+    except ImportError as exception:
+        raise ValueError("Missing { project } module.") from exception
 
     # Step[7]: Load { Settings }
     if not hasattr(self.project, "settings"):

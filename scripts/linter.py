@@ -54,7 +54,7 @@ class Handler(watchdog.events.PatternMatchingEventHandler):
         # After Event - Do Something ...
         shell_cmd("isort", f'''python -m isort --profile black "{ path_to_watch }"''')
         shell_cmd("black", f'''python -m black "{ path_to_watch }"''')
-        shell_cmd("pylint", f'''python -m pylint "{ path_to_watch }"''', check=False)
+        shell_cmd("pylint", f'''python -m pylint "{ path_to_watch }" --output-format=json''', check=False)
 
 
 # -----------------------------------------------------------------------------

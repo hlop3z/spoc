@@ -1,5 +1,5 @@
 """
-    Tool to Singleton
+    Tool for Singleton(s)
 """
 
 

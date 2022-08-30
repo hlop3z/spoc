@@ -3,7 +3,6 @@
 """
 
 import dataclasses as dc
-import pathlib
 import typing
 
 
@@ -58,8 +57,10 @@ class Global:
 class Project:
     """Project Core"""
 
-    schema: typing.Any
+    keys: typing.Any
     modules: typing.Any
+    schema: typing.Any
+    plugins: typing.Any
     settings: typing.Any
     installed_apps: list[str]
     toml: typing.Any

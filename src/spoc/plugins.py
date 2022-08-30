@@ -13,8 +13,9 @@ def plugin(
     config: dict = None,
     metadata: dict = None,
 ):
+    """Plugin Creator"""
     config = config or {}
-    metadata = config or {}
+    metadata = metadata or {}
     if cls is None:
         return functools.partial(
             plugin,

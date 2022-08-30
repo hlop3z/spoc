@@ -1,6 +1,6 @@
 [project]
 name = "spoc"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = [
     {name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com"},
@@ -26,6 +26,7 @@ linters = [
     "black",
     "pylint>=3.0.0a5",
     "watchdog>=2.1.9",
+    "bandit>=1.7.4",
 ]
 test = [
     "toml",
@@ -39,6 +40,9 @@ devops = [
 
 
 [tool.pdm.scripts]
-linter = "python scripts/linter.py"
+pylint = "pylint src/ --recursive=y" #  --output-format=json
+bandit = "bandit -r src/" #  -f json 
+lint = { composite = ["bandit", "pylint",] }
+lint-watch = "python scripts/linter.py"
 test = "python tests/main.py"
 

@@ -35,7 +35,12 @@ ___________              __
 # print(Project().admin.schema)
 # print(App.admin.keys)
 
+#print(App.core.modules)
+print(App.core.keys)
+# print(App.admin.plugins.modules)
+"""
 print(App.core.schema.types)
 print(App.core.schema.graphql)
 print(App.core.schema.router)
 print(App.core.schema.commands)
+"""
