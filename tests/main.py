@@ -12,10 +12,10 @@ from fastberry import Project
 
 import spoc
 
-# Custom
+# Base Directory
 BASE_DIR = spoc.root(__file__)[0]
 
-# Config
+# App
 App = Project(base_dir=BASE_DIR, mode="cli")
 
 """

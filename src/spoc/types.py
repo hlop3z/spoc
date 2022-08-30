@@ -64,3 +64,4 @@ class Project:
     settings: typing.Any
     installed_apps: list[str]
     toml: typing.Any
+    pyproject: typing.Any

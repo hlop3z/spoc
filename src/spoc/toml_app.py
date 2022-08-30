@@ -26,9 +26,10 @@ class TOML:
     setup = TOML_SETUP
 
     @classmethod
-    def read(cls):
+    def read(cls, file_to_read = None):
         """Read"""
-        with open(cls.file, "r", encoding="utf-8") as found_file:
+        file = file_to_read or cls.file
+        with open(file, "r", encoding="utf-8") as found_file:
             toml_string = found_file.read()
             parsed_toml = toml.loads(toml_string)
         return parsed_toml

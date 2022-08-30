@@ -79,6 +79,7 @@ disable=W0702,
         C0415,
         R0801,
         R0903,
+        R0902,
         # W0702,
 
 # Enable the message, report, category or checker with the given id(s). You can

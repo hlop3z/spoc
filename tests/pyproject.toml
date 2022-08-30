@@ -37,21 +37,12 @@ test = [
 devops = [
     "click>=8.1.3",
 ]
-docs = [
-    "mkdocs>=1.3.1",
-    "mkdocs-material>=8.4.2",
-]
 
 
 [tool.pdm.scripts]
-# Linters
 pylint = "pylint src/ --recursive=y" #  --output-format=json
 bandit = "bandit -r src/" #  -f json 
 lint = { composite = ["bandit", "pylint",] }
 lint-watch = "python scripts/linter.py"
-# Docs
-docs-dev = {shell = "cd docs/ && python -m mkdocs serve --dev-addr 0.0.0.0:8055"}
-docs-gh = {shell = "cd docs/ && python -m mkdocs gh-deploy --force"}
-# Tests
 test = "python tests/main.py"
 
