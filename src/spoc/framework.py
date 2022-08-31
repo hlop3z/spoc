@@ -31,7 +31,7 @@ CORE_KEYS = [
 PROJECT_KEYS = [
     "modules",
     "schema",
-    "plugins",
+    "components",
     "settings",
     "installed_apps",
     "toml",
@@ -79,7 +79,7 @@ def create_project(self, cls, base_dir):
         installed_apps=admin.installed_apps,
         schema=admin.schema,
         modules=core_modules,
-        plugins=admin.modules,
+        components=admin.modules,
         settings=admin.settings,
         keys=[x for x in PROJECT_KEYS if x not in ["keys"]],
         pyproject=admin.pyproject,
@@ -195,7 +195,6 @@ def init(
         raise ValueError("Missing { project } module.") from exception
 
     self.core = Project(**{k: None for k in PROJECT_KEYS})
-
 
 def load_apps(self, installed_apps: list[str] = None):
     """Load { Apps }"""

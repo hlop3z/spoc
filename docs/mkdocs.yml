@@ -1,10 +1,10 @@
-site_name: My Docs
+site_name: Spoc
 site_url: https://example.com/
 # repo_url: https://github.com/blabla
-copyright: Copyright © ByMe
+copyright: Copyright © hlop3z
 
 nav:
-  - Root: index.md
+  - Introduction: index.md
 
 # Configurations
 extra_css:
@@ -22,7 +22,7 @@ theme:
     - content.code.annotate
     # - navigation.expand
   icon:
-    logo: material/bike-fast
+    logo: material/webhook
 
   palette:
     - media: "(prefers-color-scheme: light)"

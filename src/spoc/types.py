@@ -37,7 +37,7 @@ class API:
 
 
 @dc.dataclass(frozen=True)
-class Plugin:
+class Component:
     """Project Plugin"""
 
     config: typing.Any = None
@@ -60,7 +60,7 @@ class Project:
     keys: typing.Any
     modules: typing.Any
     schema: typing.Any
-    plugins: typing.Any
+    components: typing.Any
     settings: typing.Any
     installed_apps: list[str]
     toml: typing.Any

@@ -1,6 +1,6 @@
 import spoc
 
 
-@spoc.plugin(config={"database": "default", "engine": "SQL"})
+@spoc.component(config={"database": "default", "engine": "SQL"})
 class MyType:
     name: str

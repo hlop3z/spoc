@@ -1,38 +1,82 @@
 # Welcome to **S.P.O.C**
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+**SPOC** aims to be the **base** for building elastic **`frameworks`**.
+The idea is to create a schema for your project(s) and then build up on those blocks.
+
+> **S.P.O.C** is the acronym of **Single Point of Contact**
+
+## Core **API**
+
+| Key             | Description                                             | Variables                        |
+| --------------- | ------------------------------------------------------- | -------------------------------- |
+| **`framework`** | Tool to create the **Base** of the **Framework**.       | `(object)`                       |
+| **`project`**   | Tool to create a **Framework** for your **Project**.    | `(object)`                       |
+| **`component`** | Tool to create **Component(s)** for your **Framework**. | `(config: dict, metadata: dict)` |
+| **`root`**      | A wrapper for **`pathlib.Path(path).parents`**          | `(path)`                         |
+
+---
+
+## Spoc **WorkFlow**
+
+```mermaid
+sequenceDiagram
+autonumber
+    Spoc -->> Framework: Create a Framework
+    Spoc -->> Framework: Create a Project
+    Note over Spoc,Framework: Step[1]: Create your Framework's Base
+    Framework -->> Component: Create a Component
+    Note over Component,Framework: Step[2]: Create your Components
+    Component -->> Spoc: Register the Component
+    Note over Spoc,Framework: Step[3]: Build your Framework
+    Spoc -) Framework: Load the Settings
+    Spoc -) Framework: Load Installed Apps
+    Spoc -) Framework: Load all Components
+```
+
+---
+
+## Framework's **WorkFlow (Example)**
+
+```mermaid
+flowchart LR
+    B{"Framework"};
+    B-->C["Models"];
+    B-->D["Views"];
+    B-->E["Commands"];
+
+    C-->F{"Project"};
+    D-->F;
+    E-->F;
+
+```
+
+---
 
 ## Folder(s) **Setup**
 
 ```text
-root/                    --> <Directory> - Project's Root.
+root/                   --> <Directory> - Project's Root.
 |
-|--  main.py             --> Main File (for example: FastAPI's Main)
+|--  framework.py       --> <File> Framework Demo
 |
-|--  apps/               --> <Directory> - Modules (aka: Apps) in HERE.
-|    |
-|    |-- app_one/
-|    |
-|    `-- app_two/
-|        |
-|        |-- __init__.py --> <File|Package> - Converts { Folder } to { Package }
-|        |
-|        |-- commands.py --> <File|Module> - Create Many { Commands } Here.
-|        |
-|        `-- models.py   --> <File|Module> - Create Many { Models } Here.
+|--  main.py            --> <File> Main File
+|
+|--  apps/              --> <Directory> - { Apps } in HERE (aka: Py-Packages).
+|   |
+|   |-- app_one/
+|   |
+|   `-- app_two/
+|     |
+|     |-- __init__.py   --> <File|Package> - Converts { Folder } to { Package }
+|     |
+|     |-- commands.py   --> <File|Module> - Create Multiple { Commands } Here.
+|     |
+|     `-- models.py     --> <File|Module> - Create Multiple { Models } Here.
 |
 `-- etc...
 ```
 
-## **WorkFlow**
-
-```mermaid
-graph LR;
-    A{Spoc} --> B[Framework];
-    B --> C{MyProject};
-```
-
-## **Demo**
+## Spoc **Demo**
 
 === "Framework"
 
@@ -48,13 +92,13 @@ graph LR;
     import spoc
 
     root = spoc.root
-    plugin = spoc.plugin
+    component = spoc.component
 
     @spoc.framework
     class Framework:
         """Framework Builder"""
 
-        plugins = ["commands", "models"]
+        plugins = ["commands", "models", "views"]
 
 
     @spoc.project
@@ -68,14 +112,10 @@ graph LR;
         ):
             """Class __init__ Replacement"""
 
-            # Step[1]: INIT { Admin }
             Framework(base_dir=base_dir, mode=mode, app=self)
-
-            # Finally: Collect { Keys }
-            self.keys = [x for x in spoc.get_fields(self) if x not in ["init"]]
     ```
 
-=== "Plugin (commands.py)"
+=== "Component (commands.py)"
 
     ```py title="commands.py"
     # -*- coding: utf-8 -*-
@@ -83,10 +123,16 @@ graph LR;
     """
     import framework as fw
 
-
-    @fw.plugin(config={"engine": "click"})
+    # Example [ 1 ]
+    @fw.component(config={"engine": "click"})
     class MyCommands:
         name: str
+
+    # Example [ 2 ]
+    class MyOtherCommand:
+        name: str
+
+    fw.component(MyOtherCommand, config={"engine": "click"})
     ```
 
 === "Testing (main.py)"

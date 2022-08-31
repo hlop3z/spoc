@@ -3,11 +3,11 @@
 """
 import functools
 
-from .types import Plugin
+from .types import Component
 
 
 # Function
-def plugin(
+def component(
     cls: object = None,
     *,
     config: dict = None,
@@ -18,11 +18,11 @@ def plugin(
     metadata = metadata or {}
     if cls is None:
         return functools.partial(
-            plugin,
+            component,
             config=config,
             metadata=metadata,
         )
 
     # Real Wrapper
-    cls.__spoc__ = Plugin(config=config, metadata=metadata)
+    cls.__spoc__ = Component(config=config, metadata=metadata)
     return cls

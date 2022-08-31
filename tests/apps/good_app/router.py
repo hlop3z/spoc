@@ -1,6 +1,6 @@
 import spoc
 
 
-@spoc.plugin(config={"click": "command"})
+@spoc.component(config={"click": "command"})
 class MyRouter:
     name: str
