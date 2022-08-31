@@ -31,6 +31,7 @@ autonumber
     Spoc -) Framework: Load the Settings
     Spoc -) Framework: Load Installed Apps
     Spoc -) Framework: Load all Components
+    Note over Spoc,Framework: Finally: Use your Framework
 ```
 
 ---
