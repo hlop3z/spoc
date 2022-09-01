@@ -110,6 +110,7 @@ def collect_installed_apps(self):
             installed_apps.extend(apps.get("production", []))
             installed_apps.extend(apps.get("development", []))
 
+    # Step[3]: Finally
     self.load_apps(self, installed_apps=installed_apps)
     return installed_apps
 
