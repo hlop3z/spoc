@@ -57,8 +57,9 @@ class Global:
 class Project:
     """Project Core"""
 
-    keys: typing.Any
-    modules: typing.Any
+    # mode: str
+    keys: list[str]
+    modules: dict[str, typing.Any]
     schema: typing.Any
     components: typing.Any
     settings: typing.Any

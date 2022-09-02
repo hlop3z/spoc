@@ -162,7 +162,7 @@ def init(
     toml_data = TOML.read()
     self.toml = FrozenDict(**toml_data.get("spoc", {}))
     self.apps = self.toml.get("apps", {})
-    self.app_mode = self.toml.get("config", {}).get("mode", "development")
+    self.app_mode = self.toml.get("mode", "development")
     self.pyproject = pyproject_toml
 
     # Step[6]: Load { Project }

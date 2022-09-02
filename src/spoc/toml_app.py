@@ -6,10 +6,6 @@ import toml
 
 TOML_SETUP = """
 [spoc]
-name = "my-project"
-version = "0.1.0"
-
-[spoc.config]
 mode = "development" # development, production, staging, custom
 
 [spoc.apps]
