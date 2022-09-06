@@ -70,8 +70,9 @@ def get_plugins(plugins: list[str], apps: list = None):
 def search_method(dotted_path: str):
     """Search for Method in <Module>"""
     parts = dotted_path.split(".")
-    root = import_module(parts[0])
-    module = root
+    root = parts[0]
+    module = import_module(root)
+    import_modules([root])
     for part in parts[1:]:
         module = get_attr(module, part)
     return module

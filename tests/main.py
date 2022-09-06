@@ -13,10 +13,10 @@ from fastberry import Project
 import spoc
 
 # Base Directory
-BASE_DIR = spoc.root(__file__)[0]
+BASE_DIR = spoc.find_root(__file__)[0]
 
 # App
-App = Project(base_dir=BASE_DIR, mode="cli")
+App = Project(mode="cli")
 
 """
 ___________              __   
@@ -36,7 +36,7 @@ ___________              __
 # print(App.admin.keys)
 
 #print(App.core.modules)
-print(App.core.keys)
+# print(App.core.keys)
 # print(App.admin.plugins.modules)
 """
 print(App.core.schema.types)

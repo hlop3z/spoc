@@ -6,7 +6,8 @@ import toml
 
 TOML_SETUP = """
 [spoc]
-mode = "development" # development, production, staging, custom
+mode = "custom" # development, production, staging, custom
+custom_mode = "development"
 
 [spoc.apps]
 production = []

@@ -7,10 +7,10 @@ import os
 import pathlib
 import sys
 
-from .errors import MissingValue, error_message
 from .frozendict import FrozenDict
 from .get_spoc import get_spoc_plugins
 from .imports import get_plugins
+from .project_core import BASE_DIR, PROJECT, SETTINGS
 from .toml_app import TOML
 from .tools import get_fields
 from .types import Project
@@ -87,13 +87,12 @@ def create_project(self, cls, base_dir):
     return cls
 
 
-def collect_installed_apps(self):
+def collect_installed_apps(toml_dir, settings=SETTINGS):
     """Collect All Apps"""
+
     # Step[1]: INIT { Values }
-    admin = self
-    app_mode = admin.app_mode
-    settings = admin.settings
-    apps = admin.apps
+    app_mode = toml_dir["spoc"].get("mode", "development")
+    apps = toml_dir["spoc"].get("apps", {})
     installed_apps = []
 
     # Step[2]: Collect Apps
@@ -110,46 +109,28 @@ def collect_installed_apps(self):
             installed_apps.extend(apps.get("production", []))
             installed_apps.extend(apps.get("development", []))
 
-    # Step[3]: Finally
-    self.load_apps(self, installed_apps=installed_apps)
     return installed_apps
 
 
-def init(
-    self,
-    base_dir: pathlib.Path = None,
-    mode: str = None,
-    plugins: list[str] = None,
-    app: object = None,
-):
-    """__init__ Only Runs Once Per Settings Project."""
-
-    if not base_dir:
-        raise MissingValue(error_message("Project(base_dir = pathlib.Path)"))
-
-    # Step[1]: INIT { Definitions }
-    disabled_fields = ["mode", "base_dir"]
-    for field in CORE_KEYS:
-        if field not in disabled_fields:
-            setattr(self, field, None)
-
-    # Step[2]: Self { Definitions }
-    self.mode = mode
-    self.base_dir = base_dir
-    self.__plugins__ = plugins
-    self.__theclass__ = app
-
-    # Step[3]: Inject { Apps }
-    base_apps = pathlib.Path(base_dir / "apps")
+def inject_apps_folder():
+    """Inject { ./apps }"""
+    base_apps = pathlib.Path(BASE_DIR / "apps")
     base_apps.mkdir(parents=True, exist_ok=True)
     if base_apps.exists():
-        sys.path.insert(0, os.path.join(base_dir, "apps"))
+        sys.path.insert(0, os.path.join(BASE_DIR, "apps"))
 
-    # Step[4.1]: TOML { Config }
+
+def get_toml_files():
+    """Collect All { TOML } Files"""
+
+    # Get Base Directory
+    base_dir = BASE_DIR
+
+    # Step[1]: TOML { Config }
     toml_file = pathlib.Path(base_dir / "spoc.toml")
     pytoml_file = pathlib.Path(base_dir / "pyproject.toml")
 
-    # Step[4.2]: Load { TOML }
+    # Step[2]: Load { TOML }
     TOML.file = toml_file
     if not toml_file.exists():
         TOML.init()
@@ -158,44 +139,78 @@ def init(
     else:
         pyproject_toml = {}
 
+    spoc_toml = TOML.read()
+
+    return {
+        "spoc": FrozenDict(**spoc_toml.get("spoc", {})),
+        "pyproject": pyproject_toml,
+    }
+
+
+def get_app_mode(toml_dir):
+    """Get App { Mode }"""
+
+    mode = toml_dir["spoc"].get("mode", "development")
+    # Fix: Mode IF (Custom)
+    if mode == "custom":
+        mode = toml_dir["spoc"].get("custom_mode", "development")
+    return mode
+
+
+# GLOBALS
+TOML_DIR = get_toml_files()
+MODE = get_app_mode(TOML_DIR)
+INSTALLED_APPS = collect_installed_apps(TOML_DIR)
+
+# GLOBAL INJECTIONS
+inject_apps_folder()
+
+
+def init(
+    self,
+    plugins: list[str] = None,
+    app: object = None,
+):
+    """__init__ Only Runs Once Per Settings Project."""
+
+    # Step[1]: Set Core Settings
+    base_dir = BASE_DIR
+
+    # Step[2]: INIT { Definitions }
+    disabled_fields = ["base_dir"]
+    for field in CORE_KEYS:
+        if field not in disabled_fields:
+            setattr(self, field, None)
+
+    # Step[3]: Self { Definitions }
+    self.project = PROJECT
+    self.settings = SETTINGS
+    self.base_dir = base_dir
+    self.__plugins__ = plugins
+    self.__theclass__ = app
+
     # Step[5]: TOML-Collect { Apps }
-    toml_data = TOML.read()
-    self.toml = FrozenDict(**toml_data.get("spoc", {}))
-    self.apps = self.toml.get("apps", {})
-    self.app_mode = self.toml.get("mode", "development")
-    self.pyproject = pyproject_toml
+    self.toml = TOML_DIR["spoc"]
+    self.app_mode = MODE
+    self.pyproject = TOML_DIR["pyproject"]
 
-    # Step[6]: Load { Project }
-    try:
-        import project
+    # Step[6]: Install { Apps }
+    self.load_apps(self, installed_apps=INSTALLED_APPS)
+    self.installed_apps = INSTALLED_APPS
 
-        self.project = project
-    except ImportError as exception:
-        raise ValueError("Missing { project } module.") from exception
+    # Step[7]: Create <class: Project>
+    self.core = Project(**{k: None for k in PROJECT_KEYS})
 
-    # Step[7]: Load { Settings }
-    if not hasattr(self.project, "settings"):
-        raise ValueError("Missing { project.settings } module.")
-    self.settings = self.project.settings
-
-    # Step[8]: Collect { Apps }
-    self.installed_apps = collect_installed_apps(self)
+    # Step[8]: Create <class: Project>
+    create_project(self, self.__theclass__, self.base_dir)
 
     # Finally: Collect { Keys }
     self.keys = [x for x in get_fields(self) if x not in ["init", "load_apps"]]
 
-    # Step[9]: Create <class: Project>
-    create_project(self, self.__theclass__, self.base_dir)
+    # Fix: App-Mode IF (Custom)
+    if self.app_mode == "custom":
+        self.app_mode = self.toml.get("custom_mode", "development")
 
-    # Step[6]: Load { Project }
-    try:
-        import project
-
-        self.project = project
-    except ImportError as exception:
-        raise ValueError("Missing { project } module.") from exception
-
-    self.core = Project(**{k: None for k in PROJECT_KEYS})
 
 def load_apps(self, installed_apps: list[str] = None):
     """Load { Apps }"""
@@ -241,5 +256,5 @@ def framework(cls):
         )
 
     plugins = cls.plugins
-
-    return create_singleton(name=name, plugins=plugins)
+    custom_class = create_singleton(name=name, plugins=plugins)
+    return custom_class

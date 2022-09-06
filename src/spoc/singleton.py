@@ -20,7 +20,7 @@ class Singleton:
         """Class __init__ Replacement"""
 
 
-def project(cls):
+def singleton(cls):
     """Function: Create a Singleton"""
     custom_class = type(
         cls.__name__,

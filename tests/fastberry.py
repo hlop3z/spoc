@@ -21,19 +21,21 @@ class Framework:
     plugins = ["types", "graphql", "router", "commands"]
 
 
-@spoc.project
+@spoc.singleton
 class Project:
     """Framework"""
 
     def init(
         self,
-        base_dir: typing.Any = None,
         mode: str = "cli",
     ):
         """Class __init__ Replacement"""
 
-        # Step[1]: INIT { Admin }
-        Framework(base_dir=base_dir, mode=mode, app=self)
+        # Create Framework
+        Framework(app=self)
+        
+        # Do Something before initialization of { Singleton }
+        print(mode)
 
         # Finally: Collect { Keys }
         self.keys = [x for x in spoc.get_fields(self) if x not in ["init"]]
