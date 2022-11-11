@@ -1,23 +1,20 @@
-"""
-    Module(INIT)
-"""
+# Core Tools
+from .components import component, is_component
 
-import pathlib
-
-from .components import component
-from .framework import MODE as mode
-from .framework import TOML_DIR as config
-from .framework import framework
-from .frozendict import FrozenDict as frozendict
-from .imports import search_method as search
-from .project_core import project
+# Frame Work
+from .framework import Spoc as App
+from .importer import frozendict, get_fields, search
 from .singleton import singleton
-from .tools import get_attr, get_fields
 
-settings = project.settings
+"""
+# App
+extras = Spoc.extras
+plugin = Spoc.plugin
+"""
 
-
-def find_root(path):
-    """Easy Level-Up Folder(s)."""
-
-    return pathlib.Path(path).parents
+# Globals
+base_dir = App.base_dir
+config = App.config
+mode = App.mode
+project = App.project
+settings = App.settings

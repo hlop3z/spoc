@@ -1,0 +1,3 @@
+[spoc]
+mode = "custom" # development, production, staging, custom
+custom_mode = "development"

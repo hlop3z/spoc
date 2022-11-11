@@ -1,2 +1,0 @@
-class MyGQL:
-    name: str

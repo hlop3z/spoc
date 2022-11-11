@@ -6,10 +6,10 @@ import dataclasses as dc
 
 from .frozendict import FrozenDict
 from .tools import get_attr
-from .types import Class, Global
+from .types import Class, Spoc
 
 
-def get_spoc_plugins(plugins: dict) -> dict:
+def get_spoc(plugins: dict) -> Spoc:
     """Collect All Project Classes"""
 
     out_dict = {}
@@ -37,6 +37,6 @@ def get_spoc_plugins(plugins: dict) -> dict:
         out_dict[module_key] = FrozenDict(**out_dict[module_key])
 
     # Return Plugin(s) Setup
-    dataclass_globals = dc.make_dataclass("Schema", list(out_dict.keys()), frozen=True)
+    dataclass_globals = dc.make_dataclass("Plugin", list(out_dict.keys()), frozen=True)
     app_schema = dataclass_globals(**out_dict)
-    return Global(schema=app_schema, modules=FrozenDict(**global_dict))
+    return Spoc(schema=app_schema, modules=FrozenDict(**global_dict))

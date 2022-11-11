@@ -7,7 +7,7 @@ import pkgutil
 
 from .frozendict import FrozenDict
 from .tools import get_attr, get_fields
-from .types import API, Definition
+from .types import Core, Definition
 
 
 def iter_namespace(ns_pkg):
@@ -24,7 +24,7 @@ def import_module(single_app: str):
     return module
 
 
-def import_modules(all_apps: list):
+def import_modules(all_apps: list) -> dict:
     """https://packaging.python.org/en/latest/guides/creating-and-discovering-plugins/"""
     installed_apps = {}
     for app in all_apps:
@@ -38,7 +38,7 @@ def import_modules(all_apps: list):
     return installed_apps
 
 
-def get_plugins(plugins: list[str], apps: list = None):
+def get_plugins(plugins: list[str], apps: list = None) -> Core:
     """Plugins: Creating & Discovering"""
 
     plugin_dict = {key: [] for key in plugins}
@@ -54,7 +54,7 @@ def get_plugins(plugins: list[str], apps: list = None):
             current_fields = {}
             for field in get_fields(module_setup):
                 current_node = get_attr(module_setup, field)
-                if current_node:
+                if current_node is not None:
                     current_fields[field] = current_node
             plugin = Definition(
                 path=app_path,
@@ -64,7 +64,7 @@ def get_plugins(plugins: list[str], apps: list = None):
             )
             plugin_dict[app_module].append(plugin)
 
-    return API(modules=installed_apps, plugins=plugin_dict)
+    return Core(modules=installed_apps, plugins=plugin_dict)
 
 
 def search_method(dotted_path: str):
