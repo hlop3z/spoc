@@ -215,8 +215,13 @@ if (document.currentScript.hasAttribute("data-termynal-container")) {
 }
 
 function terminal(ID, data) {
-  new Termynal(ID, {
-    startDelay: 0,
-    lineData: data,
-  });
+  try {
+    new Termynal(ID, {
+      startDelay: 0,
+      lineDelay: 500,
+      lineData: data,
+    });
+  } catch (e) {
+    e;
+  }
 }

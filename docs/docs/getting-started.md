@@ -127,8 +127,8 @@ middleware = ["demo.middleware.test"] # (3)
 
 ```python title="config/settings.py"
 # -*- coding: utf-8 -*-
-""" [Settings]
-    Project Settings { app.settings }.
+"""
+    { Settings }
 """
 
 import pathlib
@@ -158,7 +158,7 @@ INSTALLED_APPS = []
 
     @spoc.singleton
     class MyFramework:
-    """Framework"""
+        """Framework"""
 
         def init(
             self,
@@ -263,5 +263,7 @@ import spoc
 
 app = MyFramework()
 
-print(app.component.commands['demo.hello_world'].object)
+app.component.commands['demo.hello_world'].object()
 ```
+
+<div id="terminal-5" data-termynal></div>

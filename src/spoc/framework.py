@@ -21,18 +21,24 @@ try:
 except ImportError as exception:
     raise ValueError("Missing { ./config/__init__.py } module.") from exception
 
-if not hasattr(config, "settings"):
+try:
+    from config import settings
+except ImportError as exception:
+    settings = None
+    raise ValueError("Missing { ./config/__init__.py } module.") from exception
+
+if not settings:
     raise ValueError("Missing { ./config/settings.py } module.")
 
-if not hasattr(config.settings, "BASE_DIR"):
+if not hasattr(settings, "BASE_DIR"):
     raise ValueError(
         """Missing { pathlib.Path(__file__).parents[1] } in file { ./config/settings.py }."""
     )
 
 # Core
 PROJECT = config
-SETTINGS = config.settings
-BASE_DIR = config.settings.BASE_DIR
+SETTINGS = settings
+BASE_DIR = settings.BASE_DIR
 
 # Global Methods
 inject_apps_folder(BASE_DIR)

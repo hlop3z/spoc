@@ -7,20 +7,23 @@ nav:
   - Introduction: index.md
   - Definitions: definitions.md
   - Getting Started: getting-started.md
-  - First Project:
-      - Introduction: index.md
-      - Definitions: definitions.md
-      - Getting Started: getting-started.md
+  # - First Project:
+  # - Project: first-project/0.md
+  # - Config: first-project/1.md
+  # - Framework: first-project/2.md
+  # - Component: first-project/3.md
+  # - Extras: first-project/4.md
 
 # Configurations
 extra_css:
   - css/extra.css
   - css/termynal.css
-extra_javascript:
-  - js/termynal.js
-  - js/demo.js
+
+watch:
+  - custom_theme
 
 theme:
+  custom_dir: custom_theme/
   name: material
   locale: en
   features:
