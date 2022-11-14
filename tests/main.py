@@ -1,4 +1,5 @@
 from framework import MyFramework
+import spoc 
 
 test = MyFramework()
 
@@ -11,3 +12,4 @@ for method in test.extras['middleware']:
     
 
 # print(test.plugin.commands.values())
+print(spoc.settings)

@@ -10,6 +10,12 @@
 | **`config`**   | Core (**Settings**) **`TOML`** files are **loaded here** (**`spoc.toml`**, **`pyproject.toml`** and **`{env}.toml`**). |
 | **`settings`** | Pythonic (**Settings**) are **loaded here** (**`settings.py`**).                                                       |
 
+**Example:**
+
+```python
+spoc.settings
+```
+
 ## **Core** Tools
 
 | Key                | Description                                                     | Variable(s)                      |

@@ -1,7 +1,7 @@
 [project]
 name = "spoc"
-version = "0.1.8"
-description = ""
+version = "0.1.9"
+description = "Framework Builder"
 authors = [
     {name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com"},
 ]
@@ -36,6 +36,7 @@ test = [
 ]
 devops = [
     "click>=8.1.3",
+    "twine>=4.0.1",
 ]
 docs = [
     "mkdocs>=1.3.1",
@@ -54,4 +55,5 @@ docs-dev = {shell = "cd docs/ && python -m mkdocs serve --dev-addr 0.0.0.0:8055"
 docs-gh = {shell = "cd docs/ && python -m mkdocs gh-deploy --force"}
 # Tests
 test = "python tests/main.py"
-
+# PyPi Upload
+pypi = "twine upload dist/*"

@@ -5,12 +5,20 @@ copyright: Copyright © hlop3z
 
 nav:
   - Introduction: index.md
-  - Getting Started: getting-started.md
   - Definitions: definitions.md
+  - Getting Started: getting-started.md
+  - First Project:
+      - Introduction: index.md
+      - Definitions: definitions.md
+      - Getting Started: getting-started.md
 
 # Configurations
 extra_css:
   - css/extra.css
+  - css/termynal.css
+extra_javascript:
+  - js/termynal.js
+  - js/demo.js
 
 theme:
   name: material
@@ -25,7 +33,6 @@ theme:
     # - navigation.expand
   icon:
     logo: material/webhook
-
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default

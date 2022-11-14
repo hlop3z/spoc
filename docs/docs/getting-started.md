@@ -50,50 +50,58 @@ flowchart LR
 
 ```
 
+> Create your **root** folder. For example **`myproject/`**
+
+<div id="terminal-0" data-termynal></div>
+
 ---
 
 ## Folder(s) **Setup**
 
 ```text
-root/                   --> <Directory> - Project's Root.
+root/                   --> <Directory> - Project's Root
 |
-|-- config/             --> <Directory> - Project's Configurations.
-|   |-- settings.py     --> <File> - Settings { Pythonic }.
-|   |-- spoc.toml       --> <File> - Settings { TOML }.
-|   `-- .env/           --> <Directory> - Settings { Environment Variables }.
+|-- config/             --> <Directory> - Project's Configurations
+|   |-- settings.py     --> <File> - Settings { Pythonic }
+|   |-- spoc.toml       --> <File> - Settings { TOML }
+|   `-- .env/           --> <Directory> - Settings { Environment Variables }
 |       |-- development.toml
 |       |-- production.toml
 |       `-- staging.toml
 |
-|--  framework/         --> <Directory> - Framework Demo.
+|--  framework/         --> <Directory> - Framework Demo
 |   |-- __init__.py
-|   |-- components.py   --> <File> - The Framework { Components }.
-|   `-- framework.py    --> <File> - The { Framework }.
+|   |-- components.py   --> <File> - The Framework { Components }
+|   `-- framework.py    --> <File> - The { Framework }
 |
-|--  apps/              --> <Directory> - { Apps } in HERE (aka: Py-Packages).
+|--  apps/              --> <Directory> - { Apps } in HERE (aka: Py-Packages)
 |   |-- app_one/
 |   |-- app_two/
 |   |-- etc...
 |   `-- demo/
 |       |
-|       |-- __init__.py   --> <File> - Converts { Folder } to a Python { Package }
+|       |-- __init__.py   --> <File> - Converts { Folder } to Python { Package }
 |       |
-|       |-- commands.py   --> <File> - Create Multiple { Commands } Here.
+|       |-- commands.py   --> <File> - Create Multiple { Commands } Here
 |       |
-|       |-- models.py     --> <File> - Create Multiple { Models } Here.
+|       |-- models.py     --> <File> - Create Multiple { Models } Here
 |       |
-|       `-- views.py      --> <File> - Create Multiple { Views } Here.
+|       `-- views.py      --> <File> - Create Multiple { Views } Here
 |
-|--  main.py            --> <File> Main File
+|--  main.py              --> <File> - Main File
 |
 `-- etc...
 ```
+
+> Create files for the **Settings**.
+
+<div id="terminal-1" data-termynal></div>
 
 ## TOML **SPOC**
 
 !!! abstract "Settings"
 
-    Let's start by creating the **Project Settings**.
+    Lets start by creating the **Project Settings**.
 
     - Imagine you have a **folder** called **`config/`**
 
@@ -114,6 +122,27 @@ middleware = ["demo.middleware.test"] # (3)
 1. **Custom** uses **`settings.py`**.
 2. **Apps** is where you select the "**Installed Apps**" for each **phase** of the **project**.
 3. **Extras** are to create **`internal`** tools.
+
+## Python **Settings**
+
+```python title="config/settings.py"
+# -*- coding: utf-8 -*-
+""" [Settings]
+    Project Settings { app.settings }.
+"""
+
+import pathlib
+
+# Base Directory
+BASE_DIR = pathlib.Path(__file__).parents[1]
+
+# Installed Apps
+INSTALLED_APPS = []
+```
+
+> Create files for the **Framework**.
+
+<div id="terminal-2" data-termynal></div>
 
 ## **Setup** Framework (Demo)
 
@@ -159,7 +188,7 @@ middleware = ["demo.middleware.test"] # (3)
                 "pyproject",
                 "spoc",
                 "settings",
-                "plugin",
+                "component",
                 "extras",
             ]
     ```
@@ -174,6 +203,7 @@ middleware = ["demo.middleware.test"] # (3)
     ```python title="framework/components.py"
     # -*- coding: utf-8 -*-
     """{ Components } Read The Docs"""
+
     import spoc
 
     components = {}
@@ -200,6 +230,7 @@ middleware = ["demo.middleware.test"] # (3)
     ```python title="framework/__init__.py"
     # -*- coding: utf-8 -*-
     """{ Module } Read The Docs"""
+
     from .components import commands, components
     from .framework import MyFramework
     ```
@@ -209,12 +240,28 @@ middleware = ["demo.middleware.test"] # (3)
     !!! warning
         The **path** for this **file** is **"`apps/demo/`"** **not** **"`framework/`"**
 
+    <div id="terminal-3" data-termynal></div>
+
     ```python title="apps/demo/commands.py"
     # -*- coding: utf-8 -*-
     """{ Demo } Read The Docs"""
+
     from framework import commands
 
     @commands
     def hello_world():
         print("Hello World (Commands)")
     ```
+
+## **Test** Framework (Demo)
+
+<div id="terminal-4" data-termynal></div>
+
+```python title="main.py"
+from framework import MyFramework
+import spoc
+
+app = MyFramework()
+
+print(app.component.commands['demo.hello_world'].object)
+```
