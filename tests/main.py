@@ -1,12 +1,13 @@
 from framework import MyFramework
-from components import command, COMPONENT
 
-import spoc
+test = MyFramework()
 
-@command
-def test():
-    print("Hello World")
+print(test.env)
 
+print(test.component.commands['demo.test'].object)
 
-print(spoc.is_component(test, COMPONENT["command"]))
+for method in test.extras['middleware']:
+    print(method)
+    
 
+# print(test.plugin.commands.values())

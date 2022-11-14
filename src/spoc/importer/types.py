@@ -21,7 +21,7 @@ class Class:
     module: str = None
     key: str = None
     uri: str = None
-    cls: typing.Any = None
+    object: typing.Any = None
 
 
 @dc.dataclass(frozen=True)

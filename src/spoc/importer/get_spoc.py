@@ -30,7 +30,7 @@ def get_spoc(plugins: dict) -> Spoc:
                             module=current.module,
                             key=module_uri,
                             uri=global_uri,
-                            cls=active_class,
+                            object=active_class,
                         )
                         global_dict[global_uri] = active_class
         # FrozenDict

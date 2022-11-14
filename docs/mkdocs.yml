@@ -5,6 +5,8 @@ copyright: Copyright © hlop3z
 
 nav:
   - Introduction: index.md
+  - Getting Started: getting-started.md
+  - Definitions: definitions.md
 
 # Configurations
 extra_css:
@@ -14,7 +16,7 @@ theme:
   name: material
   locale: en
   features:
-    - navigation.tabs
+    # - navigation.tabs
     - navigation.instant
     - navigation.tracking
     - navigation.sections
@@ -39,6 +41,7 @@ theme:
         name: Switch to light mode
 
 markdown_extensions:
+  - admonition
   - tables
   - pymdownx.highlight:
       anchor_linenums: true

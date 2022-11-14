@@ -70,7 +70,7 @@ class Spoc:
         self.installed_apps = installed_apps
         self.extras = framework.extras
         self.module = framework.module
-        self.plugin = framework.plugin
+        self.component = framework.plugin
 
         os.chdir(BASE_DIR)
 
@@ -86,5 +86,5 @@ class Spoc:
             "settings",
             "extras",
             "module",
-            "plugin",
+            "component",
         ]

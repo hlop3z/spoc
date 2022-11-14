@@ -1,3 +1,13 @@
 [spoc]
 mode = "custom" # development, production, staging, custom
 custom_mode = "development"
+
+[spoc.apps]
+production = []
+development = []
+staging = []
+
+[spoc.extras]
+middleware = ["demo.middleware.test"]
+on_startup = []
+on_shutdown = []
