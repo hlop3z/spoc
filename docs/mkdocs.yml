@@ -7,18 +7,16 @@ nav:
   - Introduction: index.md
   - Definitions: definitions.md
   - Getting Started: getting-started.md
-  # - First Project:
-  # - Project: first-project/0.md
-  # - Config: first-project/1.md
-  # - Framework: first-project/2.md
-  # - Component: first-project/3.md
-  # - Extras: first-project/4.md
+  - First Project:
+    - Overview: first-project/overview.md
+    - Project: first-project/project.md
+    - Config: first-project/config.md
+    - Component(s): first-project/component.md
+    - Framework: first-project/framework.md
+    - Extras: first-project/extras.md
+    - Testing: first-project/testing.md
 
 # Configurations
-extra_css:
-  - css/extra.css
-  - css/termynal.css
-
 watch:
   - custom_theme
 

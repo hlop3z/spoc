@@ -1,4 +1,6 @@
-<div id="terminal-firstproject-1" data-termynal></div>
+<div id="terminal-config" data-termynal></div>
+
+## File: **settings.py**
 
 ```python title="config/settings.py"
 # -*- coding: utf-8 -*-
@@ -12,14 +14,17 @@ import pathlib
 BASE_DIR = pathlib.Path(__file__).parents[1]
 
 # Installed Apps
-INSTALLED_APPS = []
+INSTALLED_APPS = [] # works only with <mode = "custom">
 ```
+
+## File: **spoc.toml**
 
 ```toml title="config/spoc.toml"
 [spoc]
-mode = "development"
+mode = "development" # custom
 # custom_mode = "development"
 
+# Mode(s)
 [spoc.apps]
 production = []
 development = ["demo"]
@@ -28,6 +33,8 @@ staging = []
 [spoc.extras]
 before_server = ["demo.middleware.on_event"]
 ```
+
+## File: **development.toml**
 
 ```toml title="config/.env/development.toml"
 [env]

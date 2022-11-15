@@ -1,4 +1,4 @@
-<div id="terminal-firstproject-0" data-termynal></div>
+<div id="terminal-project" data-termynal></div>
 
 ## Folder(s) **Setup**
 

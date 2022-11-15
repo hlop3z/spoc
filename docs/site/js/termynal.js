@@ -214,7 +214,7 @@ if (document.currentScript.hasAttribute("data-termynal-container")) {
   containers.split("|").forEach((container) => new Termynal(container));
 }
 
-function terminal(ID, data) {
+function createTerminal(ID, data) {
   try {
     new Termynal(ID, {
       startDelay: 0,
@@ -224,4 +224,25 @@ function terminal(ID, data) {
   } catch (e) {
     e;
   }
+}
+
+const TERMINALS = {};
+
+function getTerminal(ID) {
+  TERMINALS[ID] = document.querySelector(ID);
+  return TERMINALS[ID];
+}
+
+function terminal(ID, data) {
+  let active = getTerminal(ID);
+  if (active) {
+    createTerminal(ID, data);
+  }
+  const mins = 0.1;
+  setInterval(() => {
+    if (!active) {
+      createTerminal(ID, data);
+    }
+    active = getTerminal(ID);
+  }, 1000);
 }

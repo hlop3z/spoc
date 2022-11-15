@@ -26,6 +26,8 @@
     - That it also contains a **file** named **`middleware.py`**
     - That contains a **function** also named **`test`**
 
+    > This part you will **learn more** under **Extras**
+
     **Example:**
 
     ```python title="apps/demo/middleware.py"
@@ -259,7 +261,6 @@ INSTALLED_APPS = []
 
 ```python title="main.py"
 from framework import MyFramework
-import spoc
 
 app = MyFramework()
 
