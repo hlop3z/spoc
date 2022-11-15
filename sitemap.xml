@@ -16,27 +16,37 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://hlop3z.github.io/spoc/first-project/0/</loc>
+         <loc>https://hlop3z.github.io/spoc/first-project/component/</loc>
          <lastmod>2022-11-15</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://hlop3z.github.io/spoc/first-project/1/</loc>
+         <loc>https://hlop3z.github.io/spoc/first-project/config/</loc>
          <lastmod>2022-11-15</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://hlop3z.github.io/spoc/first-project/2/</loc>
+         <loc>https://hlop3z.github.io/spoc/first-project/extras/</loc>
          <lastmod>2022-11-15</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://hlop3z.github.io/spoc/first-project/3/</loc>
+         <loc>https://hlop3z.github.io/spoc/first-project/framework/</loc>
          <lastmod>2022-11-15</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://hlop3z.github.io/spoc/first-project/4/</loc>
+         <loc>https://hlop3z.github.io/spoc/first-project/overview/</loc>
+         <lastmod>2022-11-15</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://hlop3z.github.io/spoc/first-project/project/</loc>
+         <lastmod>2022-11-15</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://hlop3z.github.io/spoc/first-project/testing/</loc>
          <lastmod>2022-11-15</lastmod>
          <changefreq>daily</changefreq>
     </url>
