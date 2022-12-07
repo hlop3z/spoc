@@ -1,11 +1,11 @@
 """
     DataClasses
-    
+
     * Class
-    * Global    
-    * Core    
-    * Definition    
-    * App    
+    * Global
+    * Core
+    * Definition
+    * App
 """
 
 import dataclasses as dc

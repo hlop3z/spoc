@@ -55,6 +55,8 @@ TOML_DIR = frozendict(TOML_DIR)
 
 @singleton
 class Spoc:
+    """Core Object(Singleton) for the whole Framework"""
+
     base_dir = BASE_DIR
     config = TOML_DIR
     mode = MODE
