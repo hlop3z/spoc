@@ -15,16 +15,17 @@ from .inject import (
 )
 from .singleton import singleton
 
+
+from . import installer
+
 try:
     import config
-
 except ImportError as exception:
-    raise ValueError("Missing { ./config/__init__.py } module.") from exception
+    installer.create_base()
 
 try:
     from config import settings
 except ImportError as exception:
-    settings = None
     raise ValueError("Missing { ./config/__init__.py } module.") from exception
 
 if not settings:
@@ -32,7 +33,7 @@ if not settings:
 
 if not hasattr(settings, "BASE_DIR"):
     raise ValueError(
-        """Missing { pathlib.Path(__file__).parents[1] } in file { ./config/settings.py }."""
+        """Missing { `BASE_DIR = pathlib.Path(__file__).parents[1]` } in file { ./config/settings.py }."""
     )
 
 # Core
