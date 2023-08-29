@@ -272,6 +272,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#spoc-allows-you-to-collect-designated-objects" class="md-nav__link">
+    SPOC allows you to collect designated Objects
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#spoc-workflow" class="md-nav__link">
     Spoc WorkFlow
   </a>
@@ -477,6 +484,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#spoc-allows-you-to-collect-designated-objects" class="md-nav__link">
+    SPOC allows you to collect designated Objects
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#spoc-workflow" class="md-nav__link">
     Spoc WorkFlow
   </a>
@@ -502,16 +516,16 @@
 
 
 <h1 id="welcome-to-spoc">Welcome to <strong>S.P.O.C</strong></h1>
-<p><strong>SPOC</strong> aims to be the <strong>base</strong> for building <strong>elastic</strong> <strong><code>frameworks</code></strong>.
-The idea is to create a schema for your <strong>project</strong>(s) and then build up on that <strong>schema</strong>.</p>
+<p><strong>SPOC</strong> serves as the foundation for constructing dynamic and adaptable <strong><code>frameworks</code></strong>. The concept involves creating a schema for your <strong>project</strong>(s) and building upon that foundational <strong>schema</strong>.</p>
 <blockquote>
-<p><strong>S.P.O.C</strong> is the acronym of <strong>Single Point of Connections</strong></p>
+<p><strong>S.P.O.C</strong> stands for <strong>Single Point of Connections</strong></p>
 </blockquote>
 <div id="terminal-root" data-termynal></div>
 
+<h2 id="spoc-allows-you-to-collect-designated-objects"><strong>SPOC</strong> allows you to <strong>collect</strong> designated <strong><code>Objects</code></strong></h2>
 <div class="admonition abstract">
 <p class="admonition-title">Components</p>
-<p>To put it in a simple way, <strong>SPOC</strong> will <strong>collect</strong> all of the <strong><code>Objects</code></strong> you <strong>mark</strong> aka: <strong><code>@decorate</code></strong> as a <strong>Component</strong>(s).</p>
+<p><strong>Components</strong> are created by marking specific <strong><code>Objects</code></strong> with a <strong><code>@custom_decorator</code></strong>.</p>
 <div class="highlight"><span class="filename">example.py</span><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nd">@component</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">def</span> <span class="nf">hello_world</span><span class="p">():</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello World&quot;</span><span class="p">)</span>
@@ -519,7 +533,8 @@ The idea is to create a schema for your <strong>project</strong>(s) and then bui
 </div>
 <div class="admonition abstract">
 <p class="admonition-title">Extras</p>
-<p>To put it in a simple way, <strong>SPOC</strong> will <strong>collect</strong> all of the <strong>Extra(s)</strong> <strong><code>Objects</code></strong> you <strong>list</strong> aka: <strong><code>register</code></strong> as a type of <strong>Extra</strong>(s).</p>
+<p>To load <strong>Extras</strong>, list them within a dedicated <strong><code>attribute</code></strong>.</p>
+<p>For example: <strong><code>middleware</code></strong> or <strong><code>before_server</code></strong> inside the <strong><code>spoc.toml</code></strong> configuration file.</p>
 <div class="highlight"><span class="filename">spoc.toml</span><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[spoc]</span><span class="w"></span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># ...</span><span class="w"></span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>

@@ -73,7 +73,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#file-settingspy" class="md-skip">
+        <a href="#file-spoctoml" class="md-skip">
           Skip to content
         </a>
       
@@ -371,15 +371,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#file-settingspy" class="md-nav__link">
-    File: settings.py
+  <a href="#file-spoctoml" class="md-nav__link">
+    File: spoc.toml
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#file-spoctoml" class="md-nav__link">
-    File: spoc.toml
+  <a href="#file-settingspy-custom" class="md-nav__link">
+    File: settings.py (custom)
   </a>
   
 </li>
@@ -487,15 +487,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#file-settingspy" class="md-nav__link">
-    File: settings.py
+  <a href="#file-spoctoml" class="md-nav__link">
+    File: spoc.toml
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#file-spoctoml" class="md-nav__link">
-    File: spoc.toml
+  <a href="#file-settingspy-custom" class="md-nav__link">
+    File: settings.py (custom)
   </a>
   
 </li>
@@ -527,37 +527,47 @@
 
   <h1>Config</h1>
 
+<p><strong>Crafting Your Configuration Files</strong></p>
+<p>In the process of setting up your project, crafting configuration files is a pivotal step. These files contain settings, parameters, and options that tailor the behavior of your application to your specific needs. Configuration files ensure that your application runs seamlessly across various environments and can be easily customized without altering the codebase.</p>
+<p><strong>Consider these important configuration files:</strong></p>
+<p><strong><code>spoc.toml</code></strong>: This file, named after the S.P.O.C framework, houses core configuration settings. It's where you define project-wide preferences, such as installed apps, framework extras, and global options. Modifying this file allows you to fine-tune the behavior of your framework.</p>
+<p><strong><code>settings.py</code></strong>: A common configuration file in Python projects, it contains application-specific settings. These settings might include database configurations, security options, logging preferences, and more. Separating these settings from your codebase promotes modularity and maintainability.</p>
 <div id="terminal-config" data-termynal></div>
 
-<h2 id="file-settingspy">File: <strong>settings.py</strong></h2>
-<div class="highlight"><span class="filename">config/settings.py</span><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># -*- coding: utf-8 -*-</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="sd">    { Settings }</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="kn">import</span> <span class="nn">pathlib</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># Base Directory</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">BASE_DIR</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># Installed Apps</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">INSTALLED_APPS</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># works only with &lt;mode = &quot;custom&quot;&gt;</span>
-</code></pre></div>
 <h2 id="file-spoctoml">File: <strong>spoc.toml</strong></h2>
-<div class="highlight"><span class="filename">config/spoc.toml</span><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[spoc]</span><span class="w"></span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;development&quot;</span><span class="w"> </span><span class="c1"># custom</span><span class="w"></span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># custom_mode = &quot;development&quot;</span><span class="w"></span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Mode(s)</span><span class="w"></span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">[spoc.apps]</span><span class="w"></span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">production</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[]</span><span class="w"></span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">development</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;demo&quot;</span><span class="p">]</span><span class="w"></span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">staging</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[]</span><span class="w"></span>
+<div class="highlight"><span class="filename">config/spoc.toml</span><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[spoc]</span><span class="w"></span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;custom&quot;</span><span class="w"></span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">custom_mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;development&quot;</span><span class="w"></span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Mode(s)</span><span class="w"></span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="k">[spoc.apps]</span><span class="w"></span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">production</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[]</span><span class="w"></span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">development</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;demo&quot;</span><span class="p">]</span><span class="w"></span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">staging</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[]</span><span class="w"></span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="k">[spoc.extras]</span><span class="w"></span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">before_server</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;demo.middleware.on_event&quot;</span><span class="p">]</span><span class="w"></span>
+</code></pre></div>
+<h2 id="file-settingspy-custom">File: <strong>settings.py</strong> (<strong><code>custom</code></strong>)</h2>
+<div class="highlight"><span class="filename">config/settings.py</span><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># -*- coding: utf-8 -*-</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="sd">    { Settings }</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="kn">import</span> <span class="nn">pathlib</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Base Directory</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">BASE_DIR</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">[spoc.extras]</span><span class="w"></span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">before_server</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;demo.middleware.on_event&quot;</span><span class="p">]</span><span class="w"></span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># Installed Apps</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">INSTALLED_APPS</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># works only with &lt;mode = &quot;custom&quot;&gt;</span>
 </code></pre></div>
 <h2 id="file-developmenttoml">File: <strong>development.toml</strong></h2>
+<ul>
+<li><strong><code>development</code></strong></li>
+<li><strong><code>production</code></strong></li>
+<li><strong><code>staging</code></strong></li>
+</ul>
 <div class="highlight"><span class="filename">config/.env/development.toml</span><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[env]</span><span class="w"></span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">DEBUG</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;yes&quot;</span><span class="w"></span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">SECRET_KEY</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;api-not-secure-key-09d25e094faa6ca2556c&quot;</span><span class="w"></span>

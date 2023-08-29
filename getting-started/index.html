@@ -302,6 +302,20 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#first-component" class="md-nav__link">
+    First Component
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#first-extra" class="md-nav__link">
+    First Extra
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#frameworks-workflow-example" class="md-nav__link">
     Framework's WorkFlow (Example)
   </a>
@@ -312,6 +326,19 @@
   <a href="#folders-setup" class="md-nav__link">
     Folder(s) Setup
   </a>
+  
+    <nav class="md-nav" aria-label="Folder(s) Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-files-for-the-settings" class="md-nav__link">
+    Create files for the Settings.
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -326,6 +353,19 @@
   <a href="#python-settings" class="md-nav__link">
     Python Settings
   </a>
+  
+    <nav class="md-nav" aria-label="Python Settings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-files-for-the-framework" class="md-nav__link">
+    Create files for the Framework.
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -512,6 +552,20 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#first-component" class="md-nav__link">
+    First Component
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#first-extra" class="md-nav__link">
+    First Extra
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#frameworks-workflow-example" class="md-nav__link">
     Framework's WorkFlow (Example)
   </a>
@@ -522,6 +576,19 @@
   <a href="#folders-setup" class="md-nav__link">
     Folder(s) Setup
   </a>
+  
+    <nav class="md-nav" aria-label="Folder(s) Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-files-for-the-settings" class="md-nav__link">
+    Create files for the Settings.
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -536,6 +603,19 @@
   <a href="#python-settings" class="md-nav__link">
     Python Settings
   </a>
+  
+    <nav class="md-nav" aria-label="Python Settings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-files-for-the-framework" class="md-nav__link">
+    Create files for the Framework.
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -572,37 +652,41 @@
 
 
 <h1 id="getting-started">Getting <strong>Started</strong></h1>
-<div class="admonition abstract">
-<p class="admonition-title">Framework</p>
-<p>Let's build our first <strong>Framework</strong></p>
+<h2 id="first-component">First <strong>Component</strong></h2>
+<p>Imagine you have a <strong>structure</strong> like this:</p>
 <ul>
-<li>Imagine you have a <strong>folder</strong> named <strong><code>apps/</code></strong></li>
-<li>That contains a <strong>folder</strong> (<strong><code>module</code></strong>) named <strong><code>demo/</code></strong></li>
-<li>That contains a <strong>file</strong> named <strong><code>commands.py</code></strong></li>
-<li>That contains a <strong>function</strong> named <strong><code>test</code></strong></li>
+<li>You have a <strong>folder</strong> named <strong><code>apps/</code></strong></li>
+<li>Within that folder, there's another folder named <strong><code>demo/</code></strong> aka (<strong><code>module</code></strong>)</li>
+<li>Inside the <strong><code>demo/</code></strong> folder, there's a <strong>file</strong> named <strong><code>commands.py</code></strong></li>
+<li>Inside <strong><code>commands.py</code></strong>, there's a <strong>function</strong> named <strong><code>hello_world</code></strong></li>
 </ul>
-<p><strong>Example:</strong></p>
-<div class="highlight"><span class="filename">apps/demo/commands.py</span><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">framework</span> <span class="kn">import</span> <span class="n">commands</span> <span class="c1"># (1)</span>
+<div class="admonition abstract">
+<p class="admonition-title">Example</p>
+<div class="highlight"><span class="filename">apps/demo/commands.py</span><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">framework</span> <span class="kn">import</span> <span class="n">commands</span>  <span class="c1"># (1)</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nd">@commands</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">def</span> <span class="nf">test</span><span class="p">():</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">def</span> <span class="nf">hello_world</span><span class="p">():</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello World (Commands)&quot;</span><span class="p">)</span>
 </code></pre></div>
 <ol>
-<li><strong>Explained Later ...</strong></li>
+<li>We'll explain this part later...</li>
 </ol>
-<p><strong>Then</strong> Imagine ...</p>
+</div>
+<h2 id="first-extra">First <strong>Extra</strong></h2>
+<p>Now, let's continue the scenario:</p>
 <ul>
-<li>That it also contains a <strong>file</strong> named <strong><code>middleware.py</code></strong></li>
-<li>That contains a <strong>function</strong> also named <strong><code>test</code></strong></li>
+<li>In the same <code>demo/</code> folder, there's a <strong>file</strong> named <strong><code>middleware.py</code></strong></li>
+<li>Inside <code>middleware.py</code>, there's a <strong>function</strong> named <strong><code>hello_world_middleware</code></strong></li>
 </ul>
-<blockquote>
-<p>This part you will <strong>learn more</strong> under <strong>Extras</strong></p>
-</blockquote>
-<p><strong>Example:</strong></p>
-<div class="highlight"><span class="filename">apps/demo/middleware.py</span><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">def</span> <span class="nf">test</span><span class="p">():</span>
+<div class="admonition abstract">
+<p class="admonition-title">Example</p>
+<div class="highlight"><span class="filename">apps/demo/middleware.py</span><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">def</span> <span class="nf">hello_world_middleware</span><span class="p">():</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello World (Middleware)&quot;</span><span class="p">)</span>
 </code></pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You'll delve deeper into this aspect as you learn about <strong>Extras</strong>.</p>
 </div>
 <hr />
 <h2 id="frameworks-workflow-example">Framework's <strong>WorkFlow (Example)</strong></h2>
@@ -616,9 +700,7 @@
     D--&gt;F;
     E--&gt;F;
 </code></pre>
-<blockquote>
 <p>Create your <strong>root</strong> folder. For example <strong><code>myproject/</code></strong></p>
-</blockquote>
 <div id="terminal-0" data-termynal></div>
 
 <hr />
@@ -644,21 +726,19 @@
 <a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>|   |-- etc...
 <a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>|   `-- demo/
 <a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>|       |
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>|       |-- __init__.py   --&gt; &lt;File&gt; - Converts { Folder } to Python { Package }
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>|       |-- __init__.py --&gt; &lt;File&gt; - Converts { Folder } to Python { Package }
 <a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>|       |
-<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>|       |-- commands.py   --&gt; &lt;File&gt; - Create Multiple { Commands } Here
+<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>|       |-- commands.py --&gt; &lt;File&gt; - Create Multiple { Commands } Here
 <a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>|       |
-<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>|       |-- models.py     --&gt; &lt;File&gt; - Create Multiple { Models } Here
+<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>|       |-- models.py   --&gt; &lt;File&gt; - Create Multiple { Models } Here
 <a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>|       |
-<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>|       `-- views.py      --&gt; &lt;File&gt; - Create Multiple { Views } Here
+<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>|       `-- views.py    --&gt; &lt;File&gt; - Create Multiple { Views } Here
 <a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a>|
-<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a>|--  main.py              --&gt; &lt;File&gt; - Main File
+<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a>|--  main.py            --&gt; &lt;File&gt; - Main File
 <a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a>|
 <a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a>`-- etc...
 </code></pre></div>
-<blockquote>
-<p>Create files for the <strong>Settings</strong>.</p>
-</blockquote>
+<h3 id="create-files-for-the-settings">Create files for the <strong>Settings</strong>.</h3>
 <div id="terminal-1" data-termynal></div>
 
 <h2 id="toml-spoc">TOML <strong>SPOC</strong></h2>
@@ -670,7 +750,7 @@
 </ul>
 </div>
 <div class="highlight"><span class="filename">config/spoc.toml</span><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[spoc]</span><span class="w"></span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;production&quot;</span><span class="w"> </span><span class="c1"># development, production, staging, custom</span><span class="w"></span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;production&quot;</span><span class="w"> </span><span class="c1"># custom, development, production, staging</span><span class="w"></span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># (1) custom_mode = &quot;development&quot;</span><span class="w"></span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">[</span><span class="n">spoc</span><span class="p">.</span><span class="n">apps</span><span class="p">]</span><span class="w"> </span><span class="c1"># (2)</span><span class="w"></span>
@@ -679,7 +759,7 @@
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">staging</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[]</span><span class="w"></span>
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
 <a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="k">[spoc.extras]</span><span class="w"></span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">middleware</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;demo.middleware.test&quot;</span><span class="p">]</span><span class="w"> </span><span class="c1"># (3)</span><span class="w"></span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">middleware</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;demo.middleware.hello_world_middleware&quot;</span><span class="p">]</span><span class="w"> </span><span class="c1"># (3)</span><span class="w"></span>
 </code></pre></div>
 <ol>
 <li><strong>Custom</strong> uses <strong><code>settings.py</code></strong>.</li>
@@ -700,9 +780,7 @@
 <a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1"># Installed Apps</span>
 <a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="n">INSTALLED_APPS</span> <span class="o">=</span> <span class="p">[]</span>
 </code></pre></div>
-<blockquote>
-<p>Create files for the <strong>Framework</strong>.</p>
-</blockquote>
+<h3 id="create-files-for-the-framework">Create files for the <strong>Framework</strong>.</h3>
 <div id="terminal-2" data-termynal></div>
 
 <h2 id="setup-framework-demo"><strong>Setup</strong> Framework (Demo)</h2>
@@ -781,7 +859,7 @@
 </code></pre></div>
 <div class="admonition abstract">
 <p class="admonition-title">Components</p>
-<p>Remember I said I'll "<strong>Explained Later</strong>". Here we created a component <strong>registration system</strong> by using <strong><code>@decorator</code></strong>(s)</p>
+<p>You might recall that I mentioned "Explained Later." Well, here we've established a component registration system using <strong><code>@decorator</code></strong> annotations.</p>
 </div>
 </div>
 <div class="tabbed-block">
