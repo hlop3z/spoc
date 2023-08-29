@@ -1,6 +1,8 @@
+As you journey into crafting dynamic applications using the **S.P.O.C** framework, creating custom components is a fundamental skill to master. Components encapsulate discrete units of functionality, promoting modularity, reusability, and maintainability within your project.
+
 <div id="terminal-component" data-termynal></div>
 
-## Component(s): **@Decorator**
+## Creating a Component: **@Decorator**
 
 ```python title="framework/components.py"
 # -*- coding: utf-8 -*-
@@ -10,10 +12,10 @@ import functools
 import spoc
 import click
 
-components = {}
-components["commands"] = {"type": "commands"}
+COMPONENTS = {}
+COMPONENTS["commands"] = {"type": "commands"}
 
-# Class @Decorator
+# Decorator: `@commands`
 def commands(
     cls: object = None,
     *,
@@ -25,16 +27,23 @@ def commands(
             commands,
             group=group,
         )
-    # Real Wrapper
+
+    # Real Wrapper (click)
     cls = click.group(cls)
+
+    # Register as a `SPOC` Component if not a command group.
     if not group:
-        spoc.component(cls, metadata=components["commands"])
+        spoc.component(cls, metadata=COMPONENTS["commands"])
+
+    # Return Modified Class
     return cls
 ```
 
 <div id="terminal-component-commands" data-termynal></div>
 
-## Component(s): **Commands**
+## Using the Component: **`@commands`**
+
+By marking your function with the **`@commands`** decorator. This annotation flags the function as a **component** and **registers** it for future use.
 
 ```python title="apps/demo/commands.py"
 # -*- coding: utf-8 -*-

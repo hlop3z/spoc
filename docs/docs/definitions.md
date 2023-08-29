@@ -2,13 +2,13 @@
 
 ## **Global** Tools
 
-| API                 | Description                                                                                                            |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| **`base_dir`**      | The base **Directory**. Path to **the project**.                                                                       |
-| **`mode`**          | Framework's current **mode** (**`development`, `production`, `staging`** and **`custom`**).                            |
-| **`config`**        | Core (**Settings**) **`TOML`** files are **loaded here** (**`spoc.toml`**, **`pyproject.toml`** and **`{env}.toml`**). |
-| **`config['env']`** | **Environment Variables** `TOML` file **`{env}.toml`** **Options** (**`development`, `production` , `staging`**).      |
-| **`settings`**      | Pythonic (**Settings**) are **loaded here** (**`settings.py`**).                                                       |
+| <div style="width: 100px;">API</div> | <div>Description</div>                                                                                                 |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| **`base_dir`**                       | The base **Directory**. Path to **the project**.                                                                       |
+| **`mode`**                           | Framework's current **mode** (**`development`, `production`, `staging`** and **`custom`**).                            |
+| **`config`**                         | Core (**Settings**) **`TOML`** files are **loaded here** (**`spoc.toml`**, **`pyproject.toml`** and **`{env}.toml`**). |
+| **`config['env']`**                  | **Environment Variables** `TOML` file **`{env}.toml`** **Options** (**`development`, `production` , `staging`**).      |
+| **`settings`**                       | Pythonic (**Settings**) are **loaded here** (**`settings.py`**).                                                       |
 
 **Example:**
 

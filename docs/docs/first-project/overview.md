@@ -1,8 +1,8 @@
-If you have reached this far, it means that you have **successfully** created your first "**Framework**" but really it doesn't do much.
+Congratulations! If you've made it this far, you've **successfully** crafted your first **`Framework`**. However, its capabilities might seem modest at the moment.
 
-**¿Or does it?**
+**Or do they?**
 
-Now, we will learn how to build something more sophisticated. For example putting together all those commands and using them in an application.
+Now, we're set to delve into creating something more intricate. Imagine assembling all those commands and employing them within an actual application.
 
 ```mermaid
 flowchart LR

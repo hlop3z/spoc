@@ -1,39 +1,43 @@
 # Getting **Started**
 
-!!! abstract "Framework"
+## First **Component**
 
-    Let's build our first **Framework**
+Imagine you have a **structure** like this:
 
-    - Imagine you have a **folder** named **`apps/`**
-    - That contains a **folder** (**`module`**) named **`demo/`**
-    - That contains a **file** named **`commands.py`**
-    - That contains a **function** named **`test`**
+- You have a **folder** named **`apps/`**
+- Within that folder, there's another folder named **`demo/`** aka (**`module`**)
+- Inside the **`demo/`** folder, there's a **file** named **`commands.py`**
+- Inside **`commands.py`**, there's a **function** named **`hello_world`**
 
-    **Example:**
+!!! abstract "Example"
 
     ```python title="apps/demo/commands.py"
-    from framework import commands # (1)
+    from framework import commands  # (1)
 
     @commands
-    def test():
+    def hello_world():
         print("Hello World (Commands)")
     ```
 
-    1. **Explained Later ...**
+    1. We'll explain this part later...
 
-    **Then** Imagine ...
+## First **Extra**
 
-    - That it also contains a **file** named **`middleware.py`**
-    - That contains a **function** also named **`test`**
+Now, let's continue the scenario:
 
-    > This part you will **learn more** under **Extras**
+- In the same `demo/` folder, there's a **file** named **`middleware.py`**
+- Inside `middleware.py`, there's a **function** named **`hello_world_middleware`**
 
-    **Example:**
+!!! abstract "Example"
 
     ```python title="apps/demo/middleware.py"
-    def test():
+    def hello_world_middleware():
         print("Hello World (Middleware)")
     ```
+
+!!! note
+
+    You'll delve deeper into this aspect as you learn about **Extras**.
 
 ---
 
@@ -52,7 +56,7 @@ flowchart LR
 
 ```
 
-> Create your **root** folder. For example **`myproject/`**
+Create your **root** folder. For example **`myproject/`**
 
 <div id="terminal-0" data-termynal></div>
 
@@ -82,20 +86,20 @@ root/                   --> <Directory> - Project's Root
 |   |-- etc...
 |   `-- demo/
 |       |
-|       |-- __init__.py   --> <File> - Converts { Folder } to Python { Package }
+|       |-- __init__.py --> <File> - Converts { Folder } to Python { Package }
 |       |
-|       |-- commands.py   --> <File> - Create Multiple { Commands } Here
+|       |-- commands.py --> <File> - Create Multiple { Commands } Here
 |       |
-|       |-- models.py     --> <File> - Create Multiple { Models } Here
+|       |-- models.py   --> <File> - Create Multiple { Models } Here
 |       |
-|       `-- views.py      --> <File> - Create Multiple { Views } Here
+|       `-- views.py    --> <File> - Create Multiple { Views } Here
 |
-|--  main.py              --> <File> - Main File
+|--  main.py            --> <File> - Main File
 |
 `-- etc...
 ```
 
-> Create files for the **Settings**.
+### Create files for the **Settings**.
 
 <div id="terminal-1" data-termynal></div>
 
@@ -109,7 +113,7 @@ root/                   --> <Directory> - Project's Root
 
 ```toml title="config/spoc.toml"
 [spoc]
-mode = "production" # development, production, staging, custom
+mode = "production" # custom, development, production, staging
 # (1) custom_mode = "development"
 
 [spoc.apps] # (2)
@@ -118,7 +122,7 @@ development = []
 staging = []
 
 [spoc.extras]
-middleware = ["demo.middleware.test"] # (3)
+middleware = ["demo.middleware.hello_world_middleware"] # (3)
 ```
 
 1. **Custom** uses **`settings.py`**.
@@ -142,7 +146,7 @@ BASE_DIR = pathlib.Path(__file__).parents[1]
 INSTALLED_APPS = []
 ```
 
-> Create files for the **Framework**.
+### Create files for the **Framework**.
 
 <div id="terminal-2" data-termynal></div>
 
@@ -225,7 +229,7 @@ INSTALLED_APPS = []
 
     !!! abstract "Components"
 
-        Remember I said I'll "**Explained Later**". Here we created a component **registration system** by using **`@decorator`**(s)
+        You might recall that I mentioned "Explained Later." Well, here we've established a component registration system using **`@decorator`** annotations.
 
 === "Module"
 

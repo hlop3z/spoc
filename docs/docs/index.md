@@ -1,15 +1,16 @@
 # Welcome to **S.P.O.C**
 
-**SPOC** aims to be the **base** for building **elastic** **`frameworks`**.
-The idea is to create a schema for your **project**(s) and then build up on that **schema**.
+**SPOC** serves as the foundation for constructing dynamic and adaptable **`frameworks`**. The concept involves creating a schema for your **project**(s) and building upon that foundational **schema**.
 
-> **S.P.O.C** is the acronym of **Single Point of Connections**
+> **S.P.O.C** stands for **Single Point of Connections**
 
 <div id="terminal-root" data-termynal></div>
 
+## **SPOC** allows you to **collect** designated **`Objects`**
+
 !!! abstract "Components"
 
-    To put it in a simple way, **SPOC** will **collect** all of the **`Objects`** you **mark** aka: **`@decorate`** as a **Component**(s).
+    **Components** are created by marking specific **`Objects`** with a **`@custom_decorator`**.
 
     ``` python title="example.py"
     @component
@@ -19,7 +20,9 @@ The idea is to create a schema for your **project**(s) and then build up on that
 
 !!! abstract "Extras"
 
-    To put it in a simple way, **SPOC** will **collect** all of the **Extra(s)** **`Objects`** you **list** aka: **`register`** as a type of **Extra**(s).
+    To load **Extras**, list them within a dedicated **`attribute`**.
+
+    For example: **`middleware`** or **`before_server`** inside the **`spoc.toml`** configuration file.
 
     ``` toml title="spoc.toml"
     [spoc]

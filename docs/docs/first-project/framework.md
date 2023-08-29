@@ -1,3 +1,5 @@
+Creating your first framework using the **S.P.O.C** foundation is an exciting endeavor that empowers you to construct powerful and flexible applications with ease. A framework serves as a structured blueprint that streamlines development, promotes consistency, and accelerates the creation of feature-rich projects.
+
 <div id="terminal-framework" data-termynal></div>
 
 ```python title="framework/framework.py"

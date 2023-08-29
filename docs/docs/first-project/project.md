@@ -1,4 +1,4 @@
-<div id="terminal-project" data-termynal></div>
+These essential folders act as organizational pillars for your project's components, resources, and functionality. They help maintain a logical arrangement, enhance code clarity, and simplify collaboration.
 
 ## Folder(s) **Setup**
 
@@ -20,3 +20,7 @@ myproject/              --> <Directory> - Project's Root
 |
 `-- etc...
 ```
+
+## Terminal
+
+<div id="terminal-project" data-termynal></div>
