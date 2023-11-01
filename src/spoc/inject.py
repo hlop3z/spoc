@@ -18,6 +18,20 @@ def inject_apps_folder(base_dir=None):
     if base_apps.exists():
         sys.path.insert(0, os.path.join(base_dir, "apps"))
 
+def collect_apps_partial(app_mode, apps):
+    installed_apps = []
+    match app_mode:
+        case "production":
+            installed_apps.extend(apps.get("production", []))
+        case "staging":  # production + staging
+            installed_apps.extend(apps.get("production", []))
+            installed_apps.extend(apps.get("staging", []))
+        case "development":  # production + staging + development
+            installed_apps.extend(apps.get("production", []))
+            installed_apps.extend(apps.get("staging", []))
+            installed_apps.extend(apps.get("development", []))
+    return installed_apps
+
 
 def collect_installed_apps(toml_dir, settings=None):
     """Collect All Apps"""
@@ -25,22 +39,18 @@ def collect_installed_apps(toml_dir, settings=None):
     # Step[1]: INIT { Values }
     toml_spoc = toml_dir["spoc"].get("spoc", {})
     app_mode = toml_spoc.get("mode", "development")
+    custom_mode = toml_spoc.get("custom_mode", None)
     apps = toml_spoc.get("apps", {})
     installed_apps = []
 
     # Step[2]: Collect Apps
     match app_mode:
         case "custom":
+            installed_apps.extend(collect_apps_partial(custom_mode, apps))
             if hasattr(settings, "INSTALLED_APPS"):
                 installed_apps.extend(settings.INSTALLED_APPS)
-        case "production":
-            installed_apps.extend(apps.get("production", []))
-        case "staging":  # production + staging
-            installed_apps.extend(apps.get("production", []))
-            installed_apps.extend(apps.get("staging", []))
-        case "development":  # production + development
-            installed_apps.extend(apps.get("production", []))
-            installed_apps.extend(apps.get("development", []))
+        case _:
+            installed_apps.extend(collect_apps_partial(app_mode, apps))
 
     return installed_apps
 
