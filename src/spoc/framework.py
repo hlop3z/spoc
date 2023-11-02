@@ -18,6 +18,7 @@ from .singleton import singleton
 
 from . import installer
 
+config = None
 try:
     import config
 except ImportError as exception:
