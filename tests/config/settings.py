@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-""" [Settings]
-    Project Settings { app.settings }.
 """
+{ Settings }
+"""
+
 import pathlib
 
 # Base Directory

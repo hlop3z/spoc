@@ -1,31 +1,38 @@
+# -*- coding: utf-8 -*-
+"""
+File Templates
+"""
+
 import pathlib
 from types import SimpleNamespace
 
 SETTINGS_TEXT = '''
 # -*- coding: utf-8 -*-
 """
-    { Settings }
+{ Settings }
 """
 
 import pathlib
 
 # Base Directory
 BASE_DIR = pathlib.Path(__file__).parents[1]
-'''
+
+# Installed Apps
+INSTALLED_APPS = []
+'''.strip()
 
 CONFIG_TEXT = '''
 # -*- coding: utf-8 -*-
 """
-    { Config }
+{ Config }
 """
-
-from . import settings
-'''
+'''.strip()
 
 
 SPOC_TEXT = """
 [spoc]
-mode = "custom" # options: custom, development, production, staging
+# options: custom, development, production, staging
+mode = "custom"
 custom_mode = "development"
 
 # Modes
@@ -36,10 +43,12 @@ staging = []
 
 # Extras
 [spoc.extras]
-"""
+""".strip()
 
 
 def create_base():
+    """Create Core Files"""
+
     import __main__
 
     root_dir = pathlib.Path(__main__.__file__).parent

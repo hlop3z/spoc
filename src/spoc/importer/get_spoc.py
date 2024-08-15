@@ -1,8 +1,11 @@
+# -*- coding: utf-8 -*-
+
 """
-    Spoc Tools
+Spoc Tools
 """
 
 import dataclasses as dc
+from typing import Any
 
 from .frozendict import FrozenDict
 from .tools import get_attr
@@ -12,7 +15,7 @@ from .types import Class, Spoc
 def get_spoc(plugins: dict) -> Spoc:
     """Collect All Project Classes"""
 
-    out_dict = {}
+    out_dict: Any = {}
     global_dict = {}
     for module_key, module_list in plugins.items():
         out_dict[module_key] = {}

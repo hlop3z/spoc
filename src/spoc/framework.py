@@ -1,9 +1,13 @@
+# -*- coding: utf-8 -*-
 """
-    FrameWork
+FrameWork
 """
 
 import os
+import pathlib
+from typing import Any, Dict, List, Optional
 
+from . import installer
 from .importer import create_framework, frozendict
 from .inject import (
     collect_extras,
@@ -15,21 +19,21 @@ from .inject import (
 )
 from .singleton import singleton
 
-
-from . import installer
-
-config = None
+# Attempt to import the configuration module, create base if it does not exist.
+CONFIG = None
 try:
-    import config
-except ImportError as exception:
+    import config  # type: ignore
+
+    CONFIG = config
+except ImportError:
     try:
         installer.create_base()
-    except:
-        config = None
+    except Exception:  # type: ignore
+        CONFIG = None
 
-if config:
+if CONFIG:
     try:
-        from config import settings
+        from config import settings  # type: ignore
     except ImportError as exception:
         raise ValueError("Missing { ./config/__init__.py } module.") from exception
 
@@ -37,41 +41,49 @@ if config:
         raise ValueError("Missing { ./config/settings.py } module.")
 
     if not hasattr(settings, "BASE_DIR"):
-        raise ValueError(
-            """Missing { `BASE_DIR = pathlib.Path(__file__).parents[1]` } in file { ./config/settings.py }."""
-        )
+        raise ValueError("Missing { BASE_DIR } in file { ./config/settings.py }.")
 
-
-    # Core
-    PROJECT = config
+    # Core configuration and settings
     SETTINGS = settings
     BASE_DIR = settings.BASE_DIR
 
-    # Global Methods
+    # Inject the applications folder to the global namespace
     inject_apps_folder(BASE_DIR)
 
-    # Global Variables
+    # Load and parse configuration files
     TOML_DIR = get_toml_files(BASE_DIR)
     MODE = get_app_mode(TOML_DIR)
     EXTRAS = TOML_DIR["spoc"].get("spoc", {}).get("extras", {})
 
-    # Global Fixed
+    # Load environment variables
     TOML_DIR["env"] = load_envs(BASE_DIR, MODE)
     TOML_DIR = frozendict(TOML_DIR)
 
-
     @singleton
     class Spoc:
-        """Core Object(Singleton) for the whole Framework"""
+        """Core Object (Singleton) for the whole Framework."""
 
-        base_dir = BASE_DIR
-        config = TOML_DIR
-        mode = MODE
-        project = PROJECT
+        # Core
+        base_dir: pathlib.Path = BASE_DIR
+        config: Dict[str, Dict] = TOML_DIR
+        mode: str = MODE
         settings = SETTINGS
 
-        def init(self, plugins: list = None):
-            """Finally: Collect { Keys }"""
+        # Python Modules
+        module: Any = None
+
+        # App
+        installed_apps: List | None = None
+        extras: Dict[Any, Any] | None = None
+        component: Dict[Any, Any] | None = None
+
+        def init(self, plugins: Optional[List] = None) -> None:
+            """
+            Initialize the framework by collecting installed applications and extras.
+
+            Args:
+                plugins (Optional[List]): A list of plugins to initialize with the framework.
+            """
             # GLOBALS
             installed_apps = collect_installed_apps(TOML_DIR, SETTINGS)
             extras = collect_extras(EXTRAS)
@@ -90,8 +102,13 @@ if config:
             os.chdir(BASE_DIR)
 
         @staticmethod
-        def keys():
-            """Object Keys"""
+        def keys() -> List[str]:
+            """
+            Get the list of keys for the framework object.
+
+            Returns:
+                List[str]: A list of attribute keys.
+            """
             return [
                 "base_dir",
                 "config",

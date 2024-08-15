@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
 """
-    Auto-Importer
+Auto-Importer
 """
 
 import importlib
 import pkgutil
+from typing import Any
 
 from .frozendict import FrozenDict
 from .tools import get_attr, get_fields
@@ -19,7 +21,7 @@ def import_module(single_app: str):
     """Import Single-Module"""
     try:
         module = importlib.import_module(single_app)
-    except:
+    except Exception:
         module = None
     return module
 
@@ -38,10 +40,10 @@ def import_modules(all_apps: list) -> dict:
     return installed_apps
 
 
-def get_plugins(plugins: list[str], apps: list = None) -> Core:
+def get_plugins(plugins: list, apps: list) -> Core:
     """Plugins: Creating & Discovering"""
 
-    plugin_dict = {key: [] for key in plugins}
+    plugin_dict: Any = {key: [] for key in plugins}
     installed_apps = import_modules(apps)
 
     for app_path, module_setup in installed_apps.items():

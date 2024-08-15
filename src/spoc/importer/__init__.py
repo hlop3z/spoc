@@ -1,12 +1,14 @@
+# -*- coding: utf-8 -*-
+
 """
-    Module (Core)
+Module (Core)
 """
 
+from typing import Any
+
 from .base import get_plugins
-from .base import search_method as search
 from .frozendict import FrozenDict as frozendict
 from .get_spoc import get_spoc
-from .tools import get_attr, get_fields
 from .types import App
 
 
@@ -25,7 +27,9 @@ def global_dict(core) -> dict:
 
 
 def create_framework(
-    plugins: list[str] = None, installed_apps: list[str] = None, extras: dict = None
+    plugins: list[str],
+    installed_apps: list[str],
+    extras: dict[str, Any] | None = None,
 ) -> App:
     """Create Framework"""
 

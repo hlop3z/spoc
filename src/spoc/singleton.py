@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-    Tool for Singleton(s)
+Tool for Singleton(s)
 """
 
 

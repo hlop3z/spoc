@@ -1,11 +1,13 @@
-"""
-    DataClasses
+# -*- coding: utf-8 -*-
 
-    * Class
-    * Global
-    * Core
-    * Definition
-    * App
+"""
+DataClasses
+
+* Class
+* Global
+* Core
+* Definition
+* App
 """
 
 import dataclasses as dc
@@ -16,11 +18,11 @@ import typing
 class Class:
     """Project Classes"""
 
-    name: str = None
-    app: str = None
-    module: str = None
-    key: str = None
-    uri: str = None
+    name: str | None = None
+    app: str | None = None
+    module: str | None = None
+    key: str | None = None
+    uri: str | None = None
     object: typing.Any = None
 
 
@@ -55,6 +57,5 @@ class App:
     """Project App"""
 
     plugin: typing.Any
-    extras: dict[str, typing.Any]
-    # global_dict: dict[str, typing.Any]
     module: dict[str, typing.Any]
+    extras: dict[str, typing.Any] | None = None

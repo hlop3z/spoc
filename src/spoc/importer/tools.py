@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
+
 """
-    Object-Class Tools
+Object-Class Tools
 """
 
 

@@ -1,16 +1,19 @@
+# -*- coding: utf-8 -*-
 """[ Collect & Inject ]
-    Project (Module)
+Project (Module)
 """
 
 import os
 import pathlib
 import sys
+from typing import Any
 
-from .importer import frozendict, search
+from .importer import frozendict
+from .importer.base import search_method
 from .toml_core import TOML
 
 
-def inject_apps_folder(base_dir=None):
+def inject_apps_folder(base_dir: pathlib.Path):
     """Inject { ./apps } Directory"""
 
     base_apps = pathlib.Path(base_dir / "apps")
@@ -18,47 +21,45 @@ def inject_apps_folder(base_dir=None):
     if base_apps.exists():
         sys.path.insert(0, os.path.join(base_dir, "apps"))
 
-def collect_apps_partial(app_mode, apps):
+
+def collect_apps_partial(app_mode: str, the_apps: dict):
+    """Collect All Apps"""
     installed_apps = []
     match app_mode:
         case "production":
-            installed_apps.extend(apps.get("production", []))
+            installed_apps.extend(the_apps.get("production", []))
         case "staging":  # production + staging
-            installed_apps.extend(apps.get("production", []))
-            installed_apps.extend(apps.get("staging", []))
+            installed_apps.extend(the_apps.get("production", []))
+            installed_apps.extend(the_apps.get("staging", []))
         case "development":  # production + staging + development
-            installed_apps.extend(apps.get("production", []))
-            installed_apps.extend(apps.get("staging", []))
-            installed_apps.extend(apps.get("development", []))
+            installed_apps.extend(the_apps.get("production", []))
+            installed_apps.extend(the_apps.get("staging", []))
+            installed_apps.extend(the_apps.get("development", []))
     return installed_apps
 
 
-def collect_installed_apps(toml_dir, settings=None):
+def collect_installed_apps(toml_dir, settings: Any = None):
     """Collect All Apps"""
 
     # Step[1]: INIT { Values }
     toml_spoc = toml_dir["spoc"].get("spoc", {})
+    the_apps = toml_spoc.get("apps", {})
     app_mode = toml_spoc.get("mode", "development")
-    custom_mode = toml_spoc.get("custom_mode", None)
-    apps = toml_spoc.get("apps", {})
+
+    # Installed Apps
     installed_apps = []
 
     # Step[2]: Collect Apps
-    match app_mode:
-        case "custom":
-            installed_apps.extend(collect_apps_partial(custom_mode, apps))
-            if hasattr(settings, "INSTALLED_APPS"):
-                installed_apps.extend(settings.INSTALLED_APPS)
-        case _:
-            installed_apps.extend(collect_apps_partial(app_mode, apps))
+    installed_apps.extend(collect_apps_partial(app_mode, the_apps))
+    if hasattr(settings, "INSTALLED_APPS"):
+        installed_apps.extend(settings.INSTALLED_APPS)
 
-    return installed_apps
+    return list(set(installed_apps))
 
 
-def get_toml_file(file: str):
+def get_toml_file(toml_file: pathlib.Path):
     """Get { TOML } File"""
 
-    toml_file = pathlib.Path(file)
     manager = TOML(toml_file)
 
     if toml_file.exists():
@@ -68,7 +69,7 @@ def get_toml_file(file: str):
     return toml_dict
 
 
-def get_toml_files(base_dir=None):
+def get_toml_files(base_dir: pathlib.Path):
     """Collect All { TOML } Files"""
 
     return {
@@ -79,11 +80,7 @@ def get_toml_files(base_dir=None):
 
 def get_app_mode(toml_dir):
     """Get App { Mode }"""
-
-    mode = toml_dir["spoc"].get("mode", "development")
-    if mode == "custom":
-        mode = toml_dir["spoc"].get("custom_mode", "development")
-    return mode
+    return toml_dir["spoc"].get("mode", "development")
 
 
 def collect_extras(extras):
@@ -93,7 +90,7 @@ def collect_extras(extras):
     for group, items in extras.items():
         all_extras_modules[group] = []
         for object_uri in items:
-            obj = search(object_uri)
+            obj = search_method(object_uri)
             if obj:
                 all_extras_modules[group].append(obj)
     return frozendict(all_extras_modules)

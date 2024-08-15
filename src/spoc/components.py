@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-    Components
+Components
 """
 
 import dataclasses as dc
@@ -17,10 +18,10 @@ class Component:
 
 
 def component(
-    cls: object = None,
+    cls: typing.Any = None,
     *,
-    config: dict = None,
-    metadata: dict = None,
+    config: dict | None = None,
+    metadata: dict | None = None,
 ) -> typing.Any:
     """Plugin Creator"""
 
@@ -38,6 +39,6 @@ def component(
     return cls
 
 
-def is_component(cls, metadata: dict = None):
+def is_component(cls, metadata: dict | None = None):
     """Plugin Validator"""
-    return cls.__spoc__.metadata == metadata
+    return cls.__spoc__.metadata == metadata  # type: ignore

@@ -1,25 +1,27 @@
+# -*- coding: utf-8 -*-
+
 """
-    Tool for TOML (before tomlib gets implemented)
+Tool for handling TOML files
 """
 
-import toml
+import tomllib
+from pathlib import Path
+from typing import Any, Dict
 
 
 class TOML:
-    """TOML Wrapper"""
+    """A wrapper class for managing TOML files."""
 
-    def __init__(self, file=None):
-        """Initialize TOML-Manager"""
-
+    def __init__(self, file: Path):
+        """
+        Initialize the TOML manager with the given file path.
+        """
         self.file = file
 
-        if not file:
-            raise ValueError("Please Set a <Path> for the <TOML> file.")
-
-    def read(self):
-        """Read"""
-
-        with open(self.file, "r", encoding="utf-8") as active_file:
-            toml_string = active_file.read()
-            parsed_toml = toml.loads(toml_string)
+    def read(self) -> Dict[str, Any]:
+        """
+        Read and parse the TOML file.
+        """
+        with open(self.file, "rb") as active_file:
+            parsed_toml = tomllib.load(active_file)
         return parsed_toml

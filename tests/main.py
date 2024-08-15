@@ -1,15 +1,15 @@
 from framework import MyFramework
-import spoc 
+import spoc
 
 test = MyFramework()
 
 print(test.env)
 
-print(test.component.commands['demo.test'].object)
+print(test.component.commands["demo.test"].object)
 
-for method in test.extras['middleware']:
+for method in test.extras.get("middleware", []):
     print(method)
-    
+
 
 # print(test.plugin.commands.values())
 print(spoc.settings)
