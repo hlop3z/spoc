@@ -3,7 +3,7 @@ import spoc
 
 test = MyFramework()
 
-print(test.env)
+print(spoc.env)
 
 print(test.component.commands["demo.test"].object)
 

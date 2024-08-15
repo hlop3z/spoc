@@ -7,7 +7,6 @@ import os
 import pathlib
 from typing import Any, Dict, List, Optional
 
-from . import installer
 from .importer import create_framework, frozendict
 from .inject import (
     collect_extras,
@@ -26,10 +25,7 @@ try:
 
     CONFIG = config
 except ImportError:
-    try:
-        installer.create_base()
-    except Exception:  # type: ignore
-        CONFIG = None
+    CONFIG = None
 
 if CONFIG:
     try:
@@ -67,7 +63,8 @@ if CONFIG:
         base_dir: pathlib.Path = BASE_DIR
         config: Dict[str, Dict] = TOML_DIR
         mode: str = MODE
-        settings = SETTINGS
+        settings: Any = SETTINGS
+        environment: Any = TOML_DIR.get("env", {})
 
         # Python Modules
         module: Any = None

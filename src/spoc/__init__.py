@@ -3,25 +3,31 @@
 Elastic Framework Builder
 """
 
-# Core Tools
-from .components import component, is_component
+from .installer import start_project
 
-# Frame Work
-from .framework import Spoc as App
-from .importer import frozendict
-from .importer.base import search_method as search
-from .importer.tools import get_fields
-from .singleton import singleton
+try:
+    # Core Tools
+    from .components import component, is_component
 
-# Globals
-base_dir = App.base_dir
-config = App.config
-mode = App.mode
-settings = App.settings
+    # Frame Work
+    from .framework import Spoc as App
+    from .importer import frozendict
+    from .importer.base import search_method as search
+    from .importer.tools import get_fields
+    from .singleton import singleton
 
+    # Globals
+    base_dir = App.base_dir
+    config = App.config
+    mode = App.mode
+    env = App.environment
+    settings = App.settings
+except ImportError:
+    pass
 
 __all__ = (
     # Tools
+    "start_project",
     "component",
     "frozendict",
     "get_fields",
