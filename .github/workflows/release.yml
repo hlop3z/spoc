@@ -34,3 +34,6 @@ jobs:
 
       - name: Build Package
         run: pdm build
+
+      - name: Build Package
+        run: pdm publish
