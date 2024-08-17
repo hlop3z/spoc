@@ -1,12 +1,6 @@
 name: Upload Python Package
 
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to publish"
-        required: true
-        default: "0.1.0"
+on: workflow_dispatch
 
 permissions:
   contents: read
