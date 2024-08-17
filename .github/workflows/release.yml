@@ -30,7 +30,7 @@ jobs:
           update-python: true # Update the environment with the requested Python version
 
       - name: Install Dependencies
-        run: pdm install
+        run: pdm install --prod
 
       - name: Build Package
         run: pdm build
