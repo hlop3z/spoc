@@ -29,5 +29,5 @@ jobs:
       - name: Build Package
         run: pdm build
 
-      - name: Build Package
+      - name: Publish Package
         run: pdm publish
