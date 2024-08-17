@@ -12,6 +12,22 @@ from types import SimpleNamespace
 from typing import Any
 
 
+class MethodNotFound(Exception):
+    """Error: Missing Function"""
+
+    def __init__(
+        self,
+        class_name: str,
+        function_name: str,
+        method_type: str = "method",
+    ):
+        super().__init__(
+            f"Class `{class_name}` is missing implementation for {method_type}: `{function_name}`"
+        )
+        self.class_name = class_name
+        self.function_name = function_name
+
+
 class AbstractWorker(ABC):
     """Abstract Worker"""
 
@@ -24,7 +40,7 @@ class AbstractWorker(ABC):
         self.__stop_event: Any = self._start_event()
 
     @abstractmethod
-    def server(self):
+    def server(self) -> Any:
         """Perform server actions. This method must be implemented by subclasses."""
 
     @abstractmethod
@@ -81,7 +97,7 @@ class BaseServer(ABC):
     on_event: Any
 
     @classmethod
-    def add(cls, *workers: list[Any]) -> None:
+    def add(cls, *workers: Any) -> None:
         """
         Add worker instances to the service.
         """
@@ -92,6 +108,14 @@ class BaseServer(ABC):
         """
         Start all added workers and optionally keep the main thread running until interrupted.
         """
+        # Ensure `on_event`
+        if not hasattr(cls, "on_event"):
+            raise MethodNotFound(
+                cls.__name__,
+                "on_event",
+                "staticmethod or classmethod",
+            )
+
         # Startup
         cls.on_event("startup")
         for worker in cls.workers:
@@ -105,14 +129,12 @@ class BaseServer(ABC):
             except KeyboardInterrupt:
                 cls.stop()
 
-        # Shutdown
-        cls.on_event("shutdown")
-
     @classmethod
     def stop(cls, cleanup: bool = False) -> None:
         """
         Stop all running workers and optionally remove workers.
         """
+        # Workers
         for worker in cls.workers:
             worker.stop()
         # Process & Threads
@@ -123,3 +145,5 @@ class BaseServer(ABC):
         # Cleanup
         if cleanup:
             cls.workers.clear()
+        # Shutdown
+        cls.on_event("shutdown")

@@ -13,3 +13,25 @@ for method in test.extras.get("middleware", []):
 
 # print(test.plugin.commands.values())
 print(spoc.settings)
+
+
+class MyProcess(spoc.BaseProcess):  # spoc.BaseThread
+    """Ignore"""
+
+    def on_event(self, event_type):
+        print(event_type)
+
+    async def server():
+        pass
+
+
+class MyClass(spoc.BaseServer):
+    """Ignore"""
+
+    @classmethod
+    def on_event(cls, event_type):
+        print(event_type)
+
+
+MyProcess()
+MyClass.start(False)
