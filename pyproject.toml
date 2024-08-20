@@ -1,6 +1,6 @@
 [project]
 name = "spoc"
-version = "0.1.32"
+version = "0.1.33"
 description = "Framework Builder"
 authors = [
     { name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com" },
