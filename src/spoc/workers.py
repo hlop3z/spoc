@@ -14,24 +14,34 @@ from types import SimpleNamespace
 from typing import Any
 
 
-class MethodNotFound(Exception):
-    """Error: Missing Function"""
+class MethodNotFoundError(Exception):
+    """
+    Exception raised when a required method is **missing** from a class **implementation**.
+
+    Attributes:
+        class_name (str): Name of the class where the method is missing.
+        method_name (str): Name of the missing method.
+        method_type (str): Type of the method (e.g., `staticmethod`, `classmethod`, `property`).
+            Defaults to `method`.
+    """
 
     def __init__(
         self,
         class_name: str,
-        function_name: str,
+        method_name: str,
         method_type: str = "method",
     ):
         super().__init__(
-            f"Class `{class_name}` is missing implementation for {method_type}: `{function_name}`"
+            f"<class '{class_name}'> is missing implementation for {method_type}: `{method_name}`"
         )
         self.class_name = class_name
-        self.function_name = function_name
+        self.function_name = method_name
 
 
 class AbstractWorker(ABC):
     """Abstract Worker"""
+
+    server: Any
 
     @abstractmethod
     def _start_event(self) -> Any:
@@ -41,9 +51,13 @@ class AbstractWorker(ABC):
         self.options = SimpleNamespace(**kwargs)
         self.__stop_event: Any = self._start_event()
 
-    @abstractmethod
-    def server(self) -> Any:
-        """Perform server actions. This method must be implemented by subclasses."""
+        # Ensure `server`
+        if not hasattr(self, "server"):
+            raise MethodNotFoundError(
+                self.__class__.__name__,
+                "server",
+                "method",
+            )
 
     @abstractmethod
     def on_event(self, event_type: str):
@@ -96,8 +110,8 @@ class BaseServer(ABC):
     """
 
     workers: list[Any] = []
+    all_pids: set = set()
     on_event: Any
-    proc_ids: set = set()
 
     @classmethod
     def add(cls, *workers: Any) -> None:
@@ -109,11 +123,11 @@ class BaseServer(ABC):
     @classmethod
     def start(cls, is_loop: bool = True) -> None:
         """
-        Start all added workers and optionally keep the main running until interrupted.
+        Start all added workers and optionally keep a loop running until interrupted.
         """
         # Ensure `on_event`
         if not hasattr(cls, "on_event"):
-            raise MethodNotFound(
+            raise MethodNotFoundError(
                 cls.__name__,
                 "on_event",
                 "staticmethod or classmethod",
@@ -123,7 +137,7 @@ class BaseServer(ABC):
         cls.on_event("startup")
 
         # Main PID
-        cls.proc_ids.add(os.getpid())
+        cls.all_pids.add(os.getpid())
 
         # Start Workers
         for worker in cls.workers:
@@ -131,10 +145,10 @@ class BaseServer(ABC):
 
             # Register PID(s)
             if hasattr(worker, "pid"):
-                cls.proc_ids.add(worker.pid)
-                cls.proc_ids.add(os.getppid())
+                cls.all_pids.add(worker.pid)
+                cls.all_pids.add(os.getppid())
             else:
-                cls.proc_ids.add(os.getppid())
+                cls.all_pids.add(os.getppid())
 
         # Loop Until (Keyboard-Interrupt)
         if is_loop:
@@ -145,7 +159,7 @@ class BaseServer(ABC):
                 cls.stop(True)
 
     @classmethod
-    def stop(cls, force_stop: bool = False, exit_delay: int = 1) -> None:
+    def stop(cls, force_stop: bool = False, forced_delay: int = 1) -> None:
         """
         Stop all running workers.
         """
@@ -162,7 +176,7 @@ class BaseServer(ABC):
         # Shutdown
         cls.on_event("shutdown")
         if force_stop:
-            cls.force_stop(exit_delay)
+            cls.force_stop(forced_delay)
 
     @classmethod
     def force_stop(cls, delay: int = 1) -> None:
@@ -173,7 +187,7 @@ class BaseServer(ABC):
         time.sleep(delay)
 
         # Kill Processes
-        for pid in cls.proc_ids:
+        for pid in cls.all_pids:
             try:
                 if main_pid != pid:
                     os.kill(pid, signal.SIGINT)
@@ -181,8 +195,13 @@ class BaseServer(ABC):
                 pass
 
         # Cleanup
+        cls.clear()
+
+    @classmethod
+    def clear(cls) -> None:
+        """Workers(list) & PIDS(set) Cleanup"""
         cls.workers.clear()
-        cls.proc_ids.clear()
+        cls.all_pids.clear()
 
     @staticmethod
     def exit() -> None:

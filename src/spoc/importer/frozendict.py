@@ -2,9 +2,9 @@
 Exception & Error Messages
 """
 
-from typing import Any, TypeVar
+from typing import Any
 
-T = TypeVar("T", bound="FrozenDict")
+# T = TypeVar("T", bound="FrozenDict")
 
 
 class FrozenDict(dict):

@@ -1,18 +1,28 @@
+"""Main"""
+
 from framework import MyFramework
+
 import spoc
 
 test = MyFramework()
 
-print(spoc.env)
+print("DEBUG", spoc.settings.DEBUG)
+print("MODE", spoc.settings.MODE)
+print("SPOC", spoc.settings.SPOC)
+print("ENV", spoc.settings.ENV)
+print("CONFIG", spoc.settings.CONFIG)
 
-print(test.component.commands["demo.test"].object)
+
+print(test.components.__dict__.keys())
+print(test.extras)
+# print(test.components.commands)
+# print(test.components.commands.get("demo.test").object)
 
 for method in test.extras.get("middleware", []):
     print(method)
 
 
 # print(test.plugin.commands.values())
-print(spoc.settings)
 
 
 class MyProcess(spoc.BaseProcess):  # spoc.BaseThread
@@ -21,7 +31,7 @@ class MyProcess(spoc.BaseProcess):  # spoc.BaseThread
     def on_event(self, event_type):
         print(event_type)
 
-    async def server():
+    async def server(self):
         pass
 
 

@@ -6,6 +6,13 @@ File Templates
 import pathlib
 from types import SimpleNamespace
 
+CONFIG_TEXT = '''
+# -*- coding: utf-8 -*-
+"""
+{ Config }
+"""
+'''.strip()
+
 SETTINGS_TEXT = '''
 # -*- coding: utf-8 -*-
 """
@@ -19,20 +26,16 @@ BASE_DIR = pathlib.Path(__file__).parents[1]
 
 # Installed Apps
 INSTALLED_APPS = []
-'''.strip()
 
-CONFIG_TEXT = '''
-# -*- coding: utf-8 -*-
-"""
-{ Config }
-"""
+# Extra Methods
+EXTRAS = {}
 '''.strip()
 
 
 SPOC_TEXT = """
 [spoc]
-# options: production, development, staging
-mode = "development"
+mode = "development" # options: development, staging, production
+debug = true
 
 # Modes
 [spoc.apps]
@@ -50,11 +53,15 @@ ENV_TEXT = """
 """.strip()
 
 
-def start_project():
+def start_project(
+    settings_text: str = SETTINGS_TEXT,
+    spoc_text: str = SPOC_TEXT,
+    env_text: str = ENV_TEXT,
+):
     """Create Core Files"""
+    config_text: str = CONFIG_TEXT
 
     # import __main__
-
     # root_dir = pathlib.Path(__main__.__file__).parent
     root_dir = pathlib.Path.cwd()
 
@@ -76,19 +83,19 @@ def start_project():
     # Create Files
     if not path.config_file.exists():
         with open(path.config_file, "w", encoding="utf-8") as file:
-            file.write(CONFIG_TEXT)
+            file.write(config_text)
 
     if not path.settings_file.exists():
         with open(path.settings_file, "w", encoding="utf-8") as file:
-            file.write(SETTINGS_TEXT)
+            file.write(settings_text)
 
     if not path.spoc_file.exists():
         with open(path.spoc_file, "w", encoding="utf-8") as file:
-            file.write(SPOC_TEXT)
+            file.write(spoc_text)
 
     # Environment Create Files
     for env in env_types:
         current_path = env_path / f"{env}.toml"
         if not current_path.exists():
             with open(current_path, "w", encoding="utf-8") as file:
-                file.write(ENV_TEXT)
+                file.write(env_text)

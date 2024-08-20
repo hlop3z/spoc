@@ -12,8 +12,10 @@ from .importer import frozendict
 from .importer.base import search_method
 from .toml_core import TOML
 
+DEFAULT_MODE = "development"
 
-def inject_apps_folder(base_dir: pathlib.Path):
+
+def inject_apps_folder(base_dir: pathlib.Path) -> Any:
     """Inject { ./apps } Directory"""
 
     base_apps = pathlib.Path(base_dir / "apps")
@@ -22,7 +24,7 @@ def inject_apps_folder(base_dir: pathlib.Path):
         sys.path.insert(0, os.path.join(base_dir, "apps"))
 
 
-def collect_apps_partial(app_mode: str, the_apps: dict):
+def collect_apps_partial(app_mode: str, the_apps: dict) -> Any:
     """Collect All Apps"""
     installed_apps = []
     match app_mode:
@@ -38,38 +40,40 @@ def collect_apps_partial(app_mode: str, the_apps: dict):
     return installed_apps
 
 
-def collect_installed_apps(toml_dir, settings: Any = None):
+def collect_installed_apps(toml_dir, settings: Any = None) -> Any:
     """Collect All Apps"""
 
     # Step[1]: INIT { Values }
     toml_spoc = toml_dir["spoc"].get("spoc", {})
     the_apps = toml_spoc.get("apps", {})
-    app_mode = toml_spoc.get("mode", "development")
+    app_mode = toml_spoc.get("mode", DEFAULT_MODE)
 
     # Installed Apps
     installed_apps = []
 
-    # Step[2]: Collect Apps
-    installed_apps.extend(collect_apps_partial(app_mode, the_apps))
+    # Step[2]: Collect `settings` Apps
     if hasattr(settings, "INSTALLED_APPS"):
         installed_apps.extend(settings.INSTALLED_APPS)
+
+    # Step[3]: Collect `toml` Apps
+    installed_apps.extend(collect_apps_partial(app_mode, the_apps))
 
     return list(set(installed_apps))
 
 
-def get_toml_file(toml_file: pathlib.Path):
+def get_toml_file(toml_file: pathlib.Path) -> Any:
     """Get { TOML } File"""
 
+    # Load File
     manager = TOML(toml_file)
 
+    # Loaded or Blank dict
     if toml_file.exists():
-        toml_dict = frozendict(**manager.read())
-    else:
-        toml_dict = frozendict({})
-    return toml_dict
+        return frozendict(**manager.read())
+    return frozendict({})
 
 
-def get_toml_files(base_dir: pathlib.Path):
+def get_toml_files(base_dir: pathlib.Path) -> dict:
     """Collect All { TOML } Files"""
 
     return {
@@ -78,25 +82,41 @@ def get_toml_files(base_dir: pathlib.Path):
     }
 
 
-def get_app_mode(toml_dir):
+def get_app_mode(toml_dir) -> Any:
     """Get App { Mode }"""
-    return toml_dir["spoc"].get("mode", "development")
+    return toml_dir["spoc"].get("mode", DEFAULT_MODE)
 
 
-def collect_extras(extras):
+def collect_extras(extras, settings) -> Any:
     """Collect All Extra { Python-Objects }"""
+    all_extras_modules: dict = {}
 
-    all_extras_modules = {}
-    for group, items in extras.items():
-        all_extras_modules[group] = []
-        for object_uri in items:
-            obj = search_method(object_uri)
-            if obj:
-                all_extras_modules[group].append(obj)
+    # Get From Settings
+    settings_extras: dict = {}
+    if hasattr(settings, "EXTRAS") and isinstance(settings.EXTRAS, dict):
+        settings_extras = settings.EXTRAS
+
+    # Internal Util
+    def collector(extra_dict):
+        for group, items in extra_dict.items():
+            if group not in all_extras_modules:
+                all_extras_modules[group] = []
+            for object_uri in items:
+                obj = search_method(object_uri)
+                if obj and obj not in all_extras_modules[group]:
+                    all_extras_modules[group].append(obj)
+
+    # Settings
+    collector(settings_extras)
+
+    # Toml
+    collector(extras)
+
+    # Finally
     return frozendict(all_extras_modules)
 
 
-def load_envs(base_dir, mode):
+def load_envs(base_dir, mode) -> Any:
     """Load Environment Variables"""
-    file_path = base_dir / "config" / ".env" / f"{ mode }.toml"
-    return get_toml_file(file_path).get("env", {})
+    file_path: Any = base_dir / "config" / ".env" / f"{ mode }.toml"
+    return frozendict(get_toml_file(file_path).get("env"))

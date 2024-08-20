@@ -2,37 +2,28 @@
 Framework
 """
 
+from typing import Any
+
 import spoc
 
 PLUGINS = ["commands", "models", "views"]
 
 
-@spoc.singleton
-class MyFramework:
-    """Framework"""
+class MyFramework(spoc.Base):
+    """My Framework"""
 
-    def init(
-        self,
-    ):
+    components: Any
+    extras: Any
+    keys: Any
+
+    def init(self):
         """Class __init__ Replacement"""
-        framework = spoc.App(plugins=PLUGINS)
+        app = spoc.init(PLUGINS)
 
-        self.base_dir = framework.base_dir
-        self.mode = framework.mode
-        self.env = framework.config["env"]
-        self.pyproject = framework.config["pyproject"]
-        self.spoc = framework.config["spoc"]
-        self.settings = framework.settings
-        self.component = framework.component
-        self.extras = framework.extras
+        self.components = app.components
+        self.extras = app.extras
 
         self.keys = [
-            "base_dir",
-            "mode",
-            "env",
-            "pyproject",
-            "spoc",
-            "settings",
-            "component",
+            "components",
             "extras",
         ]

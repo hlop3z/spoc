@@ -3,9 +3,15 @@
 Tool for Singleton(s)
 """
 
+from typing import Any
+
 
 class Singleton:
-    """Class: Create a Singleton"""
+    """
+    A Singleton representing the entire `class`. Ensuring a **single global point of access**.
+    """
+
+    init: Any
 
     def __new__(cls, *args, **kwargs):
         it_id = "__it__"
@@ -16,16 +22,3 @@ class Singleton:
         setattr(cls, it_id, it)
         it.init(*args, **kwargs)
         return it
-
-    def init(self, *args, **kwargs):
-        """Class __init__ Replacement"""
-
-
-def singleton(cls):
-    """Function: Create a Singleton"""
-    custom_class = type(
-        cls.__name__,
-        (cls, Singleton),
-        {},
-    )
-    return custom_class

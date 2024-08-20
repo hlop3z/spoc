@@ -1,6 +1,6 @@
 [spoc]
-# options: development, production, staging
-mode = "development"
+mode = "development" # options: development, staging, production
+debug = true
 
 # Modes
 [spoc.apps]
@@ -10,6 +10,6 @@ staging = []
 
 # Extras
 [spoc.extras]
-middleware = ["demo.middleware.test"]
+middleware = ["demo.middleware.MyClass"]
 on_startup = []
 on_shutdown = []

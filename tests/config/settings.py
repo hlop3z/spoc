@@ -10,3 +10,8 @@ BASE_DIR = pathlib.Path(__file__).parents[1]
 
 # Installed Apps
 INSTALLED_APPS = ["demo"]
+
+# Extra Methods
+EXTRAS = {
+    "middleware": ["demo.middleware.test"],
+}
