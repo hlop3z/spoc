@@ -5,6 +5,8 @@ Abstract Worker (Process & Thread)
 """
 
 import multiprocessing
+import os
+import signal
 import threading
 import time
 from abc import ABC, abstractmethod
@@ -95,6 +97,7 @@ class BaseServer(ABC):
 
     workers: list[Any] = []
     on_event: Any
+    proc_ids: set = set()
 
     @classmethod
     def add(cls, *workers: Any) -> None:
@@ -106,7 +109,7 @@ class BaseServer(ABC):
     @classmethod
     def start(cls, is_loop: bool = True) -> None:
         """
-        Start all added workers and optionally keep the main thread running until interrupted.
+        Start all added workers and optionally keep the main running until interrupted.
         """
         # Ensure `on_event`
         if not hasattr(cls, "on_event"):
@@ -118,8 +121,20 @@ class BaseServer(ABC):
 
         # Startup
         cls.on_event("startup")
+
+        # Main PID
+        cls.proc_ids.add(os.getpid())
+
+        # Start Workers
         for worker in cls.workers:
             worker.start()
+
+            # Register PID(s)
+            if hasattr(worker, "pid"):
+                cls.proc_ids.add(worker.pid)
+                cls.proc_ids.add(os.getppid())
+            else:
+                cls.proc_ids.add(os.getppid())
 
         # Loop Until (Keyboard-Interrupt)
         if is_loop:
@@ -127,23 +142,49 @@ class BaseServer(ABC):
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
-                cls.stop()
+                cls.stop(True)
 
     @classmethod
-    def stop(cls, cleanup: bool = False) -> None:
+    def stop(cls, force_stop: bool = False, exit_delay: int = 1) -> None:
         """
-        Stop all running workers and optionally remove workers.
+        Stop all running workers.
         """
         # Workers
         for worker in cls.workers:
             worker.stop()
+
         # Process & Threads
         for worker in cls.workers:
             if hasattr(worker, "terminate"):
                 worker.terminate()
-            worker.join()
-        # Cleanup
-        if cleanup:
-            cls.workers.clear()
+            # worker.join()
+
         # Shutdown
         cls.on_event("shutdown")
+        if force_stop:
+            cls.force_stop(exit_delay)
+
+    @classmethod
+    def force_stop(cls, delay: int = 1) -> None:
+        """
+        Force to stop.
+        """
+        main_pid = os.getpid()
+        time.sleep(delay)
+
+        # Kill Processes
+        for pid in cls.proc_ids:
+            try:
+                if main_pid != pid:
+                    os.kill(pid, signal.SIGINT)
+            except Exception:
+                pass
+
+        # Cleanup
+        cls.workers.clear()
+        cls.proc_ids.clear()
+
+    @staticmethod
+    def exit() -> None:
+        """Exit Main Process"""
+        os.kill(os.getpid(), signal.SIGINT)
