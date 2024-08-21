@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-FrameWork
+Framework:
+    - Apps (`packages`) folders
+    - Components (`modules`) files
+    - Extras (`objects`)
+    - Settings
+    - TOML files
 """
 
 import os
@@ -131,7 +136,7 @@ if CONFIG:
                 "settings",
                 "spoc_toml",
                 # Components
-                "component",
+                "components",
                 "extras",
             ]
 
