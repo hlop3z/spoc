@@ -42,6 +42,7 @@ class AbstractWorker(ABC):
     """Abstract Worker"""
 
     server: Any
+    options: Any
 
     @abstractmethod
     def _start_event(self) -> Any:
