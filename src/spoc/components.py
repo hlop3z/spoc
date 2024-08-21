@@ -10,7 +10,7 @@ import typing
 
 @dc.dataclass(frozen=True)
 class Component:
-    """Spoc Plugin"""
+    """Spoc Component"""
 
     config: typing.Any = None
     metadata: typing.Any = None
