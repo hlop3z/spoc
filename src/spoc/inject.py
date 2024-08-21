@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
-"""[ Collect & Inject ]
-Project (Module)
+"""
+Collect & Inject
+
+This module provides functionality for collecting and injecting
+`apps`, `modules`, `settings`, and `configuration` files (e.g., TOML files).
+
 """
 
 import os
