@@ -94,7 +94,7 @@ if CONFIG:
             Initialize the framework by collecting installed applications and extras.
 
             Args:
-                plugins (Optional[List]): A list of plugins to initialize with the framework.
+                plugins (list | None): A list of plugins to initialize with the framework.
             """
             # GLOBALS Modules
             installed_apps = collect_installed_apps(TOML_DIR, SETTINGS)
@@ -141,10 +141,11 @@ def init(plugins: Optional[List] = None):
     Initialize the framework by collecting installed `apps` and `extras`.
 
     Args:
-        plugins (list | None): A list of plugins to initialize within the framework.
+        plugins (list | None): A list of plugins (`files`) to initialize within the framework.
 
     Examples:
+    ::
 
-        >>> spoc.init(["models", "views"])
+        spoc.init(["models", "views"]) # will collect from `models.py` and `views.py`
     """
     return Spoc(plugins=plugins)

@@ -2,16 +2,16 @@
 Components
 """
 
+from typing import Any
 import spoc
 
-COMPONENTS = {}
-COMPONENTS["command"] = {"type": "command"}
+
+components = spoc.Components()
+components.add("command", {"is_click": True})
 
 
 # Class @Decorator
-def commands(
-    cls: object = None,
-):
+def commands(obj: Any = None):
     """Demo"""
-    spoc.component(cls, metadata=COMPONENTS["command"])
-    return cls
+    components.register("command", obj)
+    return obj

@@ -1,6 +1,6 @@
 """Main"""
 
-from framework import MyFramework
+from framework import MyFramework, components
 
 import spoc
 
@@ -8,40 +8,57 @@ test = MyFramework()
 
 print("DEBUG", spoc.settings.DEBUG)
 print("MODE", spoc.settings.MODE)
-print("SPOC", spoc.settings.SPOC)
-print("ENV", spoc.settings.ENV)
-print("CONFIG", spoc.settings.CONFIG)
-
-
-print(test.components.__dict__.keys())
-print(test.extras)
-# print(test.components.commands)
-# print(test.components.commands.get("demo.test").object)
+# print("SPOC", spoc.settings.SPOC)
+# print("ENV", spoc.settings.ENV)
+# print("CONFIG", spoc.settings.CONFIG)
+# print(test.components.__dict__.keys())
+# print(test.extras)
 
 for method in test.extras.get("middleware", []):
     print(method)
 
 
-# print(test.plugin.commands.values())
+for component in test.components.commands.values():
+    is_my_type = components.is_component("command", component)
+    print(f"""Is the plugin of the <type> assigned? {is_my_type}""")
+    print(component)
 
 
-class MyProcess(spoc.BaseProcess):  # spoc.BaseThread
-    """Ignore"""
+import time
+import asyncio
+import os
 
-    def on_event(self, event_type):
-        print(event_type)
+
+class AsyncProcess(spoc.BaseProcess):  # spoc.BaseThread
+    async def on_event(self, event_type):
+        print("Process:", event_type, os.getpid())
 
     async def server(self):
-        pass
+        while self.active:
+            print("My Server", self.options.name)
+            await asyncio.sleep(1)
 
 
-class MyClass(spoc.BaseServer):
-    """Ignore"""
+class SyncProcess(spoc.BaseThread):  # spoc.BaseThread
+    def on_event(self, event_type):
+        print("Thread:", event_type, os.getpid())
 
-    @classmethod
+    def server(self):
+        while self.active:
+            print("My Server", self.options.name)
+            time.sleep(1)
+
+
+class MyServer(spoc.BaseServer):
+    @classmethod  # or staticmethod
     def on_event(cls, event_type):
-        print(event_type)
+        print("Server:", event_type)
 
 
-MyProcess()
-MyClass.start(False)
+if __name__ == "__main__":
+    time.sleep(1)
+    MyServer.add(SyncProcess(name="One"))
+    MyServer.add(AsyncProcess(name="Two"))
+    MyServer.start()
+    # time.sleep(3)
+    # MyServer.stop()

@@ -9,7 +9,7 @@ from typing import Any
 
 from .frozendict import FrozenDict
 from .tools import get_attr
-from .types import Class, Spoc
+from .types import Object, Spoc
 
 
 def get_spoc(plugins: dict) -> Spoc:
@@ -27,13 +27,15 @@ def get_spoc(plugins: dict) -> Spoc:
                     if is_spoc_plugin:
                         module_uri = f"{current.app}.{current_module.lower()}"
                         global_uri = f"{current.module}.{module_uri}"
-                        out_dict[module_key][module_uri] = Class(
+                        # Create Object
+                        out_dict[module_key][module_uri] = Object(
                             name=current_module,
                             app=current.app,
                             module=current.module,
                             key=module_uri,
                             uri=global_uri,
                             object=active_class,
+                            info=metadata,
                         )
                         global_dict[global_uri] = active_class
         # FrozenDict

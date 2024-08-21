@@ -3,7 +3,8 @@
 """
 DataClasses
 
-* Class
+* Info
+* Object
 * Global
 * Core
 * Definition
@@ -15,8 +16,17 @@ import typing
 
 
 @dc.dataclass(frozen=True)
-class Class:
-    """Project Classes"""
+class Info:
+    """Spoc Component Info"""
+
+    config: typing.Any = None
+    metadata: typing.Any = None
+    is_spoc_plugin: bool = True
+
+
+@dc.dataclass(frozen=True)
+class Object:
+    """Framework Object"""
 
     name: str | None = None
     app: str | None = None
@@ -24,11 +34,12 @@ class Class:
     key: str | None = None
     uri: str | None = None
     object: typing.Any = None
+    info: Info | None = None
 
 
 @dc.dataclass(frozen=True)
 class Spoc:
-    """Project Spoc (Globals)"""
+    """Framework Globals"""
 
     modules: typing.Any = None
     schema: typing.Any = None
@@ -36,7 +47,7 @@ class Spoc:
 
 @dc.dataclass(frozen=True)
 class Core:
-    """Project Core"""
+    """Framework Core"""
 
     modules: dict
     plugins: dict
@@ -44,7 +55,7 @@ class Core:
 
 @dc.dataclass(frozen=True)
 class Definition:
-    """Project Definitions"""
+    """Framework Definitions"""
 
     path: str
     app: str
@@ -54,7 +65,7 @@ class Definition:
 
 @dc.dataclass(frozen=True)
 class App:
-    """Project App"""
+    """Framework App"""
 
     plugin: typing.Any
     module: dict[str, typing.Any]
