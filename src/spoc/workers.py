@@ -218,7 +218,7 @@ class BaseServer(ABC):
                     time.sleep(2)
 
         class MyServer(spoc.BaseServer):
-            @staticmethod  # or classmethod
+            @classmethod  # or staticmethod
             def on_event(cls, event_type):
                 print("Server:", event_type)
 
