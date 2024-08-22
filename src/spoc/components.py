@@ -116,8 +116,9 @@ class Components:
             components = spoc.Components()
             components.add("command", {"is_click": True}) # metadata
         """
+        type_name = name.lower()
         meta = metadata or {}
-        self._components[name] = {**meta, "type": name}
+        self._components[type_name] = {**meta, "type": type_name}
 
     def register(self, name: str, obj: Any, config: dict | None = None) -> None:
         """
@@ -132,7 +133,7 @@ class Components:
 
             components.register("command", my_obj, config={"setting": "value"})
         """
-        component(obj, config=config, metadata=self._components[name])
+        component(obj, config=config, metadata=self._components[name.lower()])
 
     def is_component(self, name: str, obj: Any) -> bool:
         """
@@ -149,4 +150,4 @@ class Components:
                 print("This is not a valid component.")
 
         """
-        return is_component(obj, self._components[name])
+        return is_component(obj, self._components[name.lower()])
