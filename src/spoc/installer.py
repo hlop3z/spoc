@@ -9,14 +9,14 @@ from types import SimpleNamespace
 CONFIG_TEXT = '''
 # -*- coding: utf-8 -*-
 """
-{ Config }
+Config
 """
 '''.strip()
 
 SETTINGS_TEXT = '''
 # -*- coding: utf-8 -*-
 """
-{ Settings }
+Settings
 """
 
 import pathlib
@@ -33,18 +33,20 @@ EXTRAS = {}
 
 
 SPOC_TEXT = """
+# Application Settings
 [spoc]
 mode = "development" # options: development, staging, production
 debug = true
 
-# Modes
+# Installed Apps by Mode
 [spoc.apps]
 production = []
 development = []
 staging = []
 
-# Extras
+# Additional Components
 [spoc.extras]
+# Plugins and Hooks
 """.strip()
 
 
