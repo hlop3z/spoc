@@ -33,7 +33,7 @@ EXTRAS = {}
 
 
 SPOC_TEXT = """
-# Application Settings
+# Application Configuration
 [spoc]
 mode = "development" # options: development, staging, production
 debug = true
