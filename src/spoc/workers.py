@@ -82,12 +82,16 @@ class AbstractWorker(ABC):
         else:
             # Sync Server
             try:
+                self.before_sync()
                 self.run_sync()
             except KeyboardInterrupt:
                 pass
 
     def before_async(self) -> None:
         """Setup before running asynchronous server."""
+
+    def before_sync(self) -> None:
+        """Setup before running synchronous server."""
 
     def run_sync(self) -> None:
         """Run Synchronous Worker"""
