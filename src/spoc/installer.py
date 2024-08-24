@@ -25,10 +25,10 @@ import pathlib
 BASE_DIR = pathlib.Path(__file__).parents[1]
 
 # Installed Apps
-INSTALLED_APPS = []
+INSTALLED_APPS: list  = []
 
 # Extra Methods
-EXTRAS = {}
+EXTRAS: dict = {}
 '''.strip()
 
 
