@@ -6,32 +6,33 @@ This example demonstrates how to create a custom framework by extending the `spo
 The framework initializes via `spoc.init` with a list of `modules`,
 and it provides access to `components` and `extras`.
 
-Examples:
-::
+Example:
 
-    from typing import Any
-    import spoc
+```python
+from typing import Any
+import spoc
 
-    PLUGINS = ["models", "views"]
+PLUGINS = ["models", "views"]
 
-    class MyFramework(spoc.Base):
-        components: Any
-        extras: Any
-        keys: Any
+class MyFramework(spoc.Base):
+    components: Any
+    extras: Any
+    keys: Any
 
-        def init(self):
-            # __init__ Replacement
-            app = spoc.init(PLUGINS)
+    def init(self):
+        # __init__ Replacement
+        app = spoc.init(PLUGINS)
 
-            # Assign components and extras from the initialized app
-            self.components = app.components
-            self.extras = app.extras
+        # Assign components and extras from the initialized app
+        self.components = app.components
+        self.extras = app.extras
 
-            # Define a list of keys relevant to the framework
-            self.keys = [
-                "component",
-                "extras",
-            ]
+        # Define a list of keys relevant to the framework
+        self.keys = [
+            "component",
+            "extras",
+        ]
+```
 """
 
 # Core Tools

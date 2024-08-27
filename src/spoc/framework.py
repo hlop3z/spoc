@@ -148,9 +148,10 @@ def init(plugins: Optional[List] = None):
     Args:
         plugins (list | None): A list of plugins (`files`) to initialize within the framework.
 
-    Examples:
-    ::
+    Example:
 
-        spoc.init(["models", "views"]) # will collect from `models.py` and `views.py`
+    ```python
+    spoc.init(["models", "views"]) # will collect from `models.py` and `views.py`
+    ```
     """
     return Spoc(plugins=plugins)

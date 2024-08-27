@@ -32,15 +32,16 @@ def component(
     Returns:
         Any: The decorated class, marked as a component.
 
-    Examples:
-    ::
+    Example:
 
-        @component(config={"setting": "value"}, metadata={"type": "command"})
-        class MyComponent:
-            pass
+    ```python
+    @component(config={"setting": "value"}, metadata={"type": "command"})
+    class MyComponent:
+        pass
 
-        # OR
-        component(MyComponent, config={"setting": "value"}, metadata={"type": "command"})
+    # OR
+    component(MyComponent, config={"setting": "value"}, metadata={"type": "command"})
+    ```
     """
 
     config = config or {}
@@ -73,10 +74,11 @@ def is_component(obj: Any, metadata: dict | None = None) -> bool:
             `False` otherwise.
 
     Example:
-    ::
 
-        if is_component(my_obj, metadata={"type": "command"}):
-            print("This is a valid component.")
+    ```python
+    if is_component(my_obj, metadata={"type": "command"}):
+        print("This is a valid component.")
+    ```
     """
 
     item = obj
@@ -92,10 +94,10 @@ class Components:
     Framework Components
 
     Example:
-    ::
 
-        components = spoc.Components("model", "view")
-
+    ```python
+    components = spoc.Components("model", "view")
+    ```
     """
 
     def __init__(self, *names: Any) -> None:
@@ -111,10 +113,11 @@ class Components:
         Add a component with the specified name and optional metadata.
 
         Example:
-        ::
 
-            components = spoc.Components()
-            components.add("command", {"is_click": True}) # metadata
+        ```python
+        components = spoc.Components()
+        components.add("command", {"is_click": True}) # metadata
+        ```
         """
         type_name = name.lower()
         meta = metadata or {}
@@ -125,13 +128,14 @@ class Components:
         Mark an object as a component using the specified configuration.
 
         Example:
-        ::
 
-            components = spoc.Components("command", "model")
+        ```python
+        components = spoc.Components("command", "model")
 
-            def my_obj(): pass
+        def my_obj(): pass
 
-            components.register("command", my_obj, config={"setting": "value"})
+        components.register("command", my_obj, config={"setting": "value"})
+        ```
         """
         component(obj, config=config, metadata=self._components[name.lower()])
 
@@ -140,14 +144,14 @@ class Components:
         Validate if the given object is a component with the specified name.
 
         Example:
-        ::
 
-            components = spoc.Components("command", "model")
+        ```python
+        components = spoc.Components("command", "model")
 
-            def my_obj(): pass
+        def my_obj(): pass
 
-            if not components.is_component("command", my_obj):
-                print("This is not a valid component.")
-
+        if not components.is_component("command", my_obj):
+            print("This is not a valid component.")
+        ```
         """
         return is_component(obj, self._components[name.lower()])

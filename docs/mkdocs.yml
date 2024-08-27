@@ -1,29 +1,41 @@
+# Configurations
 site_name: Spoc
 site_url: https://hlop3z.github.io/spoc/
 repo_url: https://github.com/hlop3z/spoc
 copyright: Copyright © hlop3z
 
+# Navigation
 nav:
   - Introduction: index.md
   - Definitions: definitions.md
   - Getting Started: getting-started.md
-  - First Project:
-    - Overview: first-project/overview.md
-    - Project: first-project/project.md
-    - Config: first-project/config.md
-    - Component(s): first-project/component.md
-    - Framework: first-project/framework.md
-    - Extras: first-project/extras.md
-    - Testing: first-project/testing.md
+  - Reference: api/api.md
 
-# Configurations
+  - First Project:
+      - Overview: first-project/overview.md
+      - Project: first-project/project.md
+      - Config: first-project/config.md
+      - Component(s): first-project/component.md
+      - Framework: first-project/framework.md
+      - Extras: first-project/extras.md
+      - Testing: first-project/testing.md
+
+# Path Watch
 watch:
   - custom_theme
+  - ../src
 
+# Extras
+extra:
+  generator: false
+
+# Theme
 theme:
   custom_dir: custom_theme/
   name: material
   locale: en
+  logo: assets/images/logo.png
+  favicon: assets/images/logo.png
   features:
     # - navigation.tabs
     - navigation.instant
@@ -48,9 +60,11 @@ theme:
         icon: material/toggle-switch
         name: Switch to light mode
 
+# Extensions
 markdown_extensions:
   - admonition
   - tables
+  - attr_list
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.snippets
@@ -61,7 +75,69 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
-  - attr_list
   - pymdownx.emoji:
-      emoji_index: !!python/name:materialx.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+# Plugins
+plugins:
+  - search
+
+  # Macros
+  - macros:
+      modules:
+        - macros
+
+  # termynal
+  - termynal
+
+  # mkdocstrings
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [..] # search packages in the src folder
+          options:
+            # Docstring Style
+            docstring_style: google
+            docstring_section_style: list # table | list | spacy
+
+            # Symbol
+            show_symbol_type_toc: true
+            show_symbol_type_heading: false
+
+            # Headings
+            show_root_heading: true
+            separate_signature: false
+
+            # Generic
+            allow_inspection: true
+            group_by_category: true
+            show_bases: false
+            show_labels: true
+            show_source: false
+            unwrap_annotated: true
+
+            # Members
+            members_order: source
+            inherited_members: false
+
+            # Object Paths
+            show_root_members_full_path: false
+            show_object_full_path: false
+
+            # Init
+            merge_init_into_class: true
+            docstring_options:
+              ignore_init_summary: true
+
+            # Docstring Include
+            show_docstring_functions: false
+            show_docstring_examples: false
+            show_if_no_docstring: false
+
+            # Filters
+            filters:
+              - "!^_"

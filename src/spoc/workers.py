@@ -129,30 +129,30 @@ class BaseProcess(AbstractWorker, multiprocessing.Process):
     Abstract Process
 
     Example:
-    ::
 
-        class AsyncProcess(spoc.BaseProcess):
-            agent: Any = asyncio # Example: `uvloop`
+    ```python
+    class AsyncProcess(spoc.BaseProcess):
+        agent: Any = asyncio # Example: `uvloop`
 
-            def before_async(self) -> None:
-                ... # For Async Only
+        def before_async(self) -> None:
+            ... # For Async Only
 
-            async def on_event(self, event_type: str):
+        async def on_event(self, event_type: str):
+            ...
+
+        async def server(self):
+            while self.active:
                 ...
 
-            async def server(self):
-                while self.active:
-                    ...
 
+    class SyncProcess(spoc.BaseProcess):
+        def on_event(self, event_type: str):
+            ...
 
-        class SyncProcess(spoc.BaseProcess):
-            def on_event(self, event_type: str):
+        def server(self):
+            while self.active:
                 ...
-
-            def server(self):
-                while self.active:
-                    ...
-
+    ```
     """
 
     def __init__(self, **kwargs: Any):
@@ -169,29 +169,30 @@ class BaseThread(AbstractWorker, threading.Thread):
     Abstract Thread
 
     Example:
-    ::
 
-        class AsyncThread(spoc.BaseThread):
-            agent: Any = asyncio # Example: `uvloop`
+    ```python
+    class AsyncThread(spoc.BaseThread):
+        agent: Any = asyncio # Example: `uvloop`
 
-            def before_async(self) -> None:
-                ... # For Async Only
+        def before_async(self) -> None:
+            ... # For Async Only
 
-            async def on_event(self, event_type: str):
+        async def on_event(self, event_type: str):
+            ...
+
+        async def server(self):
+            while self.active:
                 ...
 
-            async def server(self):
-                while self.active:
-                    ...
 
+    class SyncThread(spoc.BaseThread):
+        def on_event(self, event_type: str):
+            ...
 
-        class SyncThread(spoc.BaseThread):
-            def on_event(self, event_type: str):
+        def server(self):
+            while self.active:
                 ...
-
-            def server(self):
-                while self.active:
-                    ...
+    ```
     """
 
     def __init__(self, **kwargs: Any):
@@ -208,28 +209,29 @@ class BaseServer(ABC):
     Control multiple workers `Thread(s)` and/or `Process(es)`.
 
     Example:
-    ::
 
-        import time
+    ```python
+    import time
 
-        class MyProcess(spoc.BaseProcess):  # BaseThread
-            def on_event(self, event_type):
-                print("Process | Thread:", event_type)
+    class MyProcess(spoc.BaseProcess):  # BaseThread
+        def on_event(self, event_type):
+            print("Process | Thread:", event_type)
 
-            def server(self):
-                while self.active:
-                    print("My Server", self.options.name)
-                    time.sleep(2)
+        def server(self):
+            while self.active:
+                print("My Server", self.options.name)
+                time.sleep(2)
 
-        class MyServer(spoc.BaseServer):
-            @classmethod  # or staticmethod
-            def on_event(cls, event_type):
-                print("Server:", event_type)
+    class MyServer(spoc.BaseServer):
+        @classmethod  # or staticmethod
+        def on_event(cls, event_type):
+            print("Server:", event_type)
 
-        # Press (CTRL + C) to Quit
-        MyServer.add(MyProcess(name="One"))
-        MyServer.add(MyProcess(name="Two"))
-        MyServer.start()
+    # Press (CTRL + C) to Quit
+    MyServer.add(MyProcess(name="One"))
+    MyServer.add(MyProcess(name="Two"))
+    MyServer.start()
+    ```
     """
 
     workers: list[Any] = []
@@ -290,6 +292,8 @@ class BaseServer(ABC):
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
+                # Before Shutdown
+                cls.on_event("before_shutdown")
                 cls.stop(force_stop=True, forced_delay=5)
 
     @classmethod

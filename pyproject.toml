@@ -5,46 +5,35 @@ description = "Framework Builder"
 authors = [
     { name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com" },
 ]
-dependencies = []
 requires-python = ">=3.12"
 readme = "README.md"
 license = { text = "MIT" }
+dependencies = []
 
 [project.scripts]
 spoc-init = "spoc:start_project"
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.pdm]
-distribution = true
-
-[tool.pdm.dev-dependencies]
-linters = [
-    "pyright>=1.1.351",
-    "mypy>=1.8.0",
+[tool.uv]
+dev-dependencies = [
+    "pyright>=1.1.377",
+    "mypy>=1.11.1",
     "isort>=5.13.2",
-    "black>=24.2.0",
-    "pylint>=3.0.3",
-    "ruff>=0.2.2",
-    "bandit>=1.7.7",
+    "black>=24.8.0",
+    "pylint>=3.2.6",
+    "ruff>=0.6.2",
+    "bandit>=1.7.9",
     "watchdog>=4.0.2",
     "ssort>=0.13.0",
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.32",
+    "mkdocs-macros-plugin>=1.0.5",
+    "mkdocstrings[python]>=0.25.2",
+    "termynal>=0.12.1",
+    "pytest>=7.1.2",
+    "pytest-asyncio>=0.19.0",
+    "pytest-json-report>=1.5.0",
 ]
-test = ["pytest>=7.1.2", "pytest-asyncio>=0.19.0", "pytest-json-report>=1.5.0"]
-devops = ["click>=8.1.3"]
-docs = ["mkdocs>=1.3.1", "mkdocs-material>=8.4.2"]
-
-
-[tool.pdm.scripts]
-# Linters
-lint = "python scripts/linter.py"
-
-# Docs
-docs-dev = { shell = "cd docs/ && python -m mkdocs serve --dev-addr 0.0.0.0:8055" }
-docs-gh = { shell = "cd docs/ && python -m mkdocs gh-deploy --force" }
-
-# Pre-Commit
-pre = { shell = "pre-commit run --all-file" }
-
-# Tests
-test = "python tests/main.py"
-test-init = { shell = "cd tests && spoc-init" }
