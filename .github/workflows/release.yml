@@ -1,33 +1,37 @@
-name: Upload Python Package
+name: Upload Release to PyPI
 
-on: workflow_dispatch
+# on: workflow_dispatch
+on:
+  push:
+    tags:
+      - v*
 
 permissions:
   contents: read
 
 jobs:
   pypi-publish:
-    name: Upload Release to PyPI
+    name: Publish to PyPI
     runs-on: ubuntu-latest
+
     permissions:
-      # contents: read # This permission is needed for private repositories.
-      id-token: write # This permission is mandatory for trusted publishing
+      contents: read # Required for accessing repository contents
+      id-token: write # Required for GitHub Actions OIDC authentication
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Setup PDM
-        uses: pdm-project/setup-pdm@v3
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.12
-          update-python: true # Update the environment with the requested Python version
+          python-version-file: "pyproject.toml"
 
-      - name: Install Dependencies
-        run: pdm install --prod
+      - name: Install UV
+        run: curl -LsSf https://astral.sh/uv/0.3.5/install.sh | sh
 
-      - name: Build Package
-        run: pdm build
+      - name: Build Python Package
+        run: uvx --from build pyproject-build --installer uv
 
-      - name: Publish Package
-        run: pdm publish
+      - name: Publish to PyPI
+        run: uvx twine upload dist/*
