@@ -14,30 +14,15 @@ jobs:
   pypi-publish:
     name: Publish to PyPI
     runs-on: ubuntu-latest
-
-    environment:
-      name: pypi
-      url: https://pypi.org/p/spoc
-
     permissions:
-      contents: read # Required for accessing repository contents
-      id-token: write # Required for GitHub Actions OIDC authentication
-
+      # This permission is needed for private repositories.
+      contents: read
+      # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Set up Python Environment
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: "pyproject.toml"
+      - uses: pdm-project/setup-pdm@v3
 
-      - name: Install UV
-        run: curl -LsSf https://astral.sh/uv/0.3.5/install.sh | sh
-
-      - name: Build Python Package
-        run: uvx --from build pyproject-build --installer uv
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        # run: uvx twine upload dist/*
+      - name: Publish package distributions to PyPI
+        run: pdm publish
