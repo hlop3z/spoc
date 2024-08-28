@@ -8,6 +8,20 @@ license = { text = "MIT" }
 authors = [
     { name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com" },
 ]
+classifiers = [
+    "Development Status :: 4 - Beta",                               # Example status: Alpha, Beta, Production/Stable
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+keywords = [
+    "modular design",
+    "python framework",
+    "extensible framework",
+    "plugin management",
+]
 dependencies = []
 
 [project.urls]
@@ -22,7 +36,16 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-path = "src/spoc/__init__.py"
+path = "src/spoc/__about__.py"
+
+[tool.hatch.build]
+sources = ["src"]
+
+[tool.hatch.build.targets.wheel]
+include = ["src/spoc/**"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/spoc/**", "README.md", "LICENSE"]
 
 [tool.uv]
 dev-dependencies = [
