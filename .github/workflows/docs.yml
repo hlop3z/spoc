@@ -1,0 +1,32 @@
+name: Update Docs
+
+on:
+  release:
+    types: [published] # Automatically triggers on new release
+
+permissions:
+  contents: write # Grants write permissions to push changes to the repository
+
+jobs:
+  update_docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up PDM (Python Dependency Manager)
+        uses: pdm-project/setup-pdm@v3
+
+      - name: Install Dependencies
+        run: pdm install -G docs
+
+      - name: Update mkdocs.yml with Latest Tag
+        run: |
+          REPOSITORY="https://github.com/${{ github.repository }}"
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          cd docs
+          sed -i "s|repo_url: '${REPOSITORY}/tree/.*'|repo_url: '${REPOSITORY}/tree/${TAG_NAME}'|" mkdocs.yml
+
+      - name: Deploy MkDocs
+        run: |
+          pdm run scripts/docs.py -gh

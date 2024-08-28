@@ -1,7 +1,7 @@
 # Configurations
 site_name: Spoc
 site_url: https://hlop3z.github.io/spoc/
-repo_url: https://github.com/hlop3z/spoc
+repo_url: https://github.com/hlop3z/spoc/tree/main # Default placeholder value
 copyright: Copyright © hlop3z
 
 # Navigation
@@ -39,6 +39,8 @@ theme:
   favicon: assets/images/logo.png
   features:
     - content.code.annotate
+    - content.code.copy
+    - content.tooltips
     - navigation.expand
     - navigation.instant
     - navigation.sections
@@ -64,12 +66,13 @@ theme:
 
 # Extensions
 markdown_extensions:
+  # - footnotes
   - admonition
   - tables
   - attr_list
+  - pymdownx.snippets
   - pymdownx.highlight:
       anchor_linenums: true
-  - pymdownx.snippets
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
