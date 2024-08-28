@@ -1,14 +1,18 @@
 [project]
 name = "spoc"
-version = "0.1.35"
+dynamic = ["version"]
 description = "Elastic Framework Builder"
-authors = [
-    { name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com" },
-]
 requires-python = ">=3.12"
 readme = "README.md"
 license = { text = "MIT" }
+authors = [
+    { name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com" },
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/hlop3z/spoc/"
+Documentation = "https://hlop3z.github.io/spoc/"
 
 [project.scripts]
 spoc-init = "spoc:start_project"
@@ -16,6 +20,9 @@ spoc-init = "spoc:start_project"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/spoc/__init__.py"
 
 [tool.uv]
 dev-dependencies = [

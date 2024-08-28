@@ -37,8 +37,8 @@ class MyFramework(spoc.Base):
 from .components import Components
 
 # Import Tools
-from .importer.frozendict import FrozenDict as frozendict
 from .importer.base import search_object
+from .importer.frozendict import FrozenDict as frozendict
 from .importer.tools import get_fields
 from .installer import start_project
 from .singleton import Singleton as Base
@@ -57,6 +57,9 @@ try:
 
 except ImportError:
     pass
+
+# Version
+__version__ = "0.2.0"
 
 __all__ = (
     # Globals
