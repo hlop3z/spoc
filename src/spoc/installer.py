@@ -27,7 +27,7 @@ BASE_DIR = pathlib.Path(__file__).parents[1]
 # Installed Apps
 INSTALLED_APPS: list  = []
 
-# Extra Methods
+# Additional Components
 PLUGINS: dict = {}
 '''.strip()
 
