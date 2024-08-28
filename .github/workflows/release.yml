@@ -5,7 +5,7 @@ on:
   workflow_dispatch: # Manually triggered
   push:
     tags:
-      - "v*" # Automatically triggered on tags that match the pattern
+      - v* # Automatically triggered on tags that match the pattern
 
 permissions:
   contents: read
