@@ -26,7 +26,7 @@ jobs:
           REPOSITORY="https://github.com/${{ github.repository }}"
           TAG_NAME="${{ github.event.release.tag_name }}"
           cd docs
-          sed -i "s|repo_url: '${REPOSITORY}/tree/.*'|repo_url: '${REPOSITORY}/tree/${TAG_NAME}'|" mkdocs.yml
+          sed -i "s|repo_url: '${REPOSITORY}/[^']*'|repo_url: '${REPOSITORY}/tree/${TAG_NAME}'|" mkdocs.yml
 
       - name: Deploy MkDocs
         run: |
