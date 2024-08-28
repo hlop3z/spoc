@@ -53,6 +53,7 @@ def commit_changes(version):
     """Commit the changes to Git if commit is specified."""
     subprocess.check_call(["git", "add", "."])
     subprocess.check_call(["git", "commit", "-m", f"v{version}"])
+    subprocess.check_call(["git", "push"])
 
 
 def tag_and_push(version):
