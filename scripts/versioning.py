@@ -61,7 +61,7 @@ def tag_and_push(version):
         # Create a Git tag
         subprocess.check_call(["git", "tag", f"v{version}"])
         # Commit Changes
-        # commit_changes(version)
+        commit_changes(version)
         # Push the tag to the remote repository
         subprocess.check_call(["git", "push", "origin", f"v{version}"])
         print(f"Git tag v{version} created and pushed.")
