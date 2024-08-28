@@ -191,6 +191,19 @@ PLUGINS: dict = {}
 
 ---
 
+## **Using** the Framework
+
+```python title="apps/demo/commands.py"
+# -*- coding: utf-8 -*-
+"""{ Usage }"""
+
+from framework import command
+
+@command
+def hello_world():
+    print("Hello World (Command)")
+```
+
 ## **Testing** the Framework
 
 ```python title="main.py"
@@ -218,6 +231,6 @@ app.components.commands["demo.hello_world"].object()
 ```
 $ python main.py
 > dict_keys(['commands', 'models', 'views'])
-> dict_keys(['middleware', 'on_startup', 'on_shutdown'])
+> dict_keys([])
 > Hello World (Commands)
 ```

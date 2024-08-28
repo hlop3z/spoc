@@ -37,6 +37,7 @@ dependencies = []
 [project.urls]
 Homepage = "https://github.com/hlop3z/spoc/"
 Documentation = "https://hlop3z.github.io/spoc/"
+Repository = "https://github.com/hlop3z/spoc/"
 
 [project.scripts]
 spoc-init = "spoc:start_project"

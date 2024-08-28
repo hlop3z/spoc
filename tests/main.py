@@ -6,8 +6,6 @@ import spoc
 
 app = MyFramework()
 
-print(spoc.settings.CONFIG)
-
 
 def print_the_parts():
     print("DEBUG", spoc.settings.DEBUG)

@@ -6,7 +6,7 @@ from functools import partial
 # Define commands for various operations
 CMD_DEV = "python -m mkdocs serve --dev-addr 0.0.0.0:8056"
 CMD_DEPLOY = "python -m mkdocs gh-deploy --force"
-CMD_MIKE = "python -m mike"
+CMD_MIKE = "mike"
 
 
 def execute_command(docs_dir: Path, command: str) -> None:
