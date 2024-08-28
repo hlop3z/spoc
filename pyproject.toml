@@ -46,9 +46,9 @@ version = { source = "file", path = "src/spoc/__about__.py" }
 distribution = true
 
 [tool.pdm.build]
-excludes = ["tests"]
-# includes = ["src"]
 # package-dir = "src"
+includes = ["src", "README.md", "LICENSE"]
+excludes = ["tests"]
 
 [tool.pdm.dev-dependencies]
 lint = [
