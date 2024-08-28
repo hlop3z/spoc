@@ -1,6 +1,7 @@
 name: Update Docs
 
 on:
+  workflow_dispatch: # Allows manual triggering
   release:
     types: [published] # Automatically triggers on new release
 
