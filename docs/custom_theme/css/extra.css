@@ -48,3 +48,10 @@
 .md-footer-meta__inner {
   justify-content: center !important;
 }
+
+/* DOCS */
+.doc code,
+.doc-heading * {
+  color: #4cae4f !important;
+  /* font-size: 1em; */
+}

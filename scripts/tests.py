@@ -1,6 +1,7 @@
 import subprocess
 from pathlib import Path
 import argparse
+import shutil
 
 # Define the commands
 CMD_MAIN = "python main.py"
@@ -37,12 +38,19 @@ def main():
     args = parser.parse_args()
 
     # Determine which command to run
-    # params = " ".join(args.args or [])
+    params = " ".join(args.args or [])
     if args.name:
-        print(args.name)
         match args.name:
             case "spoc":
-                execute_command(test_dir, CMD_MAIN)
+                execute_command(test_dir, CMD_MAIN, params)
+            case "init":
+                test_dir = base_dir / "test_init"
+                try:
+                    shutil.rmtree(test_dir)
+                except FileNotFoundError:
+                    pass
+                test_dir.mkdir(parents=True, exist_ok=True)
+                execute_command(test_dir, CMD_INIT)
     else:
         parser.print_help()
 

@@ -4,25 +4,44 @@ from framework import MyFramework, components
 
 import spoc
 
-test = MyFramework()
+app = MyFramework()
 
-print("DEBUG", spoc.settings.DEBUG)
-print("MODE", spoc.settings.MODE)
-# print("SPOC", spoc.settings.SPOC)
-# print("ENV", spoc.settings.ENV)
-# print("CONFIG", spoc.settings.CONFIG)
-# print(test.components.__dict__.keys())
-# print(test.extras)
+print(spoc.settings.CONFIG)
 
-for method in test.extras.get("middleware", []):
+
+def print_the_parts():
+    print("DEBUG", spoc.settings.DEBUG)
+    print("MODE", spoc.settings.MODE)
+    # print("SPOC", spoc.settings.SPOC)
+    # print("ENV", spoc.settings.ENV)
+    # print("CONFIG", spoc.settings.CONFIG)
+    # print(test.components.__dict__.keys())
+    # print(test.extras)
+
+    print(app.plugins)
+    print(app.components)
+    # Print components groups
+    print(app.components.__dict__.keys())
+
+    # Print plugin groups
+    print(app.plugins.keys())
+
+
+def execute_registered_command():
+    # Execute the registered command
+    app.components.commands["demo.hello_world"].object()
+
+
+'''
+for method in test.plugins.get("middleware", []):
     print(method)
 
 
 for component in test.components.commands.values():
     is_my_type = components.is_component("command", component)
-    print(f"""Is the plugin of the <type> assigned? {is_my_type}""")
+    print(f"""Is the component of the <type> assigned? {is_my_type}""")
     print(component)
-
+'''
 
 import time
 import asyncio
@@ -55,10 +74,19 @@ class MyServer(spoc.BaseServer):
         print("Server:", event_type)
 
 
-if __name__ == "__main__":
+def test_server_workers():
     time.sleep(1)
     MyServer.add(SyncProcess(name="One"))
     MyServer.add(AsyncProcess(name="Two"))
     MyServer.start()
     # time.sleep(3)
     # MyServer.stop()
+
+
+if __name__ == "__main__":
+    """Run Tests"""
+    # print(test.__core__.keys())
+    # test_server_workers()
+    # print_the_parts()
+    # execute_registered_command()
+    app.cli()

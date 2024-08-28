@@ -28,7 +28,7 @@ BASE_DIR = pathlib.Path(__file__).parents[1]
 INSTALLED_APPS: list  = []
 
 # Extra Methods
-EXTRAS: dict = {}
+PLUGINS: dict = {}
 '''.strip()
 
 
@@ -45,8 +45,7 @@ development = []
 staging = []
 
 # Additional Components
-[spoc.extras]
-# Plugins and Hooks
+[spoc.plugins] # (Plugins and Hooks)
 """.strip()
 
 
@@ -60,7 +59,19 @@ def start_project(
     spoc_text: str = SPOC_TEXT,
     env_text: str = ENV_TEXT,
 ):
-    """Create Core Files"""
+    """
+    Creates the core configuration files and directories for a project.
+
+    This function sets up the initial directory structure and creates the necessary
+    configuration files for a new project, including `settings.py`, `spoc.toml`,
+    and environment-specific configuration files.
+
+    Args:
+        settings_text (str): The text content for the `settings.py` file.
+        spoc_text (str): The text content for the `spoc.toml` file.
+        env_text (str): The text content for environment-specific `.toml` files
+                        (e.g., `production.toml`, `development.toml`, `staging.toml`).
+    """
     config_text: str = CONFIG_TEXT
 
     # import __main__

@@ -21,7 +21,7 @@ class Info:
 
     config: typing.Any = None
     metadata: typing.Any = None
-    is_spoc_plugin: bool = True
+    is_spoc: bool = True
 
 
 @dc.dataclass(frozen=True)
@@ -38,19 +38,11 @@ class Object:
 
 
 @dc.dataclass(frozen=True)
-class Spoc:
-    """Framework Globals"""
-
-    modules: typing.Any = None
-    schema: typing.Any = None
-
-
-@dc.dataclass(frozen=True)
 class Core:
     """Framework Core"""
 
     modules: dict
-    plugins: dict
+    components: dict
 
 
 @dc.dataclass(frozen=True)
@@ -67,6 +59,6 @@ class Definition:
 class App:
     """Framework App"""
 
-    plugin: typing.Any
-    module: dict[str, typing.Any]
-    extras: dict[str, typing.Any] | None = None
+    components: typing.Any
+    modules: dict[str, typing.Any]
+    plugins: dict[str, typing.Any] | None = None

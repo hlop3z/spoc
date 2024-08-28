@@ -9,7 +9,7 @@ development = []
 staging = []
 
 # Extras
-[spoc.extras]
+[spoc.plugins]
 middleware = ["demo.middleware.MyClass"]
 on_startup = []
 on_shutdown = []

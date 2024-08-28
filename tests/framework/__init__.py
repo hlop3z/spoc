@@ -1,10 +1,12 @@
 """Framework"""
 
-from .components import commands, components
+from .components import command, view, components
 from .framework import MyFramework
 
 __all__ = (
-    "commands",
-    "components",
     "MyFramework",
+    "components",
+    # Components
+    "command",
+    "view",
 )

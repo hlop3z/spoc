@@ -4,7 +4,7 @@
 
 This example demonstrates how to create a custom framework by extending the `spoc.Base` class.
 The framework initializes via `spoc.init` with a list of `modules`,
-and it provides access to `components` and `extras`.
+and it provides access to `components` and `plugins`.
 
 Example:
 
@@ -12,35 +12,33 @@ Example:
 from typing import Any
 import spoc
 
-PLUGINS = ["models", "views"]
+MODULES = ["models", "views"]
 
 class MyFramework(spoc.Base):
     components: Any
-    extras: Any
-    keys: Any
+    plugins: Any
 
     def init(self):
         # __init__ Replacement
-        app = spoc.init(PLUGINS)
+        app = spoc.init(MODULES)
 
-        # Assign components and extras from the initialized app
+        # Assign components and plugins from the initialized app
         self.components = app.components
-        self.extras = app.extras
+        self.plugins = app.plugins
 
+    @staticmethod
+    def keys():
         # Define a list of keys relevant to the framework
-        self.keys = [
-            "component",
-            "extras",
-        ]
+        return ("components", "plugins", "cli")
 ```
 """
 
 # Core Tools
-from .components import Components, component, is_component
+from .components import Components
 
 # Import Tools
-from .importer import frozendict
-from .importer.base import search_method as search
+from .importer.frozendict import FrozenDict as frozendict
+from .importer.base import search_object
 from .importer.tools import get_fields
 from .installer import start_project
 from .singleton import Singleton as Base
@@ -73,11 +71,9 @@ __all__ = (
     "BaseServer",
     # Tools
     "Components",
-    "component",
-    "is_component",
     "start_project",
     # Importer
-    "get_fields",
-    "search",
     "frozendict",
+    "get_fields",
+    "search_object",
 )

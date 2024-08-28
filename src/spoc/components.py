@@ -21,8 +21,7 @@ def component(
     """
     Component Creator
 
-    A tool to mark an `object` as a component (`plugin`) with configurations
-    and metadata.
+    A tool to mark an `object` as a component with configurations and metadata.
 
     Args:
         obj (Any): The object to be decorated.
@@ -58,7 +57,7 @@ def component(
     return obj
 
 
-def is_component(obj: Any, metadata: dict | None = None) -> bool:
+def is_component(obj: Any, metadata: dict) -> bool:
     """
     Component Validator.
 
@@ -66,7 +65,7 @@ def is_component(obj: Any, metadata: dict | None = None) -> bool:
 
     Args:
         obj (Any): The object to validate.
-        metadata (dict | None): The metadata to validate against.
+        metadata (dict): The metadata to validate against.
 
     Returns:
         bool:
@@ -82,7 +81,7 @@ def is_component(obj: Any, metadata: dict | None = None) -> bool:
     """
 
     item = obj
-    if hasattr(obj, "object"):
+    if hasattr(obj, "object") and hasattr(obj.object, "__spoc__"):
         item = obj.object
     if not hasattr(item, "__spoc__"):
         return False
@@ -92,6 +91,8 @@ def is_component(obj: Any, metadata: dict | None = None) -> bool:
 class Components:
     """
     Framework Components
+
+    A tool to manage the components.
 
     Example:
 
@@ -125,7 +126,7 @@ class Components:
 
     def register(self, name: str, obj: Any, config: dict | None = None) -> None:
         """
-        Mark an object as a component using the specified configuration.
+        Mark an object as a component optionally using extra configuration settings.
 
         Example:
 

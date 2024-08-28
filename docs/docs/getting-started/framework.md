@@ -1,6 +1,8 @@
-"""
-Framework
-"""
+Creating your framework using the **S.P.O.C** foundation is an exciting endeavor that empowers you to construct powerful and flexible applications with ease. A framework serves as a structured blueprint that streamlines development, promotes consistency, and accelerates the creation of feature-rich projects.
+
+```python title="framework/framework.py"
+# -*- coding: utf-8 -*-
+"""{ Framework } Read The Docs"""
 
 from typing import Any
 
@@ -10,11 +12,9 @@ import spoc
 TITLE = "My Project"
 MODULES = ["commands", "models", "views"]
 
-
 @click.group()
 def cli():
     "Click Main"
-
 
 def handle_commands(items: list):
     """Collect (Click) Commands"""
@@ -42,12 +42,10 @@ class MyFramework(spoc.Base):
 
     components: Any
     plugins: Any
-    keys: Any
 
     def init(self):
         """Class __init__ Replacement"""
         framework = spoc.init(MODULES)
-        self.__core__ = framework
 
         # Parts
         self.components = framework.components
@@ -62,4 +60,6 @@ class MyFramework(spoc.Base):
 
     @staticmethod
     def keys():
-        return ("components", "plugins")
+        return ("components", "plugins", "cli")
+
+```

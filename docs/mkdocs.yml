@@ -6,19 +6,20 @@ copyright: Copyright © hlop3z
 
 # Navigation
 nav:
-  - Introduction: index.md
-  - Definitions: definitions.md
-  - Getting Started: getting-started.md
-  - Reference: api/api.md
-
-  - First Project:
-      - Overview: first-project/overview.md
-      - Project: first-project/project.md
-      - Config: first-project/config.md
-      - Component(s): first-project/component.md
-      - Framework: first-project/framework.md
-      - Extras: first-project/extras.md
-      - Testing: first-project/testing.md
+  - SPOC:
+      - Introduction: index.md
+      - Getting Started:
+          - Overview: getting-started/overview.md
+          - Project: getting-started/project.md
+          - Component(s): getting-started/component.md
+          - Plugin(s): getting-started/plugins.md
+          - Framework: getting-started/framework.md
+          - Testing: getting-started/testing.md
+  - Reference:
+      - Framework: api/framework.md
+      - Constants: constants.md
+      - Workers: api/workers.md
+      - Tools: api/utils.md
 
 # Path Watch
 watch:
@@ -37,13 +38,14 @@ theme:
   logo: assets/images/logo.png
   favicon: assets/images/logo.png
   features:
-    # - navigation.tabs
-    - navigation.instant
-    - navigation.tracking
-    - navigation.sections
-    - navigation.top
     - content.code.annotate
-    # - navigation.expand
+    - navigation.expand
+    - navigation.instant
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - navigation.tracking
+    - navigation.footer
   icon:
     logo: material/webhook
   palette:

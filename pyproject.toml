@@ -1,7 +1,7 @@
 [project]
 name = "spoc"
 version = "0.1.35"
-description = "Framework Builder"
+description = "Elastic Framework Builder"
 authors = [
     { name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com" },
 ]

@@ -12,6 +12,6 @@ BASE_DIR = pathlib.Path(__file__).parents[1]
 INSTALLED_APPS = ["demo"]
 
 # Extra Methods
-EXTRAS = {
-    "middleware": ["demo.middleware.test"],
+PLUGINS = {
+    "on_startup": ["demo.middleware.on_event"],
 }

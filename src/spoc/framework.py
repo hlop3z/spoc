@@ -10,11 +10,11 @@ Framework:
 
 import os
 import pathlib
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .importer import create_framework, frozendict
 from .inject import (
-    collect_extras,
+    collect_extra_plugins,
     collect_installed_apps,
     get_app_mode,
     get_toml_files,
@@ -58,7 +58,7 @@ if CONFIG:
 
     # Spoc TOML
     SPOC_TOML = frozendict(TOML_DIR.get("spoc", {}).get("spoc", {}))
-    EXTRAS = SPOC_TOML.get("extras", {})
+    EXTRAS = SPOC_TOML.get("plugins", {})
 
     # Load environment variables
     TOML_ENV = load_envs(BASE_DIR, MODE)
@@ -87,66 +87,80 @@ if CONFIG:
         environment: Any = TOML_ENV
 
         # Python Modules
-        module: Any = None
+        modules: Any = None
 
         # Apps & Components
         installed_apps: List | None = None
-        extras: Dict[Any, Any] | None = None
         components: Dict[Any, Any] | None = None
+        plugins: Dict[Any, Any] | None = None
 
-        def init(self, plugins: Optional[List] = None) -> None:
+        def init(self, modules: List | None = None) -> None:
             """
             Initialize the framework by collecting installed applications and extras.
 
             Args:
-                plugins (list | None): A list of plugins to initialize with the framework.
+                modules (list | None): A list of modules to initialize with the framework.
             """
-            # GLOBALS Modules
+            # Global Modules
             installed_apps = collect_installed_apps(TOML_DIR, SETTINGS)
-            extras = collect_extras(EXTRAS, SETTINGS)
+            extra_plugins = collect_extra_plugins(EXTRAS, SETTINGS)
 
             # Plugins
-            plugins = plugins or []
+            modules = modules or []
             framework = create_framework(
-                plugins=plugins, installed_apps=installed_apps, extras=extras
+                modules=modules,
+                installed_apps=installed_apps,
+                plugins=extra_plugins,
             )
 
-            # Output Model
+            # Python Modules
+            self.modules = framework.modules
+
+            # Apps & Components
             self.installed_apps = installed_apps
-            self.extras = framework.extras
-            self.module = framework.module
-            self.components = framework.plugin
+            self.components = framework.components
+            self.plugins = framework.plugins
 
             # Change Dir
             os.chdir(BASE_DIR)
 
+        @classmethod
+        def get_keys(cls):
+            """Collect Framework Keys."""
+            return sorted(
+                [
+                    x
+                    for x in dir(cls)
+                    if not x.startswith("_") and x not in ["init", "keys"]
+                ]
+            )
+
         @staticmethod
-        def keys() -> List[str]:
-            """
-            Get the keys for the framework object.
-            """
-            return [
+        def keys() -> Tuple:
+            """Get the keys for the framework object."""
+            return (
                 # Core
-                "base_dir",
-                "module",
+                "modules",
                 "installed_apps",
                 # Settings
+                "base_dir",
                 "config",
+                "environment",
                 "mode",
                 "settings",
                 "spoc_toml",
                 # Components
                 "components",
-                "extras",
-            ]
+                "plugins",
+            )
 
 
-def init(plugins: Optional[List] = None):
+def init(modules: Optional[List] = None):
     """
-    Initialize the framework by collecting installed `apps` and `extras`.
+    Initialize the framework by collecting installed `apps` and `plugins`.
 
     Args:
-        plugins (list | None): A list of plugins (`files`) to initialize within the framework.
+        modules (list | None): A list of modules (`files`) to initialize within the framework.
 
     Example:
 
@@ -154,4 +168,4 @@ def init(plugins: Optional[List] = None):
     spoc.init(["models", "views"]) # will collect from `models.py` and `views.py`
     ```
     """
-    return Spoc(plugins=plugins)
+    return Spoc(modules=modules)
