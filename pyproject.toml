@@ -1,3 +1,7 @@
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
 [project]
 name = "spoc"
 dynamic = ["version"]
@@ -9,12 +13,19 @@ authors = [
     { name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com" },
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",                               # Example status: Alpha, Beta, Production/Stable
+    "Development Status :: 4 - Beta",                                       # Example status: Alpha, Beta, Production/Stable
+    "Framework :: SPOC",
     "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.12",
+    "Topic :: Internet",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development",
+    "Typing :: Typed",
 ]
 keywords = [
     "modular design",
@@ -31,24 +42,17 @@ Documentation = "https://hlop3z.github.io/spoc/"
 [project.scripts]
 spoc-init = "spoc:start_project"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.pdm]
+version = { source = "file", path = "src/spoc/__about__.py" }
+distribution = true
 
-[tool.hatch.version]
-path = "src/spoc/__about__.py"
+[tool.pdm.build]
+excludes = ["tests"]
+# includes = ["src"]
+# package-dir = "src"
 
-[tool.hatch.build]
-sources = ["src"]
-
-[tool.hatch.build.targets.wheel]
-include = ["src/spoc/**"]
-
-[tool.hatch.build.targets.sdist]
-include = ["src/spoc/**", "README.md", "LICENSE"]
-
-[tool.uv]
-dev-dependencies = [
+[tool.pdm.dev-dependencies]
+lint = [
     "pyright>=1.1.377",
     "mypy>=1.11.1",
     "isort>=5.13.2",
@@ -58,12 +62,12 @@ dev-dependencies = [
     "bandit>=1.7.9",
     "watchdog>=4.0.2",
     "ssort>=0.13.0",
+]
+docs = [
     "mkdocs>=1.6.0",
     "mkdocs-material>=9.5.32",
     "mkdocs-macros-plugin>=1.0.5",
     "mkdocstrings[python]>=0.25.2",
     "termynal>=0.12.1",
-    "pytest>=7.1.2",
-    "pytest-asyncio>=0.19.0",
-    "pytest-json-report>=1.5.0",
 ]
+test = ["pytest>=7.1.2", "pytest-asyncio>=0.19.0", "pytest-json-report>=1.5.0"]
