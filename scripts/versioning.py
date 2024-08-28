@@ -49,11 +49,19 @@ def bump_version(version, bump_type):
     return f"{major}.{minor}.{patch}"
 
 
+def commit_changes(version):
+    """Commit the changes to Git if commit is specified."""
+    subprocess.check_call(["git", "add", "."])
+    subprocess.check_call(["git", "commit", "-m", f"v{version}"])
+
+
 def tag_and_push(version):
     """Create a Git tag and push it to the remote repository."""
     try:
         # Create a Git tag
         subprocess.check_call(["git", "tag", f"v{version}"])
+        # Commit Changes
+        # commit_changes(version)
         # Push the tag to the remote repository
         subprocess.check_call(["git", "push", "origin", f"v{version}"])
         print(f"Git tag v{version} created and pushed.")
@@ -68,7 +76,9 @@ def main():
         "--bump", choices=["major", "minor", "patch"], help="Type of version bump."
     )
     parser.add_argument("--set", help="Explicitly set the version.")
-    parser.add_argument("-g", "--git", help="Git create tag and push.")
+    parser.add_argument(
+        "-g", "--git", action="store_true", help="Git create tag and push."
+    )
 
     args = parser.parse_args()
 
