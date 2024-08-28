@@ -2,11 +2,18 @@
 """
 # Elastic Frameworks
 
-This example demonstrates how to create a custom framework by extending the `spoc.Base` class.
-The framework initializes via `spoc.init` with a list of `modules`,
-and it provides access to `components` and `plugins`.
+SPOC is a foundational framework designed to create dynamic and adaptable frameworks.
+It involves defining a schema for your project(s) and
+building upon that schema to create a flexible and powerful Application.
 
-Example:
+This module provides an example of how to create a custom framework by extending the `spoc.Base` class.
+It demonstrates the initialization process using `spoc.init` with a list of modules,
+and shows how to access and manage various components and plugins within the framework.
+
+## Example
+
+To create a custom framework,
+extend the `spoc.Base` class and initialize it using `spoc.init` with a list of desired modules:
 
 ```python
 from typing import Any
@@ -29,7 +36,7 @@ class MyFramework(spoc.Base):
     @staticmethod
     def keys():
         # Define a list of keys relevant to the framework
-        return ("components", "plugins", "cli")
+        return ("components", "plugins")
 ```
 """
 

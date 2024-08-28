@@ -128,6 +128,10 @@ class BaseProcess(AbstractWorker, multiprocessing.Process):
     """
     Abstract Process
 
+    Note: on_event
+        - `startup`
+        - `shutdown`
+
     Example:
 
     ```python
@@ -167,6 +171,10 @@ class BaseProcess(AbstractWorker, multiprocessing.Process):
 class BaseThread(AbstractWorker, threading.Thread):
     """
     Abstract Thread
+
+    Note: on_event
+        - `startup`
+        - `shutdown`
 
     Example:
 
@@ -208,6 +216,11 @@ class BaseServer(ABC):
     """
     Control multiple workers `Thread(s)` and/or `Process(es)`.
 
+    Note: on_event
+        - `startup`
+        - `before_shutdown`
+        - `shutdown`
+
     Example:
 
     ```python
@@ -240,13 +253,17 @@ class BaseServer(ABC):
 
     @classmethod
     def clear(cls) -> None:
-        """Workers and PIDs cleanup"""
+        """
+        Workers and PIDs cleanup
+        """
         cls.workers.clear()
         cls.all_pids.clear()
 
     @staticmethod
     def exit() -> None:
-        """Exit main process"""
+        """
+        Exit main process
+        """
         os.kill(os.getpid(), signal.SIGINT)
 
     @classmethod

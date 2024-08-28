@@ -36,7 +36,7 @@ By marking your function with the **`@command`** decorator. This annotation flag
 # -*- coding: utf-8 -*-
 """{ Commands } Read The Docs"""
 
-from framework import commands
+from framework import command
 import click
 
 @command(group=True)
