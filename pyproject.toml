@@ -47,7 +47,7 @@ distribution = true
 
 [tool.pdm.build]
 # package-dir = "src"
-includes = ["src", "README.md", "LICENSE"]
+# includes = ["src", "README.md", "LICENSE"]
 excludes = ["tests"]
 
 [tool.pdm.dev-dependencies]
