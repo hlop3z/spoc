@@ -206,6 +206,7 @@ class BaseThread(AbstractWorker, threading.Thread):
     def __init__(self, **kwargs: Any):
         threading.Thread.__init__(self)
         AbstractWorker.__init__(self, **kwargs)
+        # self.daemon = True
 
     def _start_event(self):
         """Create a stop event."""
