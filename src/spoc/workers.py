@@ -70,44 +70,45 @@ class AbstractWorker(ABC):
 
     def run(self) -> None:
         """Run Worker"""
+        self.before()
         if inspect.iscoroutinefunction(self.server):
             # Async Server
-            try:
-                self.before_async()
-                self.agent.run(self.run_async())
-            except KeyboardInterrupt:
-                pass
-            except asyncio.CancelledError:
-                pass
+            self.agent.run(self.run_async())
         else:
             # Sync Server
-            try:
-                self.before_sync()
-                self.run_sync()
-            except KeyboardInterrupt:
-                pass
+            self.run_sync()
 
-    def before_async(self) -> None:
-        """Setup before running asynchronous server."""
-
-    def before_sync(self) -> None:
-        """Setup before running synchronous server."""
+    def before(self) -> None:
+        """Setup before running server."""
 
     def run_sync(self) -> None:
         """Run Synchronous Worker"""
         self.on_event("startup")
-        try:
-            self.server()
-        finally:
-            self.on_event("shutdown")
+        job = threading.Thread(target=self.server)
+        job.daemon = True
+        job.start()
+        # Dummy Loop
+        while self.active:
+            try:
+                time.sleep(1)
+            except KeyboardInterrupt:
+                pass
+        # After Stop
+        self.on_event("shutdown")
 
     async def run_async(self) -> None:
         """Run Asynchronous Worker"""
+        loop = asyncio.get_running_loop()
         await self.on_event("startup")
-        try:
-            await self.server()
-        finally:
-            await self.on_event("shutdown")
+        loop.create_task(self.server())
+        # Dummy Loop
+        while self.active:
+            try:
+                await asyncio.sleep(1)
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                pass
+        # After Stop
+        await self.on_event("shutdown")
 
     def stop(self):
         """Stop Worker"""
@@ -128,18 +129,14 @@ class BaseProcess(AbstractWorker, multiprocessing.Process):
     """
     Abstract Process
 
-    Note: on_event
-        - `startup`
-        - `shutdown`
-
     Example:
 
     ```python
     class AsyncProcess(spoc.BaseProcess):
         agent: Any = asyncio # Example: `uvloop`
 
-        def before_async(self) -> None:
-            ... # For Async Only
+        def before(self) -> None:
+            ... # Set uvloop.EventLoopPolicy()
 
         async def on_event(self, event_type: str):
             ...
@@ -172,18 +169,14 @@ class BaseThread(AbstractWorker, threading.Thread):
     """
     Abstract Thread
 
-    Note: on_event
-        - `startup`
-        - `shutdown`
-
     Example:
 
     ```python
     class AsyncThread(spoc.BaseThread):
         agent: Any = asyncio # Example: `uvloop`
 
-        def before_async(self) -> None:
-            ... # For Async Only
+        def before(self) -> None:
+            ... # Set uvloop.EventLoopPolicy()
 
         async def on_event(self, event_type: str):
             ...
@@ -206,7 +199,6 @@ class BaseThread(AbstractWorker, threading.Thread):
     def __init__(self, **kwargs: Any):
         threading.Thread.__init__(self)
         AbstractWorker.__init__(self, **kwargs)
-        # self.daemon = True
 
     def _start_event(self):
         """Create a stop event."""
@@ -216,11 +208,6 @@ class BaseThread(AbstractWorker, threading.Thread):
 class BaseServer(ABC):
     """
     Control multiple workers `Thread(s)` and/or `Process(es)`.
-
-    Note: on_event
-        - `startup`
-        - `before_shutdown`
-        - `shutdown`
 
     Example:
 
@@ -254,17 +241,13 @@ class BaseServer(ABC):
 
     @classmethod
     def clear(cls) -> None:
-        """
-        Workers and PIDs cleanup
-        """
+        """Workers and PIDs cleanup"""
         cls.workers.clear()
         cls.all_pids.clear()
 
     @staticmethod
     def exit() -> None:
-        """
-        Exit main process
-        """
+        """Exit main process"""
         os.kill(os.getpid(), signal.SIGINT)
 
     @classmethod
@@ -274,8 +257,20 @@ class BaseServer(ABC):
         """
         cls.workers.extend(workers)
 
+    @staticmethod
+    def _disable_exit_signal() -> None:
+        """Wait for cleanup to complete."""
+
+        def handler(*_):
+            """Ctrl+C pressed."""
+
+        # Temporarily ignore Ctrl+C
+        signal.signal(signal.SIGINT, handler)
+
     @classmethod
-    def start(cls, infinite_loop: bool = True) -> None:
+    def start(
+        cls, infinite_loop: bool = True, timeout: int = 5, forced_delay: int = 1
+    ) -> None:
         """
         Start all added workers and optionally keep a loop running until interrupted.
         """
@@ -310,13 +305,15 @@ class BaseServer(ABC):
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
+                # Disable (Ctrl + C)
+                cls._disable_exit_signal()
                 # Before Shutdown
                 cls.on_event("before_shutdown")
-                cls.stop(force_stop=True, forced_delay=5)
+                cls.stop(force_stop=True, timeout=timeout, forced_delay=forced_delay)
 
     @classmethod
     def stop(
-        cls, timeout: int = 5, force_stop: bool = False, forced_delay: int = 10
+        cls, timeout: int = 5, force_stop: bool = False, forced_delay: int = 1
     ) -> None:
         """
         Stop all running workers.
