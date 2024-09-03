@@ -8,14 +8,14 @@ on:
       - v* # Automatically triggered on tags that match the pattern
 
 permissions:
-  contents: read
+  contents: write # Required to create releases
 
 jobs:
   pypi-publish:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     permissions:
-      contents: read # This permission is needed for private repositories.
+      contents: write # This permission is needed for creating releases and private repositories.
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
       - name: Checkout Repository
