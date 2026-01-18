@@ -1,0 +1,15 @@
+# Application Configuration
+[spoc]
+mode = "development" # options: development, staging, production
+debug = true
+
+# Installed Apps by Mode
+[spoc.apps]
+production = ["auth"]
+staging = ["another"]
+development = ["other"]
+
+# Additional Components (Plugins and Hooks)
+[spoc.plugins]
+#middleware = ["demo.extras.middleware"]
+#hooks = ["demo.extras.hook"]
