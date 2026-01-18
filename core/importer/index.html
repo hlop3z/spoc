@@ -1,0 +1,2675 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://hlop3z.github.io/spoc/core/importer/">
+      
+      
+        <link rel="prev" href="../components/">
+      
+      
+        <link rel="next" href="../dependencies/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Importer - Spoc</title>
+      
+    
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    <link rel="stylesheet" href="../../css/extra.css" />
+
+    
+    
+      
+    
+
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../termynal.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#importer-dynamic-module-loading" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Spoc" class="md-header__button md-logo" aria-label="Spoc" data-md-component="logo">
+      
+  <img src="../../assets/images/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Spoc
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Importer
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/hlop3z/spoc/tree/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+  SPOC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Spoc" class="md-nav__button md-logo" aria-label="Spoc" data-md-component="logo">
+      
+  <img src="../../assets/images/logo.png" alt="logo">
+
+    </a>
+    Spoc
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/hlop3z/spoc/tree/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPOC
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPOC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_1_2" id="__nav_1_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quick-start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_1_3" id="__nav_1_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_1_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Core Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    App System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Importer
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Importer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-importer-does" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the Importer Does
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-singleton-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Singleton Pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loading-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading Modules
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Loading Modules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Loading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-the-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking the Cache
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#loading-from-uri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading from URI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registering-with-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registering with Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-module-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Module Cache
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Module Cache">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cache-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lifecycle-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle Hooks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lifecycle Hooks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-hook-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Hook Names
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional Hooks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#startup-and-shutdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        startup() and shutdown()
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="startup() and shutdown()">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#startup-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Startup Process
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shutdown-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shutdown Process
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-moduleinfo-class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The ModuleInfo Class
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pattern-based-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern-Based Hooks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pattern-Based Hooks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern Syntax
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wildcard-characters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wildcard Characters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependency-ordering-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependency Ordering Diagram
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#time-complexity-benefits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Time Complexity Benefits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependency Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_1_4" id="__nav_1_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Usage
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_1_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Usage
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/lifecycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lifecycle Hooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/workers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_1_5" id="__nav_1_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_1_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/components/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/importer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Importer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/workers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/core-utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_1_6" id="__nav_1_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_1_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/basic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Example
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/app-example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    App Example
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-importer-does" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the Importer Does
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-singleton-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Singleton Pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loading-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading Modules
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Loading Modules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Loading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-the-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking the Cache
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#loading-from-uri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading from URI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registering-with-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registering with Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-module-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Module Cache
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Module Cache">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cache-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lifecycle-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle Hooks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lifecycle Hooks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-hook-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Hook Names
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional Hooks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#startup-and-shutdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        startup() and shutdown()
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="startup() and shutdown()">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#startup-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Startup Process
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shutdown-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shutdown Process
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-moduleinfo-class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The ModuleInfo Class
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pattern-based-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern-Based Hooks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pattern-Based Hooks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern Syntax
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wildcard-characters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wildcard Characters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependency-ordering-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependency Ordering Diagram
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#time-complexity-benefits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Time Complexity Benefits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="importer-dynamic-module-loading">Importer - Dynamic Module Loading</h1>
+<p>The <strong>Importer</strong> is SPOC's dynamic module loader that handles runtime module imports, dependency tracking, and lifecycle management. It provides the foundation for building modular applications with clear dependency relationships and predictable initialization order.</p>
+<h2 id="what-the-importer-does">What the Importer Does</h2>
+<p>The Importer serves three critical functions in SPOC applications:</p>
+<ol>
+<li><strong>Dynamic Module Loading</strong>: Import Python modules at runtime instead of static imports</li>
+<li><strong>Module Caching</strong>: Store loaded modules for O(1) lookup performance</li>
+<li><strong>Lifecycle Management</strong>: Initialize and tear down modules in dependency order</li>
+</ol>
+<p>Think of the Importer as a smart module loader that not only loads Python modules but also understands their relationships and manages their entire lifecycle.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">spoc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Importer</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Get the importer instance</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">importer</span> <span class="o">=</span> <span class="n">Importer</span><span class="p">()</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Load a module dynamically</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">module</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Register a module with dependencies</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">importer</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;myapp.views&quot;</span><span class="p">,</span> <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># Initialize all modules in correct order</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">importer</span><span class="o">.</span><span class="n">startup</span><span class="p">()</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="c1"># ... use your modules ...</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="c1"># Clean shutdown in reverse order</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="n">importer</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+</code></pre></div>
+<h2 id="the-singleton-pattern">The Singleton Pattern</h2>
+<p>The Importer uses the <strong>Singleton pattern</strong>, ensuring only one instance exists per application. This guarantees:</p>
+<ul>
+<li><strong>Consistent State</strong>: All parts of your application share the same module cache</li>
+<li><strong>Dependency Graph Integrity</strong>: A single source of truth for module relationships</li>
+<li><strong>Predictable Lifecycle</strong>: One coordinated startup and shutdown sequence</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">spoc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Importer</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># These are the same instance</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">importer1</span> <span class="o">=</span> <span class="n">Importer</span><span class="p">()</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">importer2</span> <span class="o">=</span> <span class="n">Importer</span><span class="p">()</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">assert</span> <span class="n">importer1</span> <span class="ow">is</span> <span class="n">importer2</span>  <span class="c1"># True - same object</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Singleton Benefits</p>
+<p>The singleton pattern prevents conflicting module states and ensures that dependency relationships remain consistent throughout your application's lifetime.</p>
+</div>
+<h2 id="loading-modules">Loading Modules</h2>
+<h3 id="basic-loading">Basic Loading</h3>
+<p>The <code>load()</code> method imports a module and adds it to the cache:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">spoc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Importer</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">importer</span> <span class="o">=</span> <span class="n">Importer</span><span class="p">()</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># Load a module</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">os_module</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;os&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c1"># Load from your application</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">models</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Time Complexity</strong>:</p>
+<ul>
+<li>First load: O(1) - standard Python import</li>
+<li>Subsequent loads: O(1) - cached lookup</li>
+</ul>
+<h3 id="checking-the-cache">Checking the Cache</h3>
+<p>Before loading, you can check if a module is already cached:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">if</span> <span class="n">importer</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">):</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">models</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">)</span>  <span class="c1"># Get from cache</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">models</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">)</span>  <span class="c1"># Load and cache</span>
+</code></pre></div>
+<h3 id="loading-from-uri">Loading from URI</h3>
+<p>Load specific functions or classes from modules using URI notation:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Load a function from a module</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">join_func</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">load_from_uri</span><span class="p">(</span><span class="s2">&quot;os.path.join&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Load a class</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">value_error</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">load_from_uri</span><span class="p">(</span><span class="s2">&quot;builtins.ValueError&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Load from your app</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">user_model</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">load_from_uri</span><span class="p">(</span><span class="s2">&quot;myapp.models.User&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="registering-with-dependencies">Registering with Dependencies</h2>
+<p>The <code>register()</code> method loads a module AND establishes its dependency relationships:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">spoc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Importer</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">importer</span> <span class="o">=</span> <span class="n">Importer</span><span class="p">()</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Register modules with dependencies</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">importer</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;myapp.utils&quot;</span><span class="p">)</span>                           <span class="c1"># No dependencies</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">importer</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">,</span> <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;myapp.utils&quot;</span><span class="p">])</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">importer</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;myapp.views&quot;</span><span class="p">,</span> <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">])</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">importer</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;myapp.api&quot;</span><span class="p">,</span> <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;myapp.views&quot;</span><span class="p">,</span> <span class="s2">&quot;myapp.models&quot;</span><span class="p">])</span>
+</code></pre></div>
+<p>This creates a dependency graph:</p>
+<pre class="mermaid"><code>graph LR
+    utils[myapp.utils]
+    models[myapp.models]
+    views[myapp.views]
+    api[myapp.api]
+
+    utils --&gt; models
+    models --&gt; views
+    models --&gt; api
+    views --&gt; api
+
+    style utils fill:#4CAF50
+    style models fill:#2196F3
+    style views fill:#FF9800
+    style api fill:#9C27B0</code></pre>
+<div class="admonition warning">
+<p class="admonition-title">Circular Dependencies</p>
+<p>The Importer detects circular dependencies and raises <code>CircularDependencyError</code> during startup. This prevents initialization deadlocks.</p>
+</div>
+<h2 id="the-module-cache">The Module Cache</h2>
+<p>The Importer maintains an internal cache of loaded modules for efficient reuse:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Internal structure (simplified)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">_module_cache</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="s2">&quot;myapp.models&quot;</span><span class="p">:</span> <span class="n">ModuleInfo</span><span class="p">(</span><span class="o">...</span><span class="p">),</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="s2">&quot;myapp.views&quot;</span><span class="p">:</span> <span class="n">ModuleInfo</span><span class="p">(</span><span class="o">...</span><span class="p">),</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="s2">&quot;myapp.api&quot;</span><span class="p">:</span> <span class="n">ModuleInfo</span><span class="p">(</span><span class="o">...</span><span class="p">),</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Performance Characteristics</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Time Complexity</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>has(name)</code></td>
+<td>O(1)</td>
+<td>Check if module is cached</td>
+</tr>
+<tr>
+<td><code>get(name)</code></td>
+<td>O(1)</td>
+<td>Retrieve cached module</td>
+</tr>
+<tr>
+<td><code>load(name)</code></td>
+<td>O(1) amortized</td>
+<td>First load imports, subsequent loads use cache</td>
+</tr>
+<tr>
+<td><code>clear(name)</code></td>
+<td>O(1)</td>
+<td>Remove from cache</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cache-management">Cache Management</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Check cache</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">if</span> <span class="n">importer</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">):</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="n">models</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># Clear a single module</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">importer</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="c1"># Clear all modules (keeps them in sys.modules)</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="n">importer</span><span class="o">.</span><span class="n">clear_all</span><span class="p">()</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="c1"># Complete unload (removes from sys.modules too)</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="n">importer</span><span class="o">.</span><span class="n">unload_all</span><span class="p">()</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Unloading Modules</p>
+<p><code>unload_all()</code> removes modules from <code>sys.modules</code>. This can cause unexpected behavior if other code still references the modules. Use with caution, primarily for testing scenarios.</p>
+</div>
+<h2 id="lifecycle-hooks">Lifecycle Hooks</h2>
+<p>Modules can define special functions that run during application startup and shutdown:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># myapp/models.py</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">initialize</span><span class="p">():</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Called during startup.&quot;&quot;&quot;</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Initializing database connections...&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="c1"># Connect to database</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="c1"># Set up connection pools</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="c1"># Migrate schemas</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="k">def</span><span class="w"> </span><span class="nf">teardown</span><span class="p">():</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Called during shutdown.&quot;&quot;&quot;</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Closing database connections...&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>    <span class="c1"># Close connections</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>    <span class="c1"># Clean up resources</span>
+</code></pre></div>
+<h3 id="custom-hook-names">Custom Hook Names</h3>
+<p>You can specify different function names when creating the Importer:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Use custom hook names</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">importer</span> <span class="o">=</span> <span class="n">Importer</span><span class="p">(</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">on_startup_name</span><span class="o">=</span><span class="s2">&quot;setup&quot;</span><span class="p">,</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="n">on_shutdown_name</span><span class="o">=</span><span class="s2">&quot;cleanup&quot;</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># myapp/models.py</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">setup</span><span class="p">():</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Custom startup hook.&quot;&quot;&quot;</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Setting up models...&quot;</span><span class="p">)</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="k">def</span><span class="w"> </span><span class="nf">cleanup</span><span class="p">():</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Custom teardown hook.&quot;&quot;&quot;</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Cleaning up models...&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="optional-hooks">Optional Hooks</h3>
+<p>Hooks are completely optional. Modules without lifecycle functions work normally:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># myapp/utils.py</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="c1"># No initialize() or teardown() needed</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">helper_function</span><span class="p">():</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="k">return</span> <span class="s2">&quot;This works fine!&quot;</span>
+</code></pre></div>
+<h2 id="startup-and-shutdown">startup() and shutdown()</h2>
+<p>The <code>startup()</code> and <code>shutdown()</code> methods orchestrate module lifecycle in dependency order.</p>
+<h3 id="startup-process">Startup Process</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">importer</span><span class="o">.</span><span class="n">startup</span><span class="p">()</span>
+</code></pre></div>
+<p><strong>What happens</strong>:</p>
+<ol>
+<li><strong>Topological Sort</strong>: Orders modules based on dependencies</li>
+<li><strong>Sequential Initialization</strong>: Calls <code>initialize()</code> in dependency order</li>
+<li><strong>Error Detection</strong>: Catches circular dependencies and initialization errors</li>
+</ol>
+<pre class="mermaid"><code>sequenceDiagram
+    participant App as Application
+    participant Imp as Importer
+    participant Utils as myapp.utils
+    participant Models as myapp.models
+    participant Views as myapp.views
+
+    App-&gt;&gt;Imp: startup()
+    Imp-&gt;&gt;Imp: Topological sort
+    Note over Imp: Order: utils → models → views
+
+    Imp-&gt;&gt;Utils: initialize()
+    Utils--&gt;&gt;Imp: ✓
+
+    Imp-&gt;&gt;Models: initialize()
+    Models--&gt;&gt;Imp: ✓
+
+    Imp-&gt;&gt;Views: initialize()
+    Views--&gt;&gt;Imp: ✓
+
+    Imp--&gt;&gt;App: All modules initialized</code></pre>
+<p><strong>Time Complexity</strong>: O(N + E)</p>
+<ul>
+<li>N = number of modules</li>
+<li>E = number of dependency edges</li>
+</ul>
+<h3 id="shutdown-process">Shutdown Process</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">importer</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+</code></pre></div>
+<p><strong>What happens</strong>:</p>
+<ol>
+<li><strong>Reverse Topological Sort</strong>: Orders modules in reverse dependency order</li>
+<li><strong>Sequential Teardown</strong>: Calls <code>teardown()</code> in reverse order</li>
+<li><strong>Resource Cleanup</strong>: Ensures resources are released properly</li>
+</ol>
+<pre class="mermaid"><code>sequenceDiagram
+    participant App as Application
+    participant Imp as Importer
+    participant Views as myapp.views
+    participant Models as myapp.models
+    participant Utils as myapp.utils
+
+    App-&gt;&gt;Imp: shutdown()
+    Imp-&gt;&gt;Imp: Reverse topological sort
+    Note over Imp: Order: views → models → utils
+
+    Imp-&gt;&gt;Views: teardown()
+    Views--&gt;&gt;Imp: ✓
+
+    Imp-&gt;&gt;Models: teardown()
+    Models--&gt;&gt;Imp: ✓
+
+    Imp-&gt;&gt;Utils: teardown()
+    Utils--&gt;&gt;Imp: ✓
+
+    Imp--&gt;&gt;App: All modules cleaned up</code></pre>
+<p><strong>Time Complexity</strong>: O(N + E)</p>
+<ul>
+<li>N = number of modules</li>
+<li>E = number of dependency edges</li>
+</ul>
+<h2 id="the-moduleinfo-class">The ModuleInfo Class</h2>
+<p>Each loaded module is wrapped in a <code>ModuleInfo</code> object that stores metadata:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">spoc.core.importer</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModuleInfo</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">module_info</span> <span class="o">=</span> <span class="n">ModuleInfo</span><span class="p">(</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;myapp.models&quot;</span><span class="p">,</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="n">module</span><span class="o">=</span><span class="n">models_module</span><span class="p">,</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;myapp.utils&quot;</span><span class="p">],</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>    <span class="n">initialize_func</span><span class="o">=</span><span class="s2">&quot;initialize&quot;</span><span class="p">,</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>    <span class="n">teardown_func</span><span class="o">=</span><span class="s2">&quot;teardown&quot;</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="p">)</span>
+</code></pre></div>
+<p><strong>Attributes</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td><code>str</code></td>
+<td>Fully-qualified module name</td>
+</tr>
+<tr>
+<td><code>module</code></td>
+<td><code>ModuleType</code></td>
+<td>The actual Python module object</td>
+</tr>
+<tr>
+<td><code>dependencies</code></td>
+<td><code>list[str]</code></td>
+<td>List of module names this depends on</td>
+</tr>
+<tr>
+<td><code>initialize_func</code></td>
+<td><code>str \| None</code></td>
+<td>Name of the initialization function</td>
+</tr>
+<tr>
+<td><code>teardown_func</code></td>
+<td><code>str \| None</code></td>
+<td>Name of the teardown function</td>
+</tr>
+<tr>
+<td><code>initialized</code></td>
+<td><code>bool</code></td>
+<td>Whether the module has been initialized</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Methods</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Check for lifecycle hooks</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="k">if</span> <span class="n">module_info</span><span class="o">.</span><span class="n">has_initialize</span><span class="p">():</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="n">module_info</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="k">if</span> <span class="n">module_info</span><span class="o">.</span><span class="n">has_teardown</span><span class="p">():</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="n">module_info</span><span class="o">.</span><span class="n">teardown</span><span class="p">()</span>
+</code></pre></div>
+<h2 id="pattern-based-hooks">Pattern-Based Hooks</h2>
+<p>Register custom hooks that apply to modules matching a pattern:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">spoc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Importer</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">database_startup</span><span class="p">(</span><span class="n">module</span><span class="p">):</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Custom startup for database modules.&quot;&quot;&quot;</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Connecting database module: </span><span class="si">{</span><span class="n">module</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="k">def</span><span class="w"> </span><span class="nf">database_shutdown</span><span class="p">(</span><span class="n">module</span><span class="p">):</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Custom shutdown for database modules.&quot;&quot;&quot;</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Disconnecting database module: </span><span class="si">{</span><span class="n">module</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="c1"># Register hooks for all database-related modules</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="n">Importer</span><span class="o">.</span><span class="n">register_hook</span><span class="p">(</span>
+<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>    <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;myapp.*.models&quot;</span><span class="p">,</span>
+<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>    <span class="n">on_startup</span><span class="o">=</span><span class="n">database_startup</span><span class="p">,</span>
+<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>    <span class="n">on_shutdown</span><span class="o">=</span><span class="n">database_shutdown</span>
+<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a><span class="p">)</span>
+</code></pre></div>
+<h3 id="pattern-syntax">Pattern Syntax</h3>
+<p>Patterns support wildcards:</p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Matches</th>
+<th>Example Matches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"myapp.models"</code></td>
+<td>Exact match</td>
+<td><code>myapp.models</code></td>
+</tr>
+<tr>
+<td><code>"myapp.*"</code></td>
+<td>One level</td>
+<td><code>myapp.models</code>, <code>myapp.views</code></td>
+</tr>
+<tr>
+<td><code>"myapp.*.models"</code></td>
+<td>Middle wildcard</td>
+<td><code>myapp.blog.models</code>, <code>myapp.auth.models</code></td>
+</tr>
+<tr>
+<td><code>"*.models"</code></td>
+<td>Suffix</td>
+<td><code>myapp.models</code>, <code>auth.models</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="wildcard-characters">Wildcard Characters</h3>
+<ul>
+<li><code>*</code> - Matches zero or more characters</li>
+<li><code>?</code> - Matches exactly one character</li>
+<li><code>.</code> - Literal dot (automatically escaped)</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Match all models in any app</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">Importer</span><span class="o">.</span><span class="n">register_hook</span><span class="p">(</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;*.models&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="n">on_startup</span><span class="o">=</span><span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading models: </span><span class="si">{</span><span class="n">m</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="p">)</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Match specific app pattern</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="n">Importer</span><span class="o">.</span><span class="n">register_hook</span><span class="p">(</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;myapp.auth.?&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>    <span class="n">on_startup</span><span class="o">=</span><span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading auth module: </span><span class="si">{</span><span class="n">m</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="p">)</span>
+</code></pre></div>
+<h2 id="dependency-ordering-diagram">Dependency Ordering Diagram</h2>
+<p>Understanding how the Importer resolves dependencies:</p>
+<pre class="mermaid"><code>graph TD
+    subgraph "Module Dependency Graph"
+        A[myapp.utils]
+        B[myapp.config]
+        C[myapp.models]
+        D[myapp.services]
+        E[myapp.views]
+        F[myapp.api]
+
+        A --&gt; C
+        B --&gt; C
+        C --&gt; D
+        C --&gt; E
+        D --&gt; F
+        E --&gt; F
+    end
+
+    subgraph "Startup Order"
+        S1[1. utils, config]
+        S2[2. models]
+        S3[3. services, views]
+        S4[4. api]
+
+        S1 --&gt; S2 --&gt; S3 --&gt; S4
+    end
+
+    subgraph "Shutdown Order"
+        T1[1. api]
+        T2[2. services, views]
+        T3[3. models]
+        T4[4. utils, config]
+
+        T1 --&gt; T2 --&gt; T3 --&gt; T4
+    end
+
+    style A fill:#4CAF50
+    style B fill:#4CAF50
+    style C fill:#2196F3
+    style D fill:#FF9800
+    style E fill:#FF9800
+    style F fill:#9C27B0</code></pre>
+<p><strong>Key Points</strong>:</p>
+<ol>
+<li><strong>Parallel Initialization</strong>: Modules at the same dependency level can be initialized in any order</li>
+<li><strong>No Cycles</strong>: Circular dependencies are detected and rejected</li>
+<li><strong>Reverse Order</strong>: Shutdown happens in exact reverse of startup</li>
+</ol>
+<h2 id="time-complexity-benefits">Time Complexity Benefits</h2>
+<p>The Importer is designed for performance:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Scenario: Large application with many modules</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="c1"># 100 modules, 200 dependencies</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># Without Importer (manual management)</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="c1"># - Load all modules: O(N) = 100 imports</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="c1"># - Figure out order: Manual work, error-prone</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="c1"># - Each lookup: O(N) = Linear search through 100 modules</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="c1"># With Importer (optimized)</span>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="c1"># - Load all modules: O(N) = 100 imports (same)</span>
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="c1"># - Figure out order: O(N + E) = O(300) one-time cost</span>
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="c1"># - Each lookup: O(1) = Hash table lookup</span>
+</code></pre></div>
+<p><strong>Performance Summary</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Complexity</th>
+<th>Benefit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Initial registration</td>
+<td>O(N + E)</td>
+<td>One-time cost</td>
+</tr>
+<tr>
+<td>Module lookup</td>
+<td>O(1)</td>
+<td>Constant time access</td>
+</tr>
+<tr>
+<td>Startup/shutdown</td>
+<td>O(N + E)</td>
+<td>Optimal dependency resolution</td>
+</tr>
+<tr>
+<td>Cache check</td>
+<td>O(1)</td>
+<td>Instant verification</td>
+</tr>
+</tbody>
+</table>
+<h2 id="complete-example">Complete Example</h2>
+<p>Putting it all together:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">spoc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Importer</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="c1"># Create the importer</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="n">importer</span> <span class="o">=</span> <span class="n">Importer</span><span class="p">(</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>    <span class="n">on_startup_name</span><span class="o">=</span><span class="s2">&quot;initialize&quot;</span><span class="p">,</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>    <span class="n">on_shutdown_name</span><span class="o">=</span><span class="s2">&quot;teardown&quot;</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="p">)</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="c1"># Register a pattern-based hook</span>
+<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="n">Importer</span><span class="o">.</span><span class="n">register_hook</span><span class="p">(</span>
+<a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>    <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;myapp.*.models&quot;</span><span class="p">,</span>
+<a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a>    <span class="n">on_startup</span><span class="o">=</span><span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;📦 Loading models: </span><span class="si">{</span><span class="n">m</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span>
+<a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a>    <span class="n">on_shutdown</span><span class="o">=</span><span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;📦 Unloading models: </span><span class="si">{</span><span class="n">m</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="p">)</span>
+<a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a>
+<a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="c1"># Register modules with dependencies</span>
+<a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a><span class="n">importer</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;myapp.utils&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-19" name="__codelineno-19-19" href="#__codelineno-19-19"></a><span class="n">importer</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;myapp.config&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-20" name="__codelineno-19-20" href="#__codelineno-19-20"></a><span class="n">importer</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;myapp.database.models&quot;</span><span class="p">,</span> <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;myapp.utils&quot;</span><span class="p">,</span> <span class="s2">&quot;myapp.config&quot;</span><span class="p">])</span>
+<a id="__codelineno-19-21" name="__codelineno-19-21" href="#__codelineno-19-21"></a><span class="n">importer</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;myapp.auth.models&quot;</span><span class="p">,</span> <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;myapp.database.models&quot;</span><span class="p">])</span>
+<a id="__codelineno-19-22" name="__codelineno-19-22" href="#__codelineno-19-22"></a><span class="n">importer</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;myapp.api.views&quot;</span><span class="p">,</span> <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;myapp.auth.models&quot;</span><span class="p">])</span>
+<a id="__codelineno-19-23" name="__codelineno-19-23" href="#__codelineno-19-23"></a>
+<a id="__codelineno-19-24" name="__codelineno-19-24" href="#__codelineno-19-24"></a><span class="c1"># Start the application</span>
+<a id="__codelineno-19-25" name="__codelineno-19-25" href="#__codelineno-19-25"></a><span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-19-26" name="__codelineno-19-26" href="#__codelineno-19-26"></a>    <span class="n">importer</span><span class="o">.</span><span class="n">startup</span><span class="p">()</span>
+<a id="__codelineno-19-27" name="__codelineno-19-27" href="#__codelineno-19-27"></a>
+<a id="__codelineno-19-28" name="__codelineno-19-28" href="#__codelineno-19-28"></a>    <span class="c1"># Your application runs here</span>
+<a id="__codelineno-19-29" name="__codelineno-19-29" href="#__codelineno-19-29"></a>    <span class="c1"># All modules are initialized in correct order</span>
+<a id="__codelineno-19-30" name="__codelineno-19-30" href="#__codelineno-19-30"></a>
+<a id="__codelineno-19-31" name="__codelineno-19-31" href="#__codelineno-19-31"></a>    <span class="c1"># Access modules from cache (O(1))</span>
+<a id="__codelineno-19-32" name="__codelineno-19-32" href="#__codelineno-19-32"></a>    <span class="n">models</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;myapp.database.models&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-33" name="__codelineno-19-33" href="#__codelineno-19-33"></a>    <span class="n">views</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;myapp.api.views&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-34" name="__codelineno-19-34" href="#__codelineno-19-34"></a>
+<a id="__codelineno-19-35" name="__codelineno-19-35" href="#__codelineno-19-35"></a>    <span class="c1"># Check what&#39;s loaded</span>
+<a id="__codelineno-19-36" name="__codelineno-19-36" href="#__codelineno-19-36"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded modules: </span><span class="si">{</span><span class="n">importer</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-37" name="__codelineno-19-37" href="#__codelineno-19-37"></a>
+<a id="__codelineno-19-38" name="__codelineno-19-38" href="#__codelineno-19-38"></a><span class="k">finally</span><span class="p">:</span>
+<a id="__codelineno-19-39" name="__codelineno-19-39" href="#__codelineno-19-39"></a>    <span class="c1"># Always clean up</span>
+<a id="__codelineno-19-40" name="__codelineno-19-40" href="#__codelineno-19-40"></a>    <span class="n">importer</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+</code></pre></div>
+<p><strong>Output</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>📦 Loading models: myapp.database.models
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>📦 Loading models: myapp.auth.models
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>Initializing myapp.utils...
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>Initializing myapp.config...
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>Initializing myapp.database.models...
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>Initializing myapp.auth.models...
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>Initializing myapp.api.views...
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>Loaded modules: [&#39;myapp.utils&#39;, &#39;myapp.config&#39;, &#39;myapp.database.models&#39;, &#39;myapp.auth.models&#39;, &#39;myapp.api.views&#39;]
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>Tearing down myapp.api.views...
+<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>Tearing down myapp.auth.models...
+<a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a>Tearing down myapp.database.models...
+<a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a>📦 Unloading models: myapp.auth.models
+<a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a>📦 Unloading models: myapp.database.models
+<a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a>Tearing down myapp.config...
+<a id="__codelineno-20-15" name="__codelineno-20-15" href="#__codelineno-20-15"></a>Tearing down myapp.utils...
+</code></pre></div>
+<h2 id="best-practices">Best Practices</h2>
+<div class="admonition tip">
+<p class="admonition-title">Design Guidelines</p>
+<ol>
+<li><strong>Keep Dependencies Minimal</strong>: Only declare what you actually need</li>
+<li><strong>Use Lifecycle Hooks</strong>: Initialize resources in <code>initialize()</code>, clean up in <code>teardown()</code></li>
+<li><strong>Check the Cache</strong>: Use <code>has()</code> before <code>get()</code> to avoid errors</li>
+<li><strong>Pattern Hooks for Groups</strong>: Use patterns for common initialization logic</li>
+<li><strong>Avoid Circular Dependencies</strong>: Design module relationships as a DAG (Directed Acyclic Graph)</li>
+</ol>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Common Pitfalls</p>
+<ul>
+<li><strong>Forgetting teardown()</strong>: Always clean up resources to prevent leaks</li>
+<li><strong>Circular dependencies</strong>: Design dependencies as a tree or DAG</li>
+<li><strong>Unloading prematurely</strong>: Don't call <code>unload_all()</code> while modules are in use</li>
+<li><strong>Ignoring singleton</strong>: Remember all Importer instances are the same object</li>
+</ul>
+</div>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li>Learn about the <a href="../framework/">Framework</a> which builds on the Importer</li>
+<li>Explore <a href="../dependencies/">Dependency Management</a> patterns</li>
+<li>See <a href="../../advanced/lifecycle/">Lifecycle Hooks</a> for advanced usage</li>
+<li>Check the <a href="../../api/importer/">API Reference</a> for complete method documentation</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../components/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Components">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Components
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../dependencies/" class="md-footer__link md-footer__link--next" aria-label="Next: Dependency Management">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Dependency Management
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright © hlop3z
+    </div>
+  
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.annotate", "content.code.copy", "content.tooltips", "navigation.expand", "navigation.instant", "navigation.sections", "navigation.tabs", "navigation.top", "navigation.tracking", "navigation.footer"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../termynal.js"></script>
+      
+    
+
+  </body>
+</html>

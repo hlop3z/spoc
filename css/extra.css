@@ -1,0 +1,57 @@
+/* Tables */
+.md-typeset__table {
+  min-width: 100%;
+}
+.md-typeset table:not([class]) {
+  display: table;
+}
+
+/* Name Acronym */
+.name-acronym {
+  font-size: 32px;
+  letter-spacing: 2px;
+}
+@media only screen and (min-width: 0px) and (max-width: 720px) {
+  .name-acronym {
+    font-size: 20px;
+  }
+}
+
+/* Title Image */
+.title-image {
+  border-radius: 25px;
+
+  -webkit-box-shadow: 5px 20px 25px 4px rgba(0, 0, 0, 0.75);
+  -moz-box-shadow: 5px 20px 25px 4px rgba(0, 0, 0, 0.75);
+  box-shadow: 5px 20px 25px 4px rgba(0, 0, 0, 0.75);
+}
+.title-image {
+  height: auto;
+  width: 968px;
+}
+@media only screen and (max-width: 968px) {
+  .title-image {
+    width: 100%;
+  }
+}
+
+/* Layout */
+.md-grid {
+  max-width: 90%;
+}
+.md-sidebar--primary {
+  width: 9rem;
+}
+.md-sidebar--secondary {
+  width: 10rem;
+}
+.md-footer-meta__inner {
+  justify-content: center !important;
+}
+
+/* DOCS */
+.doc code,
+.doc-heading * {
+  color: #4cae4f !important;
+  /* font-size: 1em; */
+}
