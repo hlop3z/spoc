@@ -27,25 +27,4 @@
 ## Example
 
 ```python
-from typing import Any
-import spoc
-
-MODULES = ["models", "views"]
-
-class MyFramework(spoc.Base):
-    components: Any
-    plugins: Any
-
-    def init(self):
-        """__init__ Replacement"""
-        app = spoc.init(MODULES)
-
-        # Assign components and plugins from the initialized app
-        self.components = app.components
-        self.plugins = app.plugins
-
-    @staticmethod
-    def keys():
-        """Define a list of keys relevant to the framework"""
-        return ("components", "plugins")
 ```
