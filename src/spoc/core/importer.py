@@ -273,11 +273,13 @@ class Importer(metaclass=SingletonMeta):
         """
         # Load the module if not already loaded
         module = self.load(name)
+        assert module is not None, f"Failed to load module {name}"
 
         # Update the module info with dependencies and lifecycle functions
-        module_info: Any = self._module_cache.get(name)
+        module_info = self._module_cache.get(name)
         if not module_info and self.mode != "strict":
-            module_info = ModuleInfo(name=name, module=module)  # type: ignore
+            module_info = ModuleInfo(name=name, module=module)
+        assert module_info is not None, f"Module {name} not found in cache"
         module_info.dependencies = dependencies or []
         module_info.on_startup = self.on_startup
         module_info.on_shutdown = self.on_shutdown

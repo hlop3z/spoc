@@ -16,6 +16,14 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 path = "src/spoc/__about__.py"
 
+[tool.ty.environment]
+root = ["./src"]
+
+# Note: unresolved-import ignored due to ty bug with Windows path case sensitivity
+# See: https://github.com/astral-sh/ty/issues - GitHub vs github in path
+[tool.ty.rules]
+unresolved-import = "ignore"
+
 [dependency-groups]
 dev = [
     # Devs Tools

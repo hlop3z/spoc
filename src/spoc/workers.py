@@ -14,13 +14,13 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from types import SimpleNamespace
-from typing import Any, Coroutine, List, Optional, TypeVar, Union
+from typing import Any, Coroutine, List, Optional, TypeVar, Union, cast
 
 T = TypeVar("T")
 MPEvent = Any  # Represents multiprocessing.Event
 
 try:
-    import uvloop  # type: ignore
+    import uvloop
 
     UVLOOP_INSTALLED = True
 except ImportError:
@@ -104,14 +104,14 @@ class AbstractWorker(ABC):
     def _call_setup(self) -> None:
         """Call the setup method, handling async if needed."""
         if inspect.iscoroutinefunction(self.setup):
-            run_async_safely(self.setup())
+            run_async_safely(cast(Coroutine[Any, Any, Any], self.setup()))
         else:
             self.setup()
 
     def _call_teardown(self) -> None:
         """Call the teardown method, handling async if needed."""
         if inspect.iscoroutinefunction(self.teardown):
-            run_async_safely(self.teardown())
+            run_async_safely(cast(Coroutine[Any, Any, Any], self.teardown()))
         else:
             self.teardown()
 

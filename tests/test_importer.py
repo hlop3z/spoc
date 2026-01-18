@@ -225,7 +225,7 @@ class TestImporter:
         importer = clean_importer
 
         # Load and verify a module
-        os_module = importer.load("os")
+        importer.load("os")
         assert importer.has("os")
 
         # Clear and verify it's gone from cache
@@ -268,7 +268,7 @@ class TestImporter:
             module_path.write_text("value = 'test'")
 
             # Load the module
-            test_module = importer.load("test_unload")
+            importer.load("test_unload")
             module_name = "test_unload"
 
             # Verify it's in sys.modules

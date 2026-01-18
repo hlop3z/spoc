@@ -21,7 +21,7 @@ from spoc.workers import (
 class TestAbstractWorker:
     """Tests for the AbstractWorker base class."""
 
-    class TestWorker(AbstractWorker):
+    class MockWorker(AbstractWorker):
         """A concrete implementation of AbstractWorker for testing."""
 
         def _create_stop_signal(self):
@@ -35,7 +35,7 @@ class TestAbstractWorker:
                 time.sleep(0.01)
             return self.counter
 
-    class AsyncTestWorker(AbstractWorker):
+    class AsyncMockWorker(AbstractWorker):
         """A concrete implementation with async main method for testing."""
 
         def _create_stop_signal(self):
@@ -50,8 +50,8 @@ class TestAbstractWorker:
 
     def test_init(self):
         """Test worker initialization."""
-        worker = self.TestWorker("TestWorker")
-        assert worker.name == "TestWorker"
+        worker = self.MockWorker("MockWorker")
+        assert worker.name == "MockWorker"
         assert worker.context is not None
         assert worker._stop_signal is not None
         assert worker._is_async is False
@@ -59,28 +59,28 @@ class TestAbstractWorker:
 
     def test_is_running(self):
         """Test the is_running property."""
-        worker = self.TestWorker("TestWorker")
+        worker = self.MockWorker("MockWorker")
         assert worker.is_running is True
         worker.stop()
         assert worker.is_running is False
 
     def test_stop(self):
         """Test worker stop method."""
-        worker = self.TestWorker("TestWorker")
+        worker = self.MockWorker("MockWorker")
         assert not worker._stop_signal.is_set()
         worker.stop()
         assert worker._stop_signal.is_set()
 
     def test_lifecycle_event(self):
         """Test lifecycle event emission."""
-        worker = self.TestWorker("TestWorker")
+        worker = self.MockWorker("MockWorker")
         worker.lifecycle = MagicMock()
         worker._emit_lifecycle_event("test", data="test")
         worker.lifecycle.assert_called_once_with("test", data="test")
 
     def test_run_sync(self):
         """Test running a synchronous worker."""
-        worker = self.TestWorker("TestWorker")
+        worker = self.MockWorker("MockWorker")
         worker.setup = MagicMock()
         worker.teardown = MagicMock()
         worker.lifecycle = MagicMock()
@@ -98,7 +98,7 @@ class TestAbstractWorker:
     def test_error_handling(self):
         """Test error handling in worker run method."""
 
-        class ErrorWorker(self.TestWorker):
+        class ErrorWorker(self.MockWorker):
             def main(self):
                 raise ValueError("Test error")
 
@@ -317,11 +317,9 @@ class TestAsyncUtils:
     def test_run_async_safely(self):
         """Test running a coroutine safely."""
 
-        # Create a simple coroutine function and object
+        # Create a simple coroutine function
         async def test_coro():
             return 42
-
-        coro_obj = test_coro()
 
         # Test case 1: Running loop exists, patching asyncio.create_task
         with patch("asyncio.get_running_loop") as mock_get_loop:
@@ -331,14 +329,19 @@ class TestAsyncUtils:
             mock_loop.is_running.return_value = True
 
             with patch("asyncio.create_task") as mock_create_task:
-                run_async_safely(coro_obj)
+                coro1 = test_coro()
+                run_async_safely(coro1)
                 # Should have called create_task
                 mock_create_task.assert_called_once()
+                # Close the coroutine to avoid warning (it was passed to mock)
+                coro1.close()
 
         # Test case 2: No running loop, patching asyncio.run
         with patch("asyncio.get_running_loop", side_effect=RuntimeError("No loop")):
             with patch("asyncio.run") as mock_run:
-                # Call our function
-                run_async_safely(coro_obj)
+                coro2 = test_coro()
+                run_async_safely(coro2)
                 # Should have called asyncio.run
                 mock_run.assert_called_once()
+                # Close the coroutine to avoid warning (it was passed to mock)
+                coro2.close()
