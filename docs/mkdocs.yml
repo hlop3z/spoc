@@ -9,22 +9,36 @@ nav:
   - SPOC:
       - Introduction: index.md
       - Getting Started:
-          - Overview: getting-started/overview.md
-          - Project: getting-started/project.md
-          - Component(s): getting-started/component.md
-          - Plugin(s): getting-started/plugins.md
-          - Framework: getting-started/framework.md
-          - Testing: getting-started/testing.md
-  - Reference:
-      - Framework: api/framework.md
-      - Constants: constants.md
-      - Workers: api/workers.md
-      - Tools: api/utils.md
+          - Installation: getting-started/installation.md
+          - Quick Start: getting-started/quick-start.md
+          - Configuration: getting-started/configuration.md
+      - Core Concepts:
+          - Framework: core/framework.md
+          - App System: core/app-system.md
+          - Components: core/components.md
+          - Importer: core/importer.md
+          - Dependency Management: core/dependencies.md
+      - Advanced Usage:
+          - Plugins: advanced/plugins.md
+          - Lifecycle Hooks: advanced/lifecycle.md
+          - Workers: advanced/workers.md
+      - API Reference:
+          - Framework: api/framework.md
+          - Components: api/components.md
+          - Importer: api/importer.md
+          - Workers: api/workers.md
+          - Tools: api/tools.md
+          - Core Utilities: api/core-utils.md
+      - Examples:
+          - Basic Example: examples/basic.md
+          - App Example: examples/app-example.md
+  - Contributing: contributing.md
 
 # Path Watch
 watch:
   - custom_theme
   - ../src
+  - ./docs
 
 # Extras
 extra:
@@ -90,20 +104,15 @@ markdown_extensions:
 # Plugins
 plugins:
   - search
-
-  # Macros
-  - macros:
-      modules:
-        - macros
-
-  # termynal
+  - macros
   - termynal
+  - autorefs
 
   # mkdocstrings
   - mkdocstrings:
       handlers:
         python:
-          paths: [..] # search packages in the src folder
+          paths: [../src] # search packages in the src folder
           options:
             # Docstring Style
             docstring_style: google
@@ -139,8 +148,8 @@ plugins:
               ignore_init_summary: true
 
             # Docstring Include
-            show_docstring_functions: false
-            show_docstring_examples: false
+            show_docstring_functions: true
+            show_docstring_examples: true
             show_if_no_docstring: false
 
             # Filters

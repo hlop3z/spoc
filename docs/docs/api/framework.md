@@ -1,31 +1,38 @@
-# API Documentation
+# Framework API Reference
 
----
+This page provides detailed API documentation for the Framework module in SPOC.
 
-## Module
+## Framework Class
 
----
-
-::: spoc
+::: spoc.framework.Framework
     options:
-        members: false
+      show_root_heading: true
+      show_source: false
 
----
+## Schema Class
 
-## Framework Tools
+::: spoc.framework.Schema
+    options:
+      show_root_heading: true
+      show_source: false
 
----
+## Hook Type
 
-::: spoc.Base
+::: spoc.framework.Hook
+    options:
+      show_root_heading: true
+      show_source: false
 
----
+## Config Class
 
-::: spoc.init
+::: spoc.framework.Config
+    options:
+      show_root_heading: true
+      show_source: false
 
----
+## Helper Functions
 
-::: spoc.start_project
-
----
-
-::: spoc.Components
+::: spoc.framework.build_config
+    options:
+      show_root_heading: true
+      show_source: false 
