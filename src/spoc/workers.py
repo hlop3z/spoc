@@ -1,361 +1,271 @@
-# -*- coding: utf-8 -*-
-
 """
-Abstract Workers (Process & Thread)
+Worker module providing different concurrency strategies for background tasks.
+
+This module implements various worker classes that can run tasks in different
+concurrency contexts (threads, processes) with consistent lifecycle management
+and error handling. It also provides a server to manage multiple workers.
 """
 
 import asyncio
 import inspect
 import multiprocessing
-import os
 import signal
 import threading
 import time
 from abc import ABC, abstractmethod
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Coroutine, List, Optional, TypeVar, Union
+
+T = TypeVar("T")
+MPEvent = Any  # Represents multiprocessing.Event
+
+try:
+    import uvloop  # type: ignore
+
+    UVLOOP_INSTALLED = True
+except ImportError:
+    uvloop = None
+    UVLOOP_INSTALLED = False
 
 
-class MethodNotFoundError(Exception):
-    """
-    Exception raised when a required method is **missing** from a class **implementation**.
-
-    Args:
-        class_name (str): Name of the class where the method is missing.
-        method_name (str): Name of the missing method.
-        method_type (str): Type of the method (e.g., `staticmethod`, `classmethod`, `property`).
-            Defaults to `method`.
-    """
-
-    def __init__(
-        self,
-        class_name: str,
-        method_name: str,
-        method_type: str = "method",
-    ):
-        super().__init__(
-            f"<class '{class_name}'> is missing implementation for {method_type}: `{method_name}`"
-        )
-        self.class_name = class_name
-        self.function_name = method_name
+def set_uvloop_if_available() -> None:
+    """Set uvloop as the event loop policy if installed."""
+    if UVLOOP_INSTALLED and uvloop:
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
+# --- Async Safety Bridge ---
+def run_async_safely(coro: Coroutine[Any, Any, Any]) -> None:
+    """Run coroutine safely whether in an existing event loop or not."""
+    try:
+        loop = asyncio.get_running_loop()
+        if loop.is_running():
+            asyncio.create_task(coro)
+            return
+    except RuntimeError:
+        pass  # No event loop is running
+
+    set_uvloop_if_available()
+    asyncio.run(coro)
+
+
+# --- Abstract Worker Base ---
 class AbstractWorker(ABC):
-    """Abstract Worker"""
+    """
+    Abstract base class for all worker implementations.
 
-    agent: Any = asyncio
-    server: Any
-    options: Any
-    on_event: Any
+    Provides a consistent interface for different worker types (thread, process)
+    with unified lifecycle management and error handling.
+    """
 
     @abstractmethod
-    def _start_event(self) -> Any:
-        """Create a stop event."""
+    def _create_stop_signal(self) -> Union[threading.Event, MPEvent]:
+        """Create the appropriate stop signal for the worker type."""
 
-    def _validate_required_methods(self) -> None:
-        """Ensure required methods exist in the subclass."""
-        required_methods = ["server", "on_event"]
-        for method_name in required_methods:
-            if not hasattr(self, method_name):
-                raise MethodNotFoundError(
-                    self.__class__.__name__, method_name, "method"
-                )
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.context = SimpleNamespace()
+        self._stop_signal = self._create_stop_signal()
+        self._is_async = inspect.iscoroutinefunction(self.main)
+        self._thread_or_process: Optional[
+            Union[threading.Thread, multiprocessing.Process]
+        ] = None
 
-    def __init__(self, **kwargs: Any):
-        self.options = SimpleNamespace(**kwargs)
-        self.__stop_event = self._start_event()
+    @property
+    def is_running(self) -> bool:
+        """Return True if the worker is running."""
+        return not self._stop_signal.is_set()
 
-        # Ensure `server` and `on_event` methods exist
-        self._validate_required_methods()
+    def stop(self) -> None:
+        """Signal the worker to stop."""
+        self._stop_signal.set()
+
+    def start(self) -> None:
+        """Start the worker."""
+        if self._thread_or_process is not None:
+            self._thread_or_process.start()
+
+    def join(self, timeout: Optional[float] = None) -> None:
+        """Join the worker, with optional timeout."""
+        if self._thread_or_process is not None:
+            self._thread_or_process.join(timeout)
+            if self._thread_or_process.is_alive() and isinstance(
+                self._thread_or_process, multiprocessing.Process
+            ):
+                self._thread_or_process.terminate()
+
+    async def _run_async_task(self) -> None:
+        """Run the main task asynchronously."""
+        try:
+            await self.main()
+        except KeyboardInterrupt:
+            pass
+
+    def _call_setup(self) -> None:
+        """Call the setup method, handling async if needed."""
+        if inspect.iscoroutinefunction(self.setup):
+            run_async_safely(self.setup())
+        else:
+            self.setup()
+
+    def _call_teardown(self) -> None:
+        """Call the teardown method, handling async if needed."""
+        if inspect.iscoroutinefunction(self.teardown):
+            run_async_safely(self.teardown())
+        else:
+            self.teardown()
+
+    def _emit_lifecycle_event(self, event_type: str, **data: Any) -> None:
+        """Emit a lifecycle event to the lifecycle handler."""
+        method = self.lifecycle
+        if inspect.iscoroutinefunction(method):
+            run_async_safely(method(event_type, **data))
+        else:
+            method(event_type, **data)
 
     def run(self) -> None:
-        """Run Worker"""
-        self.before()
-        if inspect.iscoroutinefunction(self.server):
-            # Async Server
-            self.agent.run(self.run_async())
-        else:
-            # Sync Server
-            self.run_sync()
+        """Main run method that handles the worker lifecycle."""
+        self._emit_lifecycle_event("startup")
+        try:
+            self._call_setup()
+            if self._is_async:
+                run_async_safely(self._run_async_task())
+            else:
+                try:
+                    self.main()
+                except KeyboardInterrupt:
+                    pass
+        # Handle keyboard interrupt gracefully
+        except KeyboardInterrupt:
+            pass
+        # Handle I/O and OS errors
+        except (OSError, IOError) as ex:
+            self._emit_lifecycle_event("error", exception=ex)
+        # pylint: disable=broad-exception-caught
+        except Exception as ex:
+            # Log unexpected errors via lifecycle events
+            # This is intended as a last-resort safety mechanism to prevent
+            # worker crashes from taking down the entire application
+            self._emit_lifecycle_event("error", exception=ex)
+        # pylint: enable=broad-exception-caught
+        finally:
+            self._call_teardown()
+            self._emit_lifecycle_event("shutdown")
 
-    def before(self) -> None:
-        """Setup before running server."""
+    def setup(self) -> None:
+        """Setup method called before main. Override in subclasses."""
+        # Method intentionally left empty for subclasses to override
 
-    def run_sync(self) -> None:
-        """Run Synchronous Worker"""
-        self.on_event("startup")
-        job = threading.Thread(target=self.server)
-        job.daemon = True
-        job.start()
-        # Dummy Loop
-        while self.active:
-            try:
-                time.sleep(1)
-            except KeyboardInterrupt:
-                pass
-        # After Stop
-        self.on_event("shutdown")
+    @abstractmethod
+    def main(self) -> Any:
+        """Main worker method. Must be implemented by subclasses."""
 
-    async def run_async(self) -> None:
-        """Run Asynchronous Worker"""
-        loop = asyncio.get_running_loop()
-        await self.on_event("startup")
-        loop.create_task(self.server())
-        # Dummy Loop
-        while self.active:
-            try:
-                await asyncio.sleep(1)
-            except (KeyboardInterrupt, asyncio.CancelledError):
-                pass
-        # After Stop
-        await self.on_event("shutdown")
+    def teardown(self) -> None:
+        """Teardown method called after main. Override in subclasses."""
+        # Method intentionally left empty for subclasses to override
 
-    def stop(self):
-        """Stop Worker"""
-        self.__stop_event.set()
-
-    @property
-    def stop_event(self) -> Any:
-        """Worker Stop Event"""
-        return self.__stop_event
-
-    @property
-    def active(self) -> bool:
-        """Worker is Active"""
-        return not self.__stop_event.is_set()
+    def lifecycle(self, event_type: str, **data: Any) -> None:
+        """Lifecycle event handler. Override in subclasses."""
+        # Method intentionally left empty for subclasses to override
 
 
-class BaseProcess(AbstractWorker, multiprocessing.Process):
+# --- Threaded Worker ---
+class ThreadWorker(AbstractWorker):
     """
-    Abstract Process
+    Worker implementation that runs in a thread.
 
-    Example:
-
-    ```python
-    class AsyncProcess(spoc.BaseProcess):
-        agent: Any = asyncio # Example: `uvloop`
-
-        def before(self) -> None:
-            ... # Set uvloop.EventLoopPolicy()
-
-        async def on_event(self, event_type: str):
-            ...
-
-        async def server(self):
-            while self.active:
-                ...
-
-
-    class SyncProcess(spoc.BaseProcess):
-        def on_event(self, event_type: str):
-            ...
-
-        def server(self):
-            while self.active:
-                ...
-    ```
+    Useful for I/O-bound tasks or tasks that need to share memory with the main process.
     """
 
-    def __init__(self, **kwargs: Any):
-        multiprocessing.Process.__init__(self)
-        AbstractWorker.__init__(self, **kwargs)
+    def __init__(self, name: str = "ThreadWorker", daemon: bool = True) -> None:
+        """Initialize a worker that runs in a thread."""
+        super().__init__(name)
+        self._thread_or_process = threading.Thread(target=self.run, daemon=daemon)
 
-    def _start_event(self):
-        """Create a stop event."""
-        return multiprocessing.Event()
-
-
-class BaseThread(AbstractWorker, threading.Thread):
-    """
-    Abstract Thread
-
-    Example:
-
-    ```python
-    class AsyncThread(spoc.BaseThread):
-        agent: Any = asyncio # Example: `uvloop`
-
-        def before(self) -> None:
-            ... # Set uvloop.EventLoopPolicy()
-
-        async def on_event(self, event_type: str):
-            ...
-
-        async def server(self):
-            while self.active:
-                ...
-
-
-    class SyncThread(spoc.BaseThread):
-        def on_event(self, event_type: str):
-            ...
-
-        def server(self):
-            while self.active:
-                ...
-    ```
-    """
-
-    def __init__(self, **kwargs: Any):
-        threading.Thread.__init__(self)
-        AbstractWorker.__init__(self, **kwargs)
-
-    def _start_event(self):
-        """Create a stop event."""
+    def _create_stop_signal(self) -> threading.Event:
+        """Create a threading.Event as stop signal."""
         return threading.Event()
 
 
-class BaseServer(ABC):
+# --- Process Worker ---
+class ProcessWorker(AbstractWorker):
     """
-    Control multiple workers `Thread(s)` and/or `Process(es)`.
+    Worker implementation that runs in a separate process.
 
-    Example:
-
-    ```python
-    import time
-
-    class MyProcess(spoc.BaseProcess):  # BaseThread
-        def on_event(self, event_type):
-            print("Process | Thread:", event_type)
-
-        def server(self):
-            while self.active:
-                print("My Server", self.options.name)
-                time.sleep(2)
-
-    class MyServer(spoc.BaseServer):
-        @classmethod  # or staticmethod
-        def on_event(cls, event_type):
-            print("Server:", event_type)
-
-    # Press (CTRL + C) to Quit
-    MyServer.add(MyProcess(name="One"))
-    MyServer.add(MyProcess(name="Two"))
-    MyServer.start()
-    ```
+    Useful for CPU-bound tasks that benefit from bypassing the GIL.
     """
 
-    workers: list[Any] = []
-    all_pids: set = set()
-    on_event: Any
+    def __init__(self, name: str = "ProcessWorker", daemon: bool = True) -> None:
+        """Initialize a worker that runs in a separate process."""
+        super().__init__(name)
+        self._thread_or_process = multiprocessing.Process(
+            target=self.run, daemon=daemon
+        )
 
-    @classmethod
-    def clear(cls) -> None:
-        """Workers and PIDs cleanup"""
-        cls.workers.clear()
-        cls.all_pids.clear()
+    def _create_stop_signal(self) -> MPEvent:
+        """Create a multiprocessing.Event as stop signal."""
+        return multiprocessing.Event()
 
-    @staticmethod
-    def exit() -> None:
-        """Exit main process"""
-        os.kill(os.getpid(), signal.SIGINT)
 
-    @classmethod
-    def add(cls, *workers: Any) -> None:
+# --- Server to Manage Workers ---
+class Server:
+    """
+    Server to manage multiple workers.
+
+    Provides methods to start, stop, and manage the lifecycle of workers collectively,
+    with proper signal handling for graceful shutdowns.
+    """
+
+    def _on_signal(self, _signum: int, _frame: Any) -> None:
         """
-        Add worker instances to the service.
+        Signal handler for SIGINT and SIGTERM.
+
+        Args:
+            _signum: The signal number received (unused but required by signal API)
+            _frame: Frame object (unused but required by signal API)
         """
-        cls.workers.extend(workers)
+        self.stop()
 
-    @staticmethod
-    def _disable_exit_signal() -> None:
-        """Wait for cleanup to complete."""
+    def _setup_signal_handlers(self) -> None:
+        """Set up signal handlers for graceful shutdown."""
+        signal.signal(signal.SIGINT, self._on_signal)
+        signal.signal(signal.SIGTERM, self._on_signal)
 
-        def handler(*_):
-            """Ctrl+C pressed."""
+    def __init__(self, name: str = "Server") -> None:
+        """Initialize a server to manage multiple workers."""
+        self.name = name
+        self._workers: List[AbstractWorker] = []
+        self._stop_signal = threading.Event()
+        self._setup_signal_handlers()
 
-        # Temporarily ignore Ctrl+C
-        signal.signal(signal.SIGINT, handler)
+    def add_worker(self, worker: AbstractWorker) -> None:
+        """Add a worker to be managed by this server."""
+        self._workers.append(worker)
 
-    @classmethod
-    def start(
-        cls, infinite_loop: bool = True, timeout: int = 5, forced_delay: int = 1
-    ) -> None:
-        """
-        Start all added workers and optionally keep a loop running until interrupted.
-        """
-        # Ensure `on_event`
-        if not hasattr(cls, "on_event"):
-            raise MethodNotFoundError(
-                cls.__name__,
-                "on_event",
-                "staticmethod or classmethod",
-            )
+    def start(self) -> None:
+        """Start all managed workers."""
+        for w in self._workers:
+            w.start()
 
-        # Startup
-        cls.on_event("startup")
+    def stop(self) -> None:
+        """Stop all managed workers."""
+        for w in self._workers:
+            w.stop()
+        self._stop_signal.set()
 
-        # Main PID
-        cls.all_pids.add(os.getpid())
+    def join_all(self, timeout: float = 5) -> None:
+        """Join all workers with a shared timeout."""
+        start_time = time.time()
+        for w in self._workers:
+            remaining = max(0, timeout - (time.time() - start_time))
+            w.join(timeout=remaining)
 
-        # Start Workers
-        for worker in cls.workers:
-            worker.start()
-
-            # Register PID(s)
-            if hasattr(worker, "pid"):
-                cls.all_pids.add(worker.pid)
-                cls.all_pids.add(os.getppid())
-            else:
-                cls.all_pids.add(os.getppid())
-
-        # Loop Until (Keyboard-Interrupt)
-        if infinite_loop:
-            try:
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                # Disable (Ctrl + C)
-                cls._disable_exit_signal()
-                # Before Shutdown
-                cls.on_event("before_shutdown")
-                cls.stop(force_stop=True, timeout=timeout, forced_delay=forced_delay)
-
-    @classmethod
-    def stop(
-        cls, timeout: int = 5, force_stop: bool = False, forced_delay: int = 1
-    ) -> None:
-        """
-        Stop all running workers.
-        """
-        is_alive: bool = False
-
-        # Workers
-        for worker in cls.workers:
-            worker.stop()
-
-        # Stop => Process & Threads
-        for worker in cls.workers:
-            if hasattr(worker, "join"):
-                worker.join(timeout=timeout)  # Wait for the specified delay
-
-        for worker in cls.workers:
-            if hasattr(worker, "terminate"):
-                worker.terminate()
-
-            if hasattr(worker, "is_alive") and worker.is_alive():
-                is_alive = True
-
-        # Shutdown
-        cls.on_event("shutdown")
-        if force_stop and is_alive:
-            cls.force_stop(forced_delay)
-
-    @classmethod
-    def force_stop(cls, delay: int = 1) -> None:
-        """
-        Force to stop.
-        """
-        main_pid = os.getpid()
-        time.sleep(delay)
-
-        # Kill Processes
-        for pid in cls.all_pids:
-            try:
-                if main_pid != pid:
-                    os.kill(pid, signal.SIGINT)
-            except Exception:
-                pass
-
-        # Cleanup
-        cls.clear()
+    def run_forever(self) -> None:
+        """Run the server until stopped by signal or exception."""
+        self.start()
+        try:
+            while not self._stop_signal.is_set():
+                time.sleep(0.5)
+        finally:
+            self.stop()
+            self.join_all()

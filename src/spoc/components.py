@@ -1,158 +1,329 @@
 # -*- coding: utf-8 -*-
 """
-Components
+components.py
 
-This module provides decorators and utilities for creating and validating
-components in the application.
+Provides decorators and utilities for defining, tagging, and validating
+"components" within the SPOC framework.
+
+Tested on Python 3.13+.
+
+Usage:
+    from spoc.components import component, Components
+
+    @component(config={"foo": "bar"}, metadata={"type": "service"})
+    class MyService:
+        ...
+
+    components = Components("service", "model")
+    @components.register("service")
+    class AnotherService:
+        ...
+
+This module enables flexible, metadata-driven component registration and discovery.
 """
 
-import functools
-from typing import Any
+from __future__ import annotations
 
-from .importer.types import Info
+# import functools
+from dataclasses import dataclass
+from typing import Any, Callable, Literal, Protocol, TypeAlias, TypeVar
+
+from .case_style import case_style
+
+T = TypeVar("T")
+U = TypeVar("U")
+R = TypeVar("R")
+ComponentFactory: TypeAlias = Callable[[], T]
+
+T_co = TypeVar("T_co", covariant=True)
+
+
+@dataclass(frozen=True)
+class Internal:
+    """
+    Holds metadata and configuration for a registered component.
+
+    Attributes:
+        config: Component configuration dictionary
+        metadata: Component metadata dictionary
+    """
+
+    config: dict[str, Any]
+    metadata: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class Component:
+    """
+    Holds metadata and configuration for a registered component and the component
+    that uses it.
+
+    Attributes:
+        type: Component type identifier
+        uri: Unique resource identifier for the component
+        app: Application name the component belongs to
+        name: Component name
+        object: The actual component object
+        internal: Internal metadata container
+    """
+
+    type: str
+    uri: str
+    app: str
+    name: str
+    object: Any
+    internal: Internal
+
+
+class ComponentDecorated(Protocol[T_co]):
+    """Protocol for objects decorated with component metadata."""
+
+    __spoc__: Internal
+
+    # The object itself - making the return type a generic parameter
+    def __call__(self, *args: Any, **kwargs: Any) -> T_co: ...
 
 
 def component(
     obj: Any = None,
     *,
-    config: dict | None = None,
-    metadata: dict | None = None,
+    config: dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> Any:
     """
-    Component Creator
+    Mark a class or function as a "component" by attaching ComponentInfo.
 
-    A tool to mark an `object` as a component with configurations and metadata.
-
-    Args:
-        obj (Any): The object to be decorated.
-        config (dict | None): Configuration options for the component.
-        metadata (dict | None): Metadata associated with the component.
-
-    Returns:
-        Any: The decorated class, marked as a component.
-
-    Example:
-
-    ```python
-    @component(config={"setting": "value"}, metadata={"type": "command"})
-    class MyComponent:
-        pass
-
-    # OR
-    component(MyComponent, config={"setting": "value"}, metadata={"type": "command"})
-    ```
-    """
-
-    config = config or {}
-    metadata = metadata or {}
-    if obj is None:
-        return functools.partial(
-            component,
-            config=config,
-            metadata=metadata,
-        )
-
-    # Real Wrapper
-    obj.__spoc__ = Info(config=config, metadata=metadata)
-    return obj
-
-
-def is_component(obj: Any, metadata: dict) -> bool:
-    """
-    Component Validator.
-
-    Validates whether a given object matches the specified metadata.
+    This decorator attaches metadata to an object to identify it as a component
+    in the SPOC framework. Can be used as either a simple decorator or a decorator
+    factory with parameters.
 
     Args:
-        obj (Any): The object to validate.
-        metadata (dict): The metadata to validate against.
+        obj: The object to decorate (when used as @component)
+        config: Optional configuration dictionary for the component
+        metadata: Optional metadata dictionary for the component
 
     Returns:
-        bool:
-            `True` if the object metadata matches the provided metadata;
-            `False` otherwise.
+        The decorated object or a decorator function
 
-    Example:
-
-    ```python
-    if is_component(my_obj, metadata={"type": "command"}):
-        print("This is a valid component.")
-    ```
+    Examples:
+        >>> @component(config={"key": "value"}, metadata={"type": "command"})
+        >>> class MyComponent:
+        >>>     pass
+        >>>
+        >>> # Or as direct call
+        >>> my_func = component(my_func, config={"timeout": 30})
     """
+    # Create empty dicts for config and metadata if not provided
+    cfg = {} if config is None else config
+    meta = {} if metadata is None else metadata
 
-    item = obj
-    if hasattr(obj, "object") and hasattr(obj.object, "__spoc__"):
-        item = obj.object
-    if not hasattr(item, "__spoc__"):
-        return False
-    return item.__spoc__.metadata == metadata  # type: ignore
+    def decorator(target_obj: Any) -> Any:
+        setattr(target_obj, "__spoc__", Internal(config=cfg, metadata=meta))
+        return target_obj
+
+    # If used as @component without parentheses
+    if obj is not None:
+        return decorator(obj)
+
+    # If used as @component() with parentheses
+    return decorator
+
+
+def is_spoc(obj: Any) -> bool:
+    """
+    Check whether `obj` has been marked as a spoc object.
+
+    Args:
+        obj: The object to check
+
+    Returns:
+        True if the object has been decorated with the @component decorator
+    """
+    # Unwrap proxies with `.object` attribute if present
+    info = getattr(obj, "__spoc__", None)
+    return info is not None
+
+
+def is_component(obj: Any, metadata: dict[str, Any]) -> bool:
+    """
+    Check whether `obj` has been marked as a component with the given metadata.
+
+    Args:
+        obj: The object to check
+        metadata: The metadata to match against
+
+    Returns:
+        True if the object has been decorated with matching metadata
+    """
+    # Unwrap proxies with `.object` attribute if present
+    info = getattr(obj, "__spoc__", None)
+    return isinstance(info, Internal) and info.metadata == metadata
 
 
 class Components:
     """
-    Framework Components
+    Registry for named component‐types and their validation logic.
 
-    A tool to manage the components.
+    This class provides a registry for different types of components and
+    manages their registration, validation, and metadata handling.
 
-    Example:
-
-    ```python
-    components = spoc.Components("model", "view")
-    ```
+    Examples:
+        >>> components = Components("command", "model")
+        >>> @components.register("command", config={"foo": "bar"})
+        >>> class Cmd:
+        >>>     pass
     """
 
-    def __init__(self, *names: Any) -> None:
+    def __init__(self, *types: str) -> None:
         """
-        Initialize a Component instance.
+        Initialize a components registry with the specified component types.
+
+        Args:
+            *types: Variable number of component type names to register initially
         """
-        self._components: Any = {}
-        for name in names:
-            self.add(name)
+        self._registry: dict[str, dict[str, Any]] = {}
 
-    def add(self, name: str, metadata: dict | None = None) -> None:
+        for t in types:
+            self.add_type(t)
+
+    def add_type(self, name: str, default_meta: dict[str, Any] | None = None) -> None:
         """
-        Add a component with the specified name and optional metadata.
+        Declare a new component type, optionally with default metadata.
 
-        Example:
-
-        ```python
-        components = spoc.Components()
-        components.add("command", {"is_click": True}) # metadata
-        ```
+        Args:
+            name: Name of the component type to add.
+            default_meta: Optional default metadata for this component type.
         """
         type_name = name.lower()
-        meta = metadata or {}
-        self._components[type_name] = {**meta, "type": type_name}
+        self._registry[type_name] = default_meta.copy() if default_meta else {}
 
-    def register(self, name: str, obj: Any, config: dict | None = None) -> None:
+    def register(
+        self, type_name: str, obj: Any = None, *, config: dict[str, Any] | None = None
+    ) -> Any:
         """
-        Mark an object as a component optionally using extra configuration settings.
+        Decorator to mark something as a component of `type_name`.
 
-        Example:
+        Args:
+            type_name: The component type to register as
+            obj: Optional object to directly decorate
+            config: Optional configuration dictionary for the component
 
-        ```python
-        components = spoc.Components("command", "model")
+        Returns:
+            A decorator function that registers an object as this component type
+            or the decorated object if obj is directly provided
 
-        def my_obj(): pass
-
-        components.register("command", my_obj, config={"setting": "value"})
-        ```
+        Raises:
+            KeyError: If the component type was not previously declared
         """
-        component(obj, config=config, metadata=self._components[name.lower()])
+        name = type_name.lower()
+        if name not in self._registry:
+            raise KeyError(f"Component type '{type_name}' not declared")
 
-    def is_component(self, name: str, obj: Any) -> bool:
+        meta = {"type": name, **self._registry[name]}
+
+        def decorator(target_obj: Any) -> Any:
+            if target_obj is None:
+                raise ValueError("Cannot register None as a component")
+
+            processed_obj = component(target_obj, config=config, metadata=meta)
+            return processed_obj
+
+        # If used as a direct decorator or function call
+        if obj is not None:
+            return decorator(obj)
+
+        # If used as @register() with parentheses
+        return decorator
+
+    def is_spoc(self, obj: Any) -> bool:
         """
-        Validate if the given object is a component with the specified name.
+        Check whether `obj` has been marked as a spoc object.
 
-        Example:
+        Args:
+            obj: The object to check
 
-        ```python
-        components = spoc.Components("command", "model")
-
-        def my_obj(): pass
-
-        if not components.is_component("command", my_obj):
-            print("This is not a valid component.")
-        ```
+        Returns:
+            True if the object has been decorated with the @component decorator
         """
-        return is_component(obj, self._components[name.lower()])
+        return is_spoc(obj)
+
+    def is_component(self, type_name: str, obj: Any) -> bool:
+        """
+        Validate that `obj` is a component of the declared `type_name`.
+
+        Args:
+            type_name: The component type to check against
+            obj: The object to validate
+
+        Returns:
+            True if the object is a component of the specified type
+
+        Raises:
+            KeyError: If the component type was not previously declared
+        """
+        key = type_name.lower()
+        if key not in self._registry:
+            raise KeyError(f"Component type '{type_name}' not declared")
+        meta = {"type": key, **self._registry[key]}
+        return is_component(obj, meta)
+
+    def get_info(self, obj: Any) -> Internal | None:
+        """
+        Get the Component(Info) for a given object.
+
+        Args:
+            obj: The object to get component info for
+
+        Returns:
+            Internal metadata object if available, otherwise None
+        """
+        return getattr(obj, "__spoc__", None)
+
+    def builder(self, the_object: Any) -> Component:
+        """
+        Build a Component object from a decorated object.
+
+        Args:
+            the_object: A component-decorated object
+
+        Returns:
+            A Component instance with metadata extracted from the object
+
+        Raises:
+            AttributeError: If the object doesn't have required attributes
+        """
+        module = the_object.__module__.split(".")[0]
+        class_name = the_object.__name__
+        uri = f"{module}_{self.case_style(class_name, mode='snake')}"
+        class_info = self.get_info(the_object)
+        if class_info is None:
+            raise AttributeError(f"Object {the_object} is not a component")
+
+        component_type = class_info.metadata.get(
+            "type", ""
+        )  # Default to empty string if not found
+        return Component(
+            uri=uri,
+            app=module,
+            name=class_name,
+            internal=class_info,
+            object=the_object,
+            type=component_type,
+        )
+
+    @staticmethod
+    def case_style(
+        text: str,
+        mode: Literal["snake", "camel", "pascal", "kebab"] = "snake",
+    ) -> str:
+        """
+        Convert a string to the given case style.
+
+        Args:
+            text: The text to convert
+            mode: The case style to convert to
+
+        Returns:
+            The converted string in the requested case style
+        """
+        return case_style(text, mode=mode)
