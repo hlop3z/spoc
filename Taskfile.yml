@@ -1,0 +1,263 @@
+version: "3"
+
+vars:
+  PYTHON: python
+  SRC_DIR: src/spoc
+  TESTS_DIR: tests
+  DOCS_DIR: docs
+
+tasks:
+  # =============================================================================
+  # Installation
+  # =============================================================================
+  install:
+    desc: Install project dependencies
+    cmds:
+      - uv sync
+
+  install:dev:
+    desc: Install development dependencies
+    cmds:
+      - uv sync --group dev
+
+  install:docs:
+    desc: Install documentation dependencies
+    cmds:
+      - uv sync --group docs
+
+  install:all:
+    desc: Install all dependencies (dev + docs)
+    cmds:
+      - uv sync --all-groups
+
+  # =============================================================================
+  # Testing
+  # =============================================================================
+  test:
+    desc: Run tests with pytest
+    cmds:
+      - uv run pytest {{.TESTS_DIR}} -v {{.CLI_ARGS}}
+
+  test:fast:
+    desc: Run tests without verbose output
+    cmds:
+      - uv run pytest {{.TESTS_DIR}} {{.CLI_ARGS}}
+
+  test:cov:
+    desc: Run tests with coverage report
+    cmds:
+      - uv run pytest {{.TESTS_DIR}} --cov={{.SRC_DIR}} --cov-report=term-missing {{.CLI_ARGS}}
+
+  # =============================================================================
+  # Linting & Formatting
+  # =============================================================================
+  lint:
+    desc: Run ruff linter
+    cmds:
+      - uv run ruff check {{.SRC_DIR}} {{.TESTS_DIR}} {{.CLI_ARGS}}
+
+  lint:fix:
+    desc: Run ruff linter with auto-fix
+    cmds:
+      - uv run ruff check {{.SRC_DIR}} {{.TESTS_DIR}} --fix {{.CLI_ARGS}}
+
+  format:
+    desc: Format code with ruff
+    cmds:
+      - uv run ruff format {{.SRC_DIR}} {{.TESTS_DIR}} {{.CLI_ARGS}}
+
+  format:check:
+    desc: Check code formatting without changes
+    cmds:
+      - uv run ruff format {{.SRC_DIR}} {{.TESTS_DIR}} --check {{.CLI_ARGS}}
+
+  # =============================================================================
+  # Type Checking
+  # =============================================================================
+  type:
+    desc: Run type checker (ty)
+    cmds:
+      - uv run ty check {{.SRC_DIR}} {{.CLI_ARGS}}
+
+  # =============================================================================
+  # Quality Checks (All-in-one)
+  # =============================================================================
+  check:
+    desc: Run all quality checks (lint + type + test)
+    cmds:
+      - task: lint
+      - task: type
+      - task: test
+
+  check:fix:
+    desc: Fix issues and run checks
+    cmds:
+      - task: format
+      - task: lint:fix
+      - task: type
+      - task: test
+
+  # =============================================================================
+  # Documentation
+  # =============================================================================
+  docs:
+    desc: Serve documentation locally
+    dir: "{{.DOCS_DIR}}"
+    cmds:
+      - uv run mkdocs serve {{.CLI_ARGS}}
+
+  docs:build:
+    desc: Build documentation
+    dir: "{{.DOCS_DIR}}"
+    cmds:
+      - uv run mkdocs build {{.CLI_ARGS}}
+
+  docs:deploy:
+    desc: Deploy documentation to GitHub Pages
+    dir: "{{.DOCS_DIR}}"
+    cmds:
+      - uv run mkdocs gh-deploy --force {{.CLI_ARGS}}
+
+  # =============================================================================
+  # Build & Release
+  # =============================================================================
+  build:
+    desc: Build the package
+    cmds:
+      - uv build
+
+  publish:
+    desc: Publish package to PyPI
+    cmds:
+      - uv publish {{.CLI_ARGS}}
+
+  publish:test:
+    desc: Publish package to TestPyPI
+    cmds:
+      - uv publish --index testpypi {{.CLI_ARGS}}
+
+  # =============================================================================
+  # Cleanup
+  # =============================================================================
+  clean:
+    desc: Clean build artifacts and caches
+    cmds:
+      - cmd: rm -rf dist/ build/ *.egg-info
+        ignore_error: true
+      - cmd: rm -rf .pytest_cache/ .ruff_cache/ .mypy_cache/ .ty_cache/
+        ignore_error: true
+      - cmd: find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
+        ignore_error: true
+      - cmd: find . -type f -name "*.pyc" -delete 2>/dev/null
+        ignore_error: true
+
+  clean:all:
+    desc: Clean everything including .venv
+    cmds:
+      - task: clean
+      - cmd: rm -rf .venv/
+        ignore_error: true
+
+  # =============================================================================
+  # Development Workflow
+  # =============================================================================
+  dev:
+    desc: Setup development environment
+    cmds:
+      - task: install:all
+      - task: check
+
+  dev:watch:
+    desc: Run tests in watch mode (requires pytest-watch)
+    cmds:
+      - uv run ptw {{.TESTS_DIR}} {{.CLI_ARGS}}
+
+  # =============================================================================
+  # Version Management
+  # =============================================================================
+  version:
+    desc: Show project version
+    cmds:
+      - uv run python -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('src/spoc/__about__.py').read()).group(1))"
+
+  version:get:
+    desc: Get current version (silent)
+    silent: true
+    cmds:
+      - uv run python -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('src/spoc/__about__.py').read()).group(1))"
+
+  version:bump:patch:
+    desc: Bump patch version (0.0.X)
+    cmds:
+      - |
+        uv run python -c "
+        import re
+        path = 'src/spoc/__about__.py'
+        content = open(path).read()
+        match = re.search(r'__version__ = \"(\d+)\.(\d+)\.(\d+)\"', content)
+        major, minor, patch = int(match.group(1)), int(match.group(2)), int(match.group(3))
+        new_version = f'{major}.{minor}.{patch + 1}'
+        new_content = re.sub(r'__version__ = \"[^\"]+\"', f'__version__ = \"{new_version}\"', content)
+        open(path, 'w').write(new_content)
+        print(f'Bumped version to {new_version}')
+        "
+
+  version:bump:minor:
+    desc: Bump minor version (0.X.0)
+    cmds:
+      - |
+        uv run python -c "
+        import re
+        path = 'src/spoc/__about__.py'
+        content = open(path).read()
+        match = re.search(r'__version__ = \"(\d+)\.(\d+)\.(\d+)\"', content)
+        major, minor, patch = int(match.group(1)), int(match.group(2)), int(match.group(3))
+        new_version = f'{major}.{minor + 1}.0'
+        new_content = re.sub(r'__version__ = \"[^\"]+\"', f'__version__ = \"{new_version}\"', content)
+        open(path, 'w').write(new_content)
+        print(f'Bumped version to {new_version}')
+        "
+
+  version:bump:major:
+    desc: Bump major version (X.0.0)
+    cmds:
+      - |
+        uv run python -c "
+        import re
+        path = 'src/spoc/__about__.py'
+        content = open(path).read()
+        match = re.search(r'__version__ = \"(\d+)\.(\d+)\.(\d+)\"', content)
+        major, minor, patch = int(match.group(1)), int(match.group(2)), int(match.group(3))
+        new_version = f'{major + 1}.0.0'
+        new_content = re.sub(r'__version__ = \"[^\"]+\"', f'__version__ = \"{new_version}\"', content)
+        open(path, 'w').write(new_content)
+        print(f'Bumped version to {new_version}')
+        "
+
+  version:release:
+    desc: Create release (commit, tag, push)
+    vars:
+      VERSION:
+        sh: uv run python -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('src/spoc/__about__.py').read()).group(1))"
+    cmds:
+      - git add src/spoc/__about__.py
+      - git commit -m "v{{.VERSION}}"
+      - git tag "v{{.VERSION}}"
+      - git push && git push --tags
+
+  # =============================================================================
+  # Utilities
+  # =============================================================================
+  tree:
+    desc: Show project structure
+    cmds:
+      - cmd: tree -I '__pycache__|.git|.venv|*.egg-info|.pytest_cache|.ruff_cache|node_modules' -L 3
+        ignore_error: true
+
+  # =============================================================================
+  # Default Task
+  # =============================================================================
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list

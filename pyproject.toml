@@ -1,76 +1,33 @@
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
-
 [project]
 name = "spoc"
 dynamic = ["version"]
 description = "Elastic Framework Builder"
-requires-python = ">=3.12"
 readme = "README.md"
-license = { text = "MIT" }
 authors = [
     { name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com" },
 ]
-classifiers = [
-    "Development Status :: 4 - Beta",                                       # Example status: Alpha, Beta, Production/Stable
-    "Intended Audience :: Developers",
-    "Intended Audience :: Information Technology",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Internet",
-    "Topic :: Software Development :: Libraries :: Application Frameworks",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Software Development :: Libraries",
-    "Topic :: Software Development",
-    "Typing :: Typed",
-]
-keywords = [
-    "modular design",
-    "python framework",
-    "extensible framework",
-    "plugin management",
-]
+requires-python = ">=3.13"
 dependencies = []
 
-[project.urls]
-Homepage = "https://github.com/hlop3z/spoc/"
-Documentation = "https://hlop3z.github.io/spoc/"
-Repository = "https://github.com/hlop3z/spoc/"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[project.scripts]
-spoc-init = "spoc:start_project"
+[tool.hatch.version]
+path = "src/spoc/__about__.py"
 
-[tool.pdm]
-version = { source = "file", path = "src/spoc/__about__.py" }
-distribution = true
-
-[tool.pdm.build]
-# package-dir = "src"
-# includes = ["src", "README.md", "LICENSE"]
-excludes = ["tests"]
-
-[tool.pdm.dev-dependencies]
-lint = [
-    "pyright>=1.1.377",
-    "mypy>=1.11.1",
-    "isort>=5.13.2",
-    "black>=24.8.0",
-    "pylint>=3.2.6",
-    "ruff>=0.6.2",
-    "bandit>=1.7.9",
-    "watchdog>=4.0.2",
-    "ssort>=0.13.0",
+[dependency-groups]
+dev = [
+    # Devs Tools
+    "pytest>=9.0.2",
+    "ruff>=0.14.13",
+    "ty>=0.0.12",
 ]
 docs = [
-    "mkdocs>=1.6.0",
-    "mkdocs-material>=9.5.32",
+    # Docs Tools
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.14",
     "mkdocs-macros-plugin>=1.0.5",
-    "mkdocstrings[python]>=0.25.2",
-    "termynal>=0.12.1",
+    "mkdocstrings[python]>=1.0.0",
+    "termynal>=0.13.0",
 ]
-test = ["pytest>=7.1.2", "pytest-json-report>=1.5.0"]
-
-[tool.pdm.scripts]
-test = "pytest -rA tests/test_main.py"
