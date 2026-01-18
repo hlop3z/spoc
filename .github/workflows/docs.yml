@@ -15,19 +15,23 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set Up PDM (Python Dependency Manager)
-        uses: pdm-project/setup-pdm@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Install Dependencies
-        run: pdm install -G docs
+        run: uv sync --group docs
 
       - name: Update mkdocs.yml with Latest Tag
         run: |
-          REPOSITORY="https://github.com/${{ github.repository }}"
           TAG_NAME="${{ github.event.release.tag_name }}"
           cd docs
-          sed -i "s|repo_url: '${REPOSITORY}/[^']*'|repo_url: '${REPOSITORY}/tree/${TAG_NAME}'|" mkdocs.yml
+          sed -i "s|repo_url: https://github.com/${{ github.repository }}/.*|repo_url: https://github.com/${{ github.repository }}/tree/${TAG_NAME}|" mkdocs.yml
 
       - name: Deploy MkDocs
-        run: |
-          pdm run scripts/docs.py -gh
+        working-directory: docs
+        run: uv run mkdocs gh-deploy --force
