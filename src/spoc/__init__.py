@@ -23,6 +23,7 @@ from .core.utils import DependencyGraph
 from .framework import Config, Framework, Hook, Schema
 from .inject_apps import inject_apps
 from .case_style import case_style
+from .utils import get_info
 
 __all__ = [
     # Framework Utilities
@@ -34,6 +35,7 @@ __all__ = [
     "Importer",
     # Components
     "Components",
+    "get_info",
     # Exceptions
     "SpocError",
     "AppNotFoundError",
