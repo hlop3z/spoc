@@ -24,7 +24,8 @@ This module enables flexible, metadata-driven component registration and discove
 
 from __future__ import annotations
 
-# import functools
+import inspect
+import os
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Protocol, TypeAlias, TypeVar
 
@@ -50,8 +51,8 @@ class Internal:
 
     config: dict[str, Any]
     metadata: dict[str, Any]
-    app_name: str
-    obj_name: str
+    app_name: str = ""
+    obj_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,29 @@ class ComponentDecorated(Protocol[T_co]):
 
     # The object itself - making the return type a generic parameter
     def __call__(self, *args: Any, **kwargs: Any) -> T_co: ...
+
+
+_THIS_FILE = os.path.normpath(__file__)
+_SKIP_NAMES = frozenset(
+    {"obj", "target_obj", "the_object", "cls", "self", "func", "fn"}
+)
+
+
+def _locate_obj(obj: Any) -> tuple[str, str]:
+    """Walk the call stack to find the module and variable name for obj.
+
+    Skips frames from this file and generic internal parameter names so we
+    always land in the caller's (user) scope.
+    """
+    for frame_info in inspect.stack():
+        if os.path.normpath(frame_info.filename) == _THIS_FILE:
+            continue
+        f = frame_info.frame
+        for ns in (f.f_locals, f.f_globals):
+            for k, v in ns.items():
+                if v is obj and not k.startswith("_") and k not in _SKIP_NAMES:
+                    return f.f_globals.get("__name__", ""), k
+    return "", ""
 
 
 def component(
@@ -120,15 +144,25 @@ def component(
     meta = {} if metadata is None else metadata
 
     def decorator(target_obj: Any) -> Any:
+        raw_name = getattr(target_obj, "__name__", "")
+        if raw_name:
+            # Class/function: __name__ and __module__ are authoritative
+            app_name = getattr(target_obj, "__module__", "").split(".")[0]
+            obj_name = raw_name
+        else:
+            # Instance: __name__ doesn't exist; make it hashable then locate via frames
+            if not type(target_obj).__hash__:
+                base = type(target_obj)
+                target_obj.__class__ = type(
+                    base.__name__, (base,), {"__hash__": object.__hash__}
+                )
+            frame_module, frame_name = _locate_obj(target_obj)
+            app_name = frame_module.split(".")[0]
+            obj_name = frame_name
         setattr(
             target_obj,
             "__spoc__",
-            Internal(
-                config=cfg,
-                metadata=meta,
-                app_name=target_obj.__module__.split(".")[0],
-                obj_name=target_obj.__name__,
-            ),
+            Internal(config=cfg, metadata=meta, app_name=app_name, obj_name=obj_name),
         )
         return target_obj
 
@@ -303,9 +337,9 @@ class Components:
         Raises:
             AttributeError: If the object doesn't have required attributes
         """
-        module = the_object.__module__.split(".")[0]
-        class_name = the_object.__name__
-        uri = f"{module}_{self.case_style(class_name, mode='snake')}"
+        app_name = the_object.__module__.split(".")[0]
+        obj_name = the_object.__name__
+        uri = f"{app_name}_{self.case_style(obj_name, mode='snake')}"
         class_info = self.get_info(the_object)
         if class_info is None:
             raise AttributeError(f"Object {the_object} is not a component")
@@ -313,10 +347,11 @@ class Components:
         component_type = class_info.metadata.get(
             "type", ""
         )  # Default to empty string if not found
+
         return Component(
             uri=uri,
-            app=module,
-            name=class_name,
+            app=app_name,
+            name=obj_name,
             internal=class_info,
             object=the_object,
             type=component_type,

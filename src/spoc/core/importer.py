@@ -385,15 +385,20 @@ class Importer(metaclass=SingletonMeta):
             hook_type: The type of hook to call.
             module_name: The name of the module to call the hook for.
         """
+        instance = self._get_module_objects(module_name)
+
         hook = self.module_hooks.generic.get(module_name)
         if hook:
-            instance = self._get_module_objects(module_name)
-            hook.get(hook_type)(instance)
-        else:
-            for current in self.module_hooks.pattern.values():
-                if current.get(hook_type).pattern.fullmatch(module_name):
-                    instance = self._get_module_objects(module_name)
-                    current.get(hook_type).method(instance)
+            fn = hook.get(hook_type)
+            if callable(fn):
+                fn(instance)
+            return
+
+        for current in self.module_hooks.pattern.values():
+            hp = current.get(hook_type)
+            if hp and hp.pattern and hp.pattern.fullmatch(module_name):
+                if callable(hp.method):
+                    hp.method(instance)
 
     def startup(self) -> None:
         """
