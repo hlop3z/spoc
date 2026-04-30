@@ -50,6 +50,8 @@ class Internal:
 
     config: dict[str, Any]
     metadata: dict[str, Any]
+    app_name: str
+    obj_name: str
 
 
 @dataclass(frozen=True)
@@ -118,7 +120,16 @@ def component(
     meta = {} if metadata is None else metadata
 
     def decorator(target_obj: Any) -> Any:
-        setattr(target_obj, "__spoc__", Internal(config=cfg, metadata=meta))
+        setattr(
+            target_obj,
+            "__spoc__",
+            Internal(
+                config=cfg,
+                metadata=meta,
+                app_name=target_obj.__module__.split(".")[0],
+                obj_name=target_obj.__name__,
+            ),
+        )
         return target_obj
 
     # If used as @component without parentheses
