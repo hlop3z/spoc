@@ -186,7 +186,7 @@ def load_environment(
 
     # Fall back to default environment if mode-specific one doesn't exist
     default_env = env_dir / "default.toml"
-    if default_env.exists():
+    if default_env.exists() and echo:
         lazy_logger.warning(
             "No environment configuration found for mode '%s'. "
             "Falling back to default configuration.",
@@ -194,9 +194,10 @@ def load_environment(
         )
         return dict(TOML(default_env).read().get("env", {}))
 
-    lazy_logger.warning(
-        "No environment configuration files found for mode '%s' or default. "
-        "Using empty environment configuration.",
-        mode,
-    )
+    if echo:
+        lazy_logger.warning(
+            "No environment configuration files found for mode '%s' or default. "
+            "Using empty environment configuration.",
+            mode,
+        )
     return {}
