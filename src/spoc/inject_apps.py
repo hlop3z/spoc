@@ -37,7 +37,6 @@ def inject_apps(
     Ensure an 'apps' directory exists under `base_dir` and inject it into Python's import path.
     """
     apps_path = base_dir / apps_dir_name
-    print("apps_path", apps_path)
     ensure_directory(apps_path)
     add_to_python_path(apps_path, position=position)
     return apps_path

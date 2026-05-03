@@ -152,7 +152,7 @@ def load_spoc_toml(base_dir: Path) -> dict[str, Any]:
 
 
 def load_environment(
-    base_dir: Path, mode: str, env_dir: Path | None = None
+    base_dir: Path, mode: str, env_dir: Path | None = None, echo: bool = False
 ) -> dict[str, Any]:
     """
     Load environment-specific configuration from TOML files.
@@ -170,7 +170,7 @@ def load_environment(
         env_dir = base_dir / "config" / ".env"
         if not env_dir.exists():
             env_dir = base_dir / ".env"
-            if not env_dir.exists():
+            if not env_dir.exists() and echo:
                 lazy_logger.warning(
                     "No .env directory found at %s/config/.env or %s/.env. "
                     "Using empty environment configuration.",

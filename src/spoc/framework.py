@@ -84,7 +84,7 @@ class Config:
     environment: Any
 
 
-def build_config(base_dir: Path) -> Config:
+def build_config(base_dir: Path, echo: bool = False) -> Config:
     """
     Build a configuration object from files in the specified directory.
 
@@ -99,7 +99,7 @@ def build_config(base_dir: Path) -> Config:
     return Config(
         project=raw,
         settings=load_configuration(base_dir),
-        environment=load_environment(base_dir, mode),
+        environment=load_environment(base_dir, mode, echo=echo),
     )
 
 
@@ -162,7 +162,7 @@ class Framework:
         self.base_dir = base_dir
         self.schema = schema
         self.importer = Importer(mode=mode)
-        self.config = build_config(base_dir)
+        self.config = build_config(base_dir, echo)
         self.plugins = self._collect_plugins()
 
         # Start the framework
