@@ -23,7 +23,7 @@ and the decorator for a more flexible, functional approach.
 
 import threading
 from functools import wraps
-from typing import Any, Callable, Type, TypeVar, cast
+from typing import Any, Callable, TypeVar, cast
 
 # from collections.abc import Callable
 # from typing import TypedDict, Unpack
@@ -84,7 +84,7 @@ class SingletonMeta(type):
         return cls._instances[cls]
 
 
-def singleton(cls: Type[T]) -> Callable[..., T]:
+def singleton(cls: T) -> T | Callable[[T], T]:
     """
     Decorator to convert a class into a Singleton.
 
