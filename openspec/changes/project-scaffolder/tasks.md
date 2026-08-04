@@ -10,53 +10,53 @@
 
 ## 2. Core — pure, no I/O
 
-- [ ] 2.1 Define the generation plan type: ordered (relative path, content) pairs, immutable
+- [x] 2.1 Define the generation plan type: ordered (relative path, content) pairs, immutable
       once built
-- [ ] 2.2 Define the `TemplateSource` and `ProjectSink` ports; assert by test that the core
+- [x] 2.2 Define the `TemplateSource` and `ProjectSink` ports; assert by test that the core
       module imports nothing outside the standard library and the kernel
-- [ ] 2.3 Implement name validation against the kernel's existing identity grammar, reusing
+- [x] 2.3 Implement name validation against the kernel's existing identity grammar, reusing
       `validate_segment` rather than restating the pattern
-- [ ] 2.4 Implement path-traversal rejection via `Path.resolve().is_relative_to()` against the
+- [x] 2.4 Implement path-traversal rejection via `Path.resolve().is_relative_to()` against the
       target directory boundary
-- [ ] 2.5 Implement template set validation: required elements present, and every identifier
+- [x] 2.5 Implement template set validation: required elements present, and every identifier
       reported by `Template.get_identifiers()` satisfiable from the supplied values
-- [ ] 2.6 Implement plan construction for `init` — configuration file, framework declaration,
+- [x] 2.6 Implement plan construction for `init` — configuration file, framework declaration,
       one app with a module per declared kind, entry point — names agreeing by construction
-- [ ] 2.7 Implement conflict detection as a pure comparison between a plan and a supplied
+- [x] 2.7 Implement conflict detection as a pure comparison between a plan and a supplied
       directory listing
 
 ## 3. Adapters
 
-- [ ] 3.1 Implement the template source adapter that loads a template set directory and its
+- [x] 3.1 Implement the template source adapter that loads a template set directory and its
       manifest, stripping the template suffix on emit
-- [ ] 3.2 Implement built-in template set resolution plus downstream resolution by installed
+- [x] 3.2 Implement built-in template set resolution plus downstream resolution by installed
       entry point, failing with candidates listed when unresolvable
-- [ ] 3.3 Implement the project sink: stage into a temporary directory, verify, then commit
+- [x] 3.3 Implement the project sink: stage into a temporary directory, verify, then commit
       with `os.replace`, so a failure leaves no partially written files
 
 ## 4. Command surface
 
-- [ ] 4.1 Build the `argparse` entry point over the core operation, carrying no generation logic
-- [ ] 4.2 Wire the `init` command and its arguments, including template set selection
-- [ ] 4.3 Render refusals as messages that name the conflicting path, the offending value, or
+- [x] 4.1 Build the `argparse` entry point over the core operation, carrying no generation logic
+- [x] 4.2 Wire the `init` command and its arguments, including template set selection
+- [x] 4.3 Render refusals as messages that name the conflicting path, the offending value, or
       the missing element, matching what the specs require each failure to name
 
 ## 5. Distribution
 
-- [ ] 5.1 Add the console entry point; verify `dependencies = []` in `pyproject.toml` is
+- [x] 5.1 Add the console entry point; verify `dependencies = []` in `pyproject.toml` is
       unchanged and no extra was introduced
-- [ ] 5.2 Add a test asserting the kernel imports nothing from the scaffolder package, so the
+- [x] 5.2 Add a test asserting the kernel imports nothing from the scaffolder package, so the
       dependency runs one way only
 
 ## 6. Verification
 
-- [ ] 6.1 Write the round-trip test from design.md D6: generate into a temporary directory,
+- [x] 6.1 Write the round-trip test from design.md D6: generate into a temporary directory,
       start the framework, assert registry contents, shut down
-- [ ] 6.2 Cover every spec scenario in `project-scaffolding` as a test, including each refusal
+- [x] 6.2 Cover every spec scenario in `project-scaffolding` as a test, including each refusal
       path and the partial-write guarantee
-- [ ] 6.3 Cover every spec scenario in `scaffold-templates` as a test, including a downstream
+- [x] 6.3 Cover every spec scenario in `scaffold-templates` as a test, including a downstream
       template set and the not-executed guarantee
-- [ ] 6.4 Confirm the template files are excluded from ruff and ty, and that excluding them
+- [x] 6.4 Confirm the template files are excluded from ruff and ty, and that excluding them
       does not hide the emitted project from the round-trip test
 - [ ] 6.5 Run the full `.canon/checks.md` suite and confirm CI passes
 
