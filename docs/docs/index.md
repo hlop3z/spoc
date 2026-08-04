@@ -1,173 +1,69 @@
-# SPOC - Single Point Of Connections
+# SPOC
 
-<div style="text-align:center; margin-top: 0px;">
- <img src="assets/images/title.png" alt="Alt text" class="title-image" />
-</div>
+**A registry-first runtime kernel for modular monolithic Python applications.**
 
-**SPOC** is a powerful Python framework for building Django-like modular monolith applications. It provides a structured approach to application organization with dynamic module loading, dependency management, and lifecycle orchestration.
-
----
-
-<p align="center" class="name-acronym" >
-    {{ acronym("Single") }} — 
-    {{ acronym("Point") }} — 
-    {{ acronym("Of") }} — 
-    {{ acronym("Connections") }}
-</p>
-
----
-
-<!-- termynal -->
+SPOC sits *below* your HTTP framework, not in place of it. It discovers apps,
+loads their modules in dependency order, manages lifecycle, and registers
+every declared object in one flat registry under a canonical identifier:
 
 ```
-$ python -m pip install spoc
----> 100%
-Successfully installed spoc!
+kind:namespace.object_name        e.g.  models:blog.post
 ```
 
-## What is SPOC?
+Surfaces — FastAPI, Robyn, a CLI, a worker — are built *on top* by
+enumerating the registry. The kernel **describes; it never executes**: it
+never calls your code beyond lifecycle hooks, and resolution is a pure
+lookup.
 
-SPOC (Single Point Of Connections) is a framework for building modular monolithic applications in Python, inspired by Django's app system. It provides:
+## What SPOC does
 
-- **App-based Architecture**: Organize your codebase into reusable, self-contained apps
-- **Dynamic Module Loading**: Import modules at runtime with dependency resolution
-- **Component Registration**: Declarative component system with metadata support
-- **Middleware & Hooks**: Plugin system for cross-cutting concerns
-- **Application Lifecycle**: Structured startup and shutdown processes
-- **Dependency Management**: Handle module dependencies with circular dependency detection
+- **App discovery** — Django-style apps in an `apps/` directory, selected per
+  mode (`development` → `staging` → `production` cascade) via `spoc.toml`
+- **Dependency-ordered loading** — modules load and initialize in topological
+  order; teardown runs in reverse
+- **One flat registry** — every component is a typed record with `kind`,
+  `namespace`, and `name` facets; grouped views are derived, never stored
+- **Validated identity** — every segment must be lowercase snake_case,
+  checked at registration; SPOC **rejects, never normalizes**
+- **Precise resolution** — `framework.resolve("models:blog.post")` fails per
+  segment, naming what didn't resolve and the valid candidates
+- **Lifecycle hooks** — startup and shutdown per module pattern
+- **TOML configuration** — `spoc.toml` + settings + per-mode environments
 
-SPOC helps you create organized, maintainable applications with clear separation of concerns while keeping the simplicity of a monolithic architecture.
+## What SPOC deliberately does not do
 
-## Key Features
+- **No dependency injection** — resolution is a lookup; wiring belongs to
+  consumers (adopt a DI container on top if you want one)
+- **No invocation** — there is no `do()`; identifiers have exactly three
+  segments and never an operation suffix
+- **No event bus, no HTTP, no workers** — those are apps and surfaces that
+  register *on* the kernel
 
-- **Django-like App System**: Structure your application into reusable, self-contained modules
-- **Framework**: Application orchestration with lifecycle management
-- **Components Registry**: Tag and discover components with rich metadata
-- **Importer**: Efficient module loading with dependency tracking and caching
-- **Configuration Handling**: Flexible settings and environment variable management
-- **Plugin System**: Extensible architecture for middleware and cross-cutting concerns
-- **Worker System**: Background task management for concurrent operations
+## Zero dependencies
 
-## SPOC **Architecture**
+The kernel has no runtime dependencies — `dependencies = []` is an invariant,
+not an accident.
 
-```mermaid
-flowchart TB
-    %% Configuration inputs feeding into SPOC Core
-    subgraph Configurations
-      direction TB
-      Settings[Settings]
-      EnvVars[Environment Variables]
-    end
-
-    %% Framework layer initialized by SPOC Core
-    SPOCCore[SPOC]
-    Framework[Framework]
-
-    %% Project elements handled by Framework
-    subgraph "Framework Entities"
-      direction TB
-      Apps[Applications]
-      Comps[Components]
-      Plugs[Plugins]
-    end
-
-    %% Connections
-    Settings --> SPOCCore
-    EnvVars --> SPOCCore
-
-    SPOCCore --> Framework
-    Framework --> Comps
-    Framework --> Apps
-    Framework --> Plugs
-
-    %% Registration loop
-    Apps -->|register via spoc| Framework
-    Plugs -->|register via spoc| Framework
-
-```
-
-## SPOC **Workflow**
-
-```mermaid
-sequenceDiagram
-autonumber
-    Spoc -->> Framework: Create a Framework
-    Note over Spoc,Framework: Step 1: Establish the Framework
-
-    Framework -->> Framework: Define Components
-    Note over Framework,Framework: Step 2: Handle the Components
-
-    Framework -->> Application: Use Components
-    Note over Framework,Application: Step 3: Extend Application
-
-    Application -->> Spoc: Register the Application(s)
-    Note over Spoc,Application: Step 5 to 8: Initialize the Framework
-
-    Spoc -) Application: Load Settings
-    Spoc -) Application: Load Environment Variables
-    Spoc -) Application: Load Plugins
-    Spoc -) Application: Load Installed Apps & Components
-
-    Note over Application: Final Step: Utilize the Application(s)
-```
-
-## App Structure
-
-SPOC apps are organized in a modular structure similar to Django apps. A typical app might include:
-
-```
-myapp/
-├── __init__.py  # App initialization
-├── models.py    # Data models
-├── views.py     # View handlers
-├── services.py  # Business logic
-└── components/  # Custom components
-```
-
-Apps are registered in your configuration and loaded automatically by the framework during startup.
-
-## Getting Started
-
-SPOC is designed to be simple to use while providing powerful capabilities:
+## A taste
 
 ```python
 from pathlib import Path
-from spoc.framework import Framework, Schema
+from spoc import Components, Framework, Schema
 
-# Define your application structure
-schema = Schema(
-    modules=["models", "views", "services"],
-    dependencies={
-        "views": ["models"],
-        "services": ["models"]
-    },
-    hooks={
-        "models": {
-            "startup": lambda m: print(f"Initializing models: {m}"),
-            "shutdown": lambda m: print(f"Shutting down models: {m}")
-        }
-    }
-)
+components = Components("models")
 
-# Create and initialize the framework
+@components.register("models")
+class post:
+    ...
+
 framework = Framework(
-    base_dir=Path("./my_project"),
-    schema=schema
+    base_dir=Path(__file__).parent,
+    schema=Schema(modules=["models"]),
 )
 
-# Start your application
-framework.startup()
-
-# When done
-framework.shutdown()
+record = framework.resolve("models:blog.post")   # a Component record
+for component in framework.registry:              # deterministic enumeration
+    print(component.identifier)
 ```
 
-Check out the [Quick Start](getting-started/quick-start.md) guide to begin using SPOC in your projects.
-
----
-
-<style>
-    .mermaid{
-        text-align:center
-    }
-</style>
+Continue with the [Quick Start](getting-started/quick-start.md).

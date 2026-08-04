@@ -1,13 +1,15 @@
 # Importer API Reference
 
-This page provides detailed API documentation for the Importer module in SPOC.
-
-The Importer is central to SPOC, enabling dynamic, dependency-aware module management. It handles:
+The Importer enables dynamic, dependency-aware module management. It handles:
 
 - **Dynamic module loading** at runtime
 - **Caching** for efficient module reuse
 - **Lifecycle management** with dependency-ordered initialization and teardown
+- **Component discovery** into the flat registry at startup
 - **Hook registration** for custom startup/shutdown behavior
+
+Each Importer instance is fully independent — cache, graph, hooks, and
+registry are all instance state.
 
 ## Importer Class
 
@@ -29,11 +31,17 @@ The Importer is central to SPOC, enabling dynamic, dependency-aware module manag
         - startup
         - shutdown
         - keys
-        - components
 
 ## ModuleInfo Class
 
 ::: spoc.core.importer.ModuleInfo
+    options:
+      show_root_heading: true
+      show_source: false
+
+## Component Discovery
+
+::: spoc.core.components_discovery.discover_components
     options:
       show_root_heading: true
       show_source: false
@@ -46,5 +54,6 @@ The Importer may raise the following exceptions:
 - **[AppNotFoundError](core-utils.md#spoc.core.exceptions.AppNotFoundError)** - Raised when a module cannot be found
 - **[ModuleNotCachedError](core-utils.md#spoc.core.exceptions.ModuleNotCachedError)** - Raised when accessing a module not in cache
 - **[CircularDependencyError](core-utils.md#spoc.core.exceptions.CircularDependencyError)** - Raised when circular dependencies are detected
+- **[ComponentKindMismatchError](registry.md)** and the other registration errors — see the [Registry API](registry.md)
 
-See [Core Utilities](core-utils.md) for full exception documentation. 
+See [Core Utilities](core-utils.md) for full exception documentation.

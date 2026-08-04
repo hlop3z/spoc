@@ -22,17 +22,14 @@ nav:
       - Advanced Usage:
           - Plugins: advanced/plugins.md
           - Lifecycle Hooks: advanced/lifecycle.md
-          - Workers: advanced/workers.md
       - API Reference:
           - Framework: api/framework.md
+          - Registry: api/registry.md
           - Components: api/components.md
           - Importer: api/importer.md
-          - Workers: api/workers.md
-          - Tools: api/tools.md
           - Core Utilities: api/core-utils.md
       - Examples:
           - Basic Example: examples/basic.md
-          - App Example: examples/app-example.md
   - Contributing: contributing.md
 
 # Path Watch
