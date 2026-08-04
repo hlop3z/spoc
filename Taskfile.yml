@@ -33,15 +33,22 @@ tasks:
   # =============================================================================
   # Testing
   # =============================================================================
+  # `testpaths = ["tests"]` is pinned in pyproject.toml — bare `pytest` is the
+  # canonical invocation, so it stays bare here too.
   test:
     desc: Run tests with pytest
     cmds:
-      - uv run pytest {{.TESTS_DIR}} -v {{.CLI_ARGS}}
+      - uv run pytest -v {{.CLI_ARGS}}
 
   test:fast:
     desc: Run tests without verbose output
     cmds:
-      - uv run pytest {{.TESTS_DIR}} {{.CLI_ARGS}}
+      - uv run pytest {{.CLI_ARGS}}
+
+  test:integration:
+    desc: Run the filesystem-fixture framework tests
+    cmds:
+      - uv run pytest tests/test_framework.py {{.CLI_ARGS}}
 
   test:cov:
     desc: Run tests with coverage report
@@ -51,25 +58,34 @@ tasks:
   # =============================================================================
   # Linting & Formatting
   # =============================================================================
+  # Scope is deliberately repo-wide and unargued: these mirror `.canon/checks.md`
+  # exactly, which is what CI runs. Narrowing any of them to {{.SRC_DIR}} lets
+  # `task check` pass while CI fails on examples/ or scripts/py/.
   lint:
-    desc: Run ruff linter
+    desc: Run ruff linter (repo-wide, per .canon/checks.md)
     cmds:
-      - uv run ruff check {{.SRC_DIR}} {{.TESTS_DIR}} {{.CLI_ARGS}}
+      - uv run ruff check {{.CLI_ARGS}}
 
   lint:fix:
     desc: Run ruff linter with auto-fix
     cmds:
-      - uv run ruff check {{.SRC_DIR}} {{.TESTS_DIR}} --fix {{.CLI_ARGS}}
+      - uv run ruff check --fix {{.CLI_ARGS}}
+
+  lint:go:
+    desc: Vet the Go workspace
+    dir: scripts/go
+    cmds:
+      - go vet ./...
 
   format:
     desc: Format code with ruff
     cmds:
-      - uv run ruff format {{.SRC_DIR}} {{.TESTS_DIR}} {{.CLI_ARGS}}
+      - uv run ruff format . {{.CLI_ARGS}}
 
   format:check:
     desc: Check code formatting without changes
     cmds:
-      - uv run ruff format {{.SRC_DIR}} {{.TESTS_DIR}} --check {{.CLI_ARGS}}
+      - uv run ruff format --check . {{.CLI_ARGS}}
 
   # =============================================================================
   # Type Checking
@@ -77,25 +93,31 @@ tasks:
   type:
     desc: Run type checker (ty)
     cmds:
-      - uv run ty check {{.SRC_DIR}} {{.CLI_ARGS}}
+      - uv run ty check {{.CLI_ARGS}}
 
   # =============================================================================
   # Quality Checks (All-in-one)
   # =============================================================================
+  # `check` is the Rule 6 gate: it must stay equivalent to `.canon/checks.md` and
+  # .github/workflows/ci.yml. Adding a check to CI without adding it here is the
+  # bug this task exists to prevent.
   check:
-    desc: Run all quality checks (lint + type + test)
+    desc: Run the full validation suite (format + lint + type + test + go + doc links)
     cmds:
+      - task: format:check
       - task: lint
+      - task: lint:go
       - task: type
-      - task: test
+      - task: test:fast
+      - task: build:go
+      - task: docs:links
 
   check:fix:
-    desc: Fix issues and run checks
+    desc: Fix what is auto-fixable, then run the full suite
     cmds:
       - task: format
       - task: lint:fix
-      - task: type
-      - task: test
+      - task: check
 
   # =============================================================================
   # Documentation
@@ -118,6 +140,14 @@ tasks:
     cmds:
       - uv run mkdocs gh-deploy --force {{.CLI_ARGS}}
 
+  # --all-packages: a root sync alone skips workspace members (scripts/README.md)
+  docs:links:
+    desc: Fail on any broken relative Markdown link (Rule 8)
+    dir: scripts/py
+    cmds:
+      - uv sync --all-packages
+      - uv run mdlinks ../..
+
   # =============================================================================
   # Build & Release
   # =============================================================================
@@ -125,6 +155,12 @@ tasks:
     desc: Build the package
     cmds:
       - uv build
+
+  build:go:
+    desc: Build the Go workspace binaries
+    dir: scripts/go
+    cmds:
+      - go build -o bin/ ./...
 
   publish:
     desc: Publish package to PyPI
@@ -234,14 +270,20 @@ tasks:
         print(f'Bumped version to {new_version}')
         "
 
+  # Gates on the full suite first: pushing the tag triggers the PyPI publish, and a
+  # yanked release costs more than a slow one. CHANGELOG.md ships with the bump so
+  # the tag and its notes are the same commit.
   version:release:
-    desc: Create release (commit, tag, push)
+    desc: Create release (check, commit, tag, push)
     vars:
       VERSION:
         sh: uv run python -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('src/spoc/__about__.py').read()).group(1))"
     cmds:
-      - git add src/spoc/__about__.py
-      - git commit -m "v{{.VERSION}}"
+      - task: check
+      - git add src/spoc/__about__.py CHANGELOG.md
+      # Quoted whole: the `: ` in the Conventional Commit type would otherwise
+      # parse as a YAML mapping key.
+      - 'git commit -m "chore(release): v{{.VERSION}}"'
       - git tag "v{{.VERSION}}"
       - git push && git push --tags
 
@@ -253,6 +295,13 @@ tasks:
     cmds:
       - cmd: tree -I '__pycache__|.git|.venv|*.egg-info|.pytest_cache|.ruff_cache|node_modules' -L 3
         ignore_error: true
+
+  # Judgement call, not a pass/fail gate — so it is not part of `task check`.
+  # Thresholds live in .canon/guidelines.md. Missing tokei? `go run ./cmd/ensure tokei`
+  size:
+    desc: Review file sizes against the thresholds in .canon/guidelines.md
+    cmds:
+      - tokei . --files --sort lines
 
   # =============================================================================
   # Default Task

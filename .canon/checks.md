@@ -20,11 +20,16 @@ moment you first discover the real command, so the next session doesn't rediscov
 A row marked "not yet defined" is a real answer: that check is **unverified** and Rule 6 says
 to report it as such. It is not permission to skip it silently.
 
-> **Known divergence — `Taskfile.yml` is narrower than this table.** `task lint` and
-> `task format` scope ruff to `{{.SRC_DIR}} {{.TESTS_DIR}}` (`src/spoc` and `tests`), while the
-> commands above and CI run repo-wide. So `task check` can pass while CI fails — on
-> `examples/`, `scripts/py/`, or anything else outside those two directories. **Run the
-> commands in this table, not the Taskfile equivalents**, until the two are reconciled.
+## Running them
 
-If a project defines these somewhere canonical already — `package.json` scripts, a `Makefile`,
-`justfile`, `Cargo.toml` — point at that instead of copying the commands here. One home.
+`task check` runs every gate row above, in order, with the same scope. `Taskfile.yml` and
+`.github/workflows/ci.yml` are both derived from this table — if you add a check to one, add
+it to all three, or `task check` stops being the gate it claims to be.
+
+The commands in the table remain the source of truth: a Taskfile task that disagrees with a
+row is a defect in the Taskfile, not a second opinion.
+
+The canon's usual advice is to point at a project's existing runner rather than copy commands
+into this file — one home. This project inverts that on purpose: two consumers derive from
+these commands (the Taskfile and CI), and the table is the only place that also records *why*
+each command is shaped the way it is. Pointing at `Taskfile.yml` would put the reasons nowhere.

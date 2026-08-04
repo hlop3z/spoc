@@ -22,9 +22,10 @@ Run the validation suite. The canonical commands live in [`.canon/checks.md`](.c
 — formatter, linter, type checker, tests, the Go workspace build, and the doc-link check. CI
 runs exactly those, so a green local suite means a green pipeline.
 
-`Taskfile.yml` has shortcuts (`task check`, `task test`, `task format`) for the inner loop,
-but they scope to `src/` and `tests/`. `.canon/checks.md` is repo-wide and is what CI
-enforces; when the two disagree, checks.md wins.
+`task check` runs that suite for you — same commands, same repo-wide scope — so a green
+`task check` means a green pipeline. Individual tasks (`task lint`, `task format`,
+`task test:fast`) run one check each for the inner loop. `.canon/checks.md` stays the source
+of truth; when a task disagrees with it, the task is wrong.
 
 Ruff's rule selection is pinned explicitly in `pyproject.toml` rather than inherited from
 ruff's defaults, so a toolchain upgrade cannot silently change what CI enforces. If a new
