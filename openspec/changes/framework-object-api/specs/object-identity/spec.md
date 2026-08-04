@@ -1,8 +1,13 @@
 # Object Identity
 
+## RENAMED Requirements
+
+- FROM: `### Requirement: Validation rejects, never normalizes`
+- TO: `### Requirement: Stated names verbatim, derived names converted`
+
 ## MODIFIED Requirements
 
-### Requirement: Validation rejects, never normalizes
+### Requirement: Stated names verbatim, derived names converted
 
 An identifier segment supplied **explicitly** MUST be used verbatim and validated: a
 segment that violates the grammar MUST cause registration to fail with an error that
