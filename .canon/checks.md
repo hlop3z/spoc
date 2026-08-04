@@ -20,5 +20,11 @@ moment you first discover the real command, so the next session doesn't rediscov
 A row marked "not yet defined" is a real answer: that check is **unverified** and Rule 6 says
 to report it as such. It is not permission to skip it silently.
 
+> **Known divergence — `Taskfile.yml` is narrower than this table.** `task lint` and
+> `task format` scope ruff to `{{.SRC_DIR}} {{.TESTS_DIR}}` (`src/spoc` and `tests`), while the
+> commands above and CI run repo-wide. So `task check` can pass while CI fails — on
+> `examples/`, `scripts/py/`, or anything else outside those two directories. **Run the
+> commands in this table, not the Taskfile equivalents**, until the two are reconciled.
+
 If a project defines these somewhere canonical already — `package.json` scripts, a `Makefile`,
 `justfile`, `Cargo.toml` — point at that instead of copying the commands here. One home.
