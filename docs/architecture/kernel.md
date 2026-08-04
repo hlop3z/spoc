@@ -55,8 +55,10 @@ flowchart LR
     id --- name
 ```
 
-Every segment matches `^[a-z][a-z0-9_]*$`, validated at registration —
-rejected, never normalized. Exactly three segments; no operation suffix.
+Every segment matches `^[a-z][a-z0-9_]*$`, validated at registration. A name
+derived from an object's own name is converted to snake_case first
+(`UserAccount` → `user_account`); a name stated explicitly is verbatim, and
+lookup never converts. Exactly three segments; no operation suffix.
 
 ## Resolution
 

@@ -2,18 +2,19 @@ import dataclasses as dc
 
 from framework.framework import model
 
-# A snake_case class name already conforms, so no explicit name is needed.
+# PEP 8 class names convert to their snake_case identifier automatically:
+# Post → post, CommentThread → comment_thread.
 
 
 @dc.dataclass
 @model
-class post:
+class Post:
     id: int
     title: str
 
 
 @dc.dataclass
-@model(name="comment_thread")
+@model
 class CommentThread:
     id: int
     post_id: int

@@ -37,15 +37,19 @@ safely import the decorators before anything has started.
 The callable returned by `framework.kind()` supports both forms:
 
 ```python
-@model                        # name taken from the object (must conform)
-class post: ...
-
-@model(name="user_account")   # explicit conforming name
+@model                        # UserAccount → models:<app>.user_account
 class UserAccount: ...
 
-@model(config={"table": "posts"}, metadata={"public": True})
-class tag: ...                # config/metadata ride onto the registry record
+@model(name="legacy_user")    # a stated name is verbatim and validated
+class OldAccount: ...
+
+@model(config={"table": "tags"}, metadata={"public": True})
+class Tag: ...                # config/metadata ride onto the registry record
 ```
+
+The name is derived from the object in snake_case; pass `name=` only to
+override it. Lookup never converts — `models:blog.user_account` is the one
+canonical identifier.
 
 ## Lifecycle
 

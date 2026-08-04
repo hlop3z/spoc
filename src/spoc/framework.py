@@ -13,7 +13,7 @@ Usage:
 
     framework = spoc.Framework("models", "views", dependencies={"views": ["models"]})
 
-    model = framework.kind("models")   # @model  /  @model(name="user_account")
+    model = framework.kind("models")   # @model  /  @model(name="legacy_user")
     view = framework.kind("views")
 
     @framework.on_ready
@@ -110,7 +110,8 @@ class Framework:
                 (``<app>/<kind>.py``) and an identifier segment; validated,
                 never normalized.
             dependencies: Inter-kind load order, e.g. ``{"views": ["models"]}``.
-                Keys and values must be declared kinds.
+                Keys and values must be declared kinds. Kinds are stated, so
+                they are validated verbatim — never converted.
             mode: "strict" raises on missing apps/modules; "loose" skips them.
             echo: Whether to log warnings about missing configuration files.
         """
@@ -150,10 +151,10 @@ class Framework:
 
             model = framework.kind("models")
 
-            @model                        # name taken from the object
-            class post: ...
+            @model                        # UserAccount → user_account
+            class UserAccount: ...
 
-            @model(name="user_account")   # explicit conforming name
+            @model(name="legacy_user")    # explicit name, used verbatim
             class UserAccount: ...
 
         Raises:

@@ -9,13 +9,13 @@ Usage:
 
     components = Components("models", "views")
 
+    # A PEP 8 class name is converted to its snake_case identifier:
     @components.register("models")
-    class post:  # names must already conform: lowercase snake_case
+    class UserAccount:      # → user_account
         ...
 
-    # Objects without a conforming __name__ need an explicit name —
-    # identity is never inferred and never normalized:
-    @components.register("models", name="user_account")
+    # An explicit name is used verbatim — validated, never converted:
+    @components.register("models", name="legacy_user")
     class UserAccount:
         ...
 
@@ -32,6 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from .case_style import to_snake_case
 from .core.exceptions import MissingNameError, UnknownKindError
 from .core.identifier import validate_segment
 
@@ -63,9 +64,13 @@ def component(
     """
     Low-level marker: attach an :class:`Internal` to an object.
 
-    The object's identity comes from ``name``, or from ``__name__`` when that
-    already conforms to the segment grammar. It is never inferred from the
-    execution environment and never normalized.
+    Identity comes from ``name`` when given — used verbatim, validated,
+    never converted. Otherwise it is *derived* from the object's
+    ``__name__`` by converting to snake_case, so a PEP 8 class name
+    (``UserAccount``) yields the conventional identifier segment
+    (``user_account``). Identity is never inferred from the execution
+    environment, and the derived value is validated like any other: a name
+    that does not conform even after conversion is an error, not a guess.
 
     Raises:
         MissingNameError: If the object has no ``__name__`` and no explicit
@@ -74,7 +79,11 @@ def component(
     """
 
     def decorator(target_obj: Any) -> Any:
-        resolved = name if name is not None else getattr(target_obj, "__name__", None)
+        if name is not None:
+            resolved = name
+        else:
+            intrinsic = getattr(target_obj, "__name__", None)
+            resolved = to_snake_case(intrinsic) if intrinsic is not None else None
         if resolved is None:
             raise MissingNameError(target_obj)
         validate_segment("object_name", resolved)
@@ -144,8 +153,9 @@ class Components:
         Args:
             kind: A kind from the declared set.
             obj: The object, when used as a direct call.
-            name: Explicit object_name segment. Required for objects without
-                a conforming ``__name__``; validated, never normalized.
+            name: Explicit object_name segment, used verbatim and validated.
+                Omit it to derive the name from ``__name__`` in snake_case.
+                Required for objects with no ``__name__`` (instances).
             config: Configuration stored on the record.
             metadata: Extra metadata merged under the declared kind.
 

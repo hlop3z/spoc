@@ -16,22 +16,31 @@ kind:namespace.object_name
 | `namespace` | the app package name | `blog` |
 | `object_name` | the declared name | `post` |
 
-Every segment must match `^[a-z][a-z0-9_]*$` (lowercase snake_case),
-validated at registration. There are exactly three segments — an operation
-suffix is malformed by design.
+Every segment must match `^[a-z][a-z0-9_]*$` (lowercase snake_case). There
+are exactly three segments — an operation suffix is malformed by design.
 
-**Validation rejects; it never normalizes.** A class named `MyService` is a
-registration error, not a silent rename:
+**Derived names convert; stated names don't.** Write PEP 8 Python and the
+identifier follows from the object's own name:
 
 ```python
 @model
-class MyService:          # InvalidSegmentError: invalid object_name 'MyService'
+class MyService:          # → models:blog.my_service
     ...
 
-@model(name="my_service")
-class MyService:          # OK — explicit, conforming name
+@model(name="legacy_svc")
+class MyService:          # → models:blog.legacy_svc (verbatim)
+    ...
+
+@model(name="LegacySvc")
+class Other:              # InvalidSegmentError — a stated name must conform
     ...
 ```
+
+Conversion happens exactly once, when deriving a name from the object.
+A derived name that cannot conform even after conversion (a class named
+`2Cool`) is still an error — conversion is a convention, not a guess. And
+lookup never converts: `resolve("models:blog.MyService")` fails, because
+`models:blog.my_service` is the one canonical identifier.
 
 ## Registration decorators
 
@@ -51,18 +60,17 @@ framework.kind("modle")     # UnknownKindError, lists declared kinds
 ## Registering components
 
 ```python
-# Classes and functions: name defaults from __name__ when it conforms
-@model
-class post:
-    ...
-
+# The name is derived from the object, in snake_case
 @view
-def list_posts():
+def list_posts():        # → views:blog.list_posts
     ...
 
-# Explicit name (required when __name__ doesn't conform)
-@model(name="comment_thread")
-class CommentThread:
+@model
+class Post:              # → models:blog.post
+    ...
+
+@model
+class CommentThread:     # → models:blog.comment_thread
     ...
 
 # Instances have no intrinsic name — an explicit name is always required
@@ -78,7 +86,7 @@ markers into registry records at `start()`.
 
 ```python
 @model(config={"table": "posts"}, metadata={"public": True})
-class post:
+class Post:
     ...
 ```
 

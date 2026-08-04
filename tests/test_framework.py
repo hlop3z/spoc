@@ -25,7 +25,7 @@ MODELS_BODY = """
     from spoc import component
 
     @component(metadata={"type": "models"})
-    class post:
+    class Post:
         ...
 """
 
@@ -75,26 +75,27 @@ def test_kind_handle_bare_and_named_forms():
     model = fw.kind("models")
 
     @model
-    class post: ...
+    class CommentThread: ...  # derived → comment_thread
 
-    @model(name="user_account")
-    class UserAccount: ...
+    @model(name="legacy_user")
+    class UserAccount: ...  # explicit → verbatim
 
-    post_info = spoc.get_info(post)
+    thread_info = spoc.get_info(CommentThread)
     account_info = spoc.get_info(UserAccount)
-    assert post_info is not None and account_info is not None
-    assert post_info.name == "post"
-    assert post_info.metadata["type"] == "models"
-    assert account_info.name == "user_account"
+    assert thread_info is not None and account_info is not None
+    assert thread_info.name == "comment_thread"
+    assert thread_info.metadata["type"] == "models"
+    assert account_info.name == "legacy_user"
 
 
-def test_kind_handle_rejects_nonconforming_name_without_explicit():
+def test_kind_handle_rejects_stated_nonconforming_name():
+    """Explicit names are verbatim: stated, so used or rejected — never converted."""
     fw = Framework("models")
     model = fw.kind("models")
     with pytest.raises(InvalidSegmentError):
 
-        @model
-        class PascalCase: ...
+        @model(name="PascalCase")
+        class Anything: ...
 
 
 def test_kind_handle_for_undeclared_kind():
@@ -133,10 +134,10 @@ def test_start_discovers_and_resolve_works(tmp_path):
         from spoc import component
 
         @component(metadata={"type": "models"})
-        class post:
+        class Post:
             ...
 
-        @component(name="comment_thread", metadata={"type": "models"})
+        @component(metadata={"type": "models"})
         class CommentThread:
             ...
         """,
@@ -151,6 +152,16 @@ def test_start_discovers_and_resolve_works(tmp_path):
     assert record.kind == "models"
     assert record.namespace == "blog"
     assert record.name == "post"
+
+
+def test_lookup_is_never_converted(tmp_path):
+    """Derivation converts; resolution does not — one canonical identifier."""
+    base = make_project(tmp_path, "exact")
+    fw = Framework("models").start(base)
+
+    assert fw.resolve("models:exact.post").name == "post"
+    with pytest.raises(InvalidSegmentError):
+        fw.resolve("models:exact.Post")
 
 
 def test_double_start_raises(tmp_path):
@@ -208,7 +219,7 @@ def test_handles_taken_before_start(tmp_path):
         from fwdef import model
 
         @model
-        class post:
+        class Post:
             ...
         """,
     )
@@ -366,7 +377,7 @@ def test_two_frameworks_are_independent(tmp_path):
         from spoc import component
 
         @component(metadata={"type": "models"})
-        class post:
+        class Post:
             ...
         """,
     )
@@ -377,7 +388,7 @@ def test_two_frameworks_are_independent(tmp_path):
         from spoc import component
 
         @component(metadata={"type": "models"})
-        class order:
+        class Order:
             ...
         """,
     )

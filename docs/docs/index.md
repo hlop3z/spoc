@@ -23,8 +23,9 @@ lookup.
   order; teardown runs in reverse
 - **One flat registry** — every component is a typed record with `kind`,
   `namespace`, and `name` facets; grouped views are derived, never stored
-- **Validated identity** — every segment must be lowercase snake_case,
-  checked at registration; SPOC **rejects, never normalizes**
+- **Conventional identity** — write PEP 8 Python; class names derive their
+  snake_case identifier automatically. A name you *state* is verbatim and
+  validated, and lookups are always exact
 - **Precise resolution** — `framework.resolve("models:blog.post")` fails per
   segment, naming what didn't resolve and the valid candidates
 - **Lifecycle phases** — `on_ready` finalize after discovery, per-kind
@@ -56,7 +57,7 @@ framework = spoc.Framework("models")
 model = framework.kind("models")
 
 @model
-class post:
+class Post:                                # → models:blog.post
     ...
 
 framework.start(Path(__file__).parent)

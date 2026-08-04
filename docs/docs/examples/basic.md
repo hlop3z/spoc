@@ -37,20 +37,20 @@ view = framework.kind("views")
 
 ## Declaring components
 
-`apps/auth/models.py` — PascalCase classes take explicit names:
+`apps/auth/models.py` — the identifier is derived from the class name:
 
 ```python
 import dataclasses as dc
 from framework.framework import model
 
 @dc.dataclass
-@model(name="user_account")
-class UserAccount:
+@model
+class UserAccount:          # → models:auth.user_account
     id: int
     name: str
 ```
 
-`apps/demo/views.py` — snake_case functions conform on their own:
+`apps/demo/views.py` — functions work the same way:
 
 ```python
 from framework.framework import view

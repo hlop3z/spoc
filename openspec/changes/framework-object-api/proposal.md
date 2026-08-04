@@ -21,6 +21,9 @@ one obvious, conventional way, minimal boilerplate — is not what the API deliv
 - Framework authors obtain per-kind registration decorators from the framework object
   itself; the decorators support bare and named forms without any hand-written wrapper
   code.
+- **BREAKING** A name derived from an object's `__name__` is converted to snake_case
+  before validation, so PEP 8 class names (`UserAccount`) need no `name=` restatement.
+  Explicit names stay verbatim-and-validated; resolution stays exact.
 - **BREAKING** Construction becomes pure (no filesystem, `sys.path`, or import side
   effects). Discovery and loading happen in an explicit `start(base_dir)` step;
   `shutdown()` remains the counterpart.
@@ -51,10 +54,11 @@ one obvious, conventional way, minimal boilerplate — is not what the API deliv
 
 ### Modified Capabilities
 
-<!-- component-registry, component-resolution, and object-identity requirements are
-     unchanged: the registry remains flat, resolution per-segment, identity
-     kind:namespace.object_name. This change only relocates how the kind set and
-     lifecycle are declared. -->
+- `object-identity`: derived names are converted to snake_case before validation, so a
+  conventionally-cased class name yields the conventional identifier segment without
+  the author restating it. Explicit names remain verbatim-and-validated, and lookup
+  remains exact — only the derivation step converts. (`component-registry` and
+  `component-resolution` are unchanged.)
 
 ## Impact
 

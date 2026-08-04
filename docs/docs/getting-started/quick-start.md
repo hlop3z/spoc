@@ -59,18 +59,35 @@ needed; if you have one, it is yours and SPOC never reads it.
 from framework import model
 
 @model
-class post:                        # snake_case name → conforms as-is
+class Post:                        # → models:blog.post
     ...
 
-@model(name="comment_thread")
-class CommentThread:               # PascalCase → explicit name required
+@model
+class CommentThread:               # → models:blog.comment_thread
     ...
 ```
 
-!!! warning "Reject, never normalize"
-    Identifier segments must match `^[a-z][a-z0-9_]*$`. A class named
-    `CommentThread` registered without `name=` raises
-    `InvalidSegmentError` — SPOC never silently renames anything.
+Write normal PEP 8 Python. The identifier is derived from the class name in
+snake_case, so `CommentThread` becomes `comment_thread` — no restating it.
+Functions work the same way (`def list_posts` → `list_posts`).
+
+Pass `name=` only when you want an identifier that *differs* from the object's
+name. A name you state is used verbatim and validated, never converted:
+
+```python
+@model(name="legacy_user")         # → models:blog.legacy_user
+class UserAccount:
+    ...
+
+@model(name="LegacyUser")          # InvalidSegmentError — you stated it, so it must conform
+class Other:
+    ...
+```
+
+!!! note "Derivation converts; nothing else does"
+    Conversion happens once, when deriving a name from the object. Lookups
+    are exact — `resolve("models:blog.Post")` fails, because
+    `models:blog.post` is the one canonical identifier.
 
 ## 4. Start and use the registry
 
@@ -88,7 +105,7 @@ print(record.identifier)   # models:blog.post
 print(record.kind)         # models
 print(record.namespace)    # blog
 print(record.name)         # post
-print(record.object)       # <class 'blog.models.post'>
+print(record.object)       # <class 'blog.models.Post'>
 
 # Enumerate everything (deterministic order)
 for component in framework.registry:

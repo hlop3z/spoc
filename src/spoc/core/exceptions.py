@@ -80,8 +80,9 @@ class InvalidSegmentError(SpocError):
     """
     Raised when an identifier segment violates the grammar.
 
-    Validation rejects — it never normalizes. The offending segment and its
-    value are named so the fix is a rename at the declaration site.
+    Names derived from an object are converted to snake_case first, so this
+    fires only for a value that cannot conform even after conversion, or for
+    a name the author stated explicitly — those are used verbatim.
     """
 
     def __init__(self, segment: str, value: object) -> None:
@@ -90,8 +91,8 @@ class InvalidSegmentError(SpocError):
         super().__init__(
             f"Invalid {segment} segment {value!r}: "
             "must match ^[a-z][a-z0-9_]*$ (lowercase snake_case). "
-            "Rename the declaration or pass an explicit conforming name — "
-            "values are never normalized"
+            "A name passed explicitly is used verbatim — pass a conforming "
+            "one, or omit it to derive the name from the object"
         )
 
 

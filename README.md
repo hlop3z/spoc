@@ -28,8 +28,9 @@ describes; it never executes.
   tear down in reverse
 - **One flat registry** — typed records with `kind` / `namespace` / `name`
   facets; grouped views are derived, never stored
-- **Validated identity** — every segment checked at registration against
-  `^[a-z][a-z0-9_]*$`; SPOC **rejects, never normalizes**
+- **Conventional identity** — PEP 8 class names derive their snake_case
+  identifier automatically; stated names are verbatim and validated against
+  `^[a-z][a-z0-9_]*$`, and lookups are always exact
 - **Precise resolution** — failures name the failing segment and the valid
   candidates; a typo never falls through to `None`
 - **Zero runtime dependencies** — `dependencies = []` is an invariant
@@ -52,7 +53,7 @@ framework = spoc.Framework("models")       # the closed kind set, declared once
 model = framework.kind("models")           # a ready-made decorator
 
 @model
-class post:                                # declared in apps/blog/models.py
+class Post:                                # apps/blog/models.py → models:blog.post
     ...
 
 framework.start(Path(__file__).parent)     # construction is inert; start boots

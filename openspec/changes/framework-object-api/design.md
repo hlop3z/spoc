@@ -86,6 +86,36 @@ and the only place they are wired; it contains no parsing, no path math, no impo
 logic of its own. Dependencies keep pointing inward: adapters import core, never the
 reverse. `examples/http_app.py` remains the thin-surface proof.
 
+### D8 — Derived names normalize; explicit names and lookups do not
+
+`@model class UserAccount` registers as `user_account`. The conversion happens in
+exactly one place — the declaration layer (`components.component`), on the value
+derived from `__name__` — and the result is then validated by the same
+`validate_segment` as everything else, so `class 2Cool` still fails loudly.
+
+Three boundaries stay strict, which is what keeps this from becoming "the system
+guesses":
+
+1. **Explicit `name=` is verbatim.** If the author states an identifier, it is used or
+   rejected, never rewritten. Stating a name is an act of naming.
+2. **`identifier.py` is untouched.** `validate_segment`, `parse`, and `compose` remain
+   pure and strict; the grammar module is still the single authority, and normalization
+   is a *derivation* step layered above it, not a weakening of it.
+3. **Resolution never converts.** `resolve("models:blog.UserAccount")` fails. One
+   canonical identifier per object survives intact.
+
+This **reverses** the archived `registry-first-kernel` note that "`case_style` is never
+called on the registration path" — it now is, deliberately, and `case_style` is
+therefore load-bearing rather than vestigial. Rationale for the reversal: requiring
+`name="user_account"` on every PEP 8 class taxed the author for a mechanical
+transformation the kernel can do correctly, contradicting the convention-over-
+configuration goal that motivates this whole change. Rejecting is still right for
+values a human *stated*; it was wrong for values the kernel *derived*.
+
+Alternative considered: normalize explicit names too — rejected, it makes `name=`
+unpredictable and erases the escape hatch. Alternative considered: keep strict
+derivation and lint for it — rejected, that is the boilerplate we set out to delete.
+
 ### D7 — Breaking release, no compatibility shims
 
 Pre-1.0, downstream (zmag) pins an older version. `Components`, `Schema`, `Hook`,
