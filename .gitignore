@@ -143,6 +143,7 @@ scripts/go/bin/
 # Claude harness: local and vendored state stays untracked, but the
 # project-owned ai: commands are versioned (see CLAUDE.md file ownership)
 .claude/*
+!.claude/settings.json
 !.claude/commands/
 .claude/commands/*
 !.claude/commands/ai/
