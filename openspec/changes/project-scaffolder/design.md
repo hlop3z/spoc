@@ -5,33 +5,37 @@ registers every marked object. None of those conventions are enforced at authori
 are enforced at `start()`. The scaffolder's job is to move that agreement from "the author
 maintained it by hand" to "it was emitted consistent and a test proves it stays that way."
 
-Three constraints shape everything below:
+Two constraints shape everything below:
 
 1. **`dependencies = []` is an invariant of the published package.** Whatever the scaffolder
-   needs must be acquired only by users who opt in, and the kernel must never import it.
+   needs must not reach an installer of the kernel.
 2. **Scaffolding is a solved problem elsewhere.** The canon's rebuild precedent (`loc` vs
-   `tokei`) applies to this change more directly than to any other in the repo. Nothing here is
-   implemented until `/ai:decide` has run.
-3. **The kernel does not know where the framework declaration lives.** `spoc.toml` names apps
-   and plugins; the `Framework(...)` object is constructed in a module the *user* imports and
-   hands to `start(BASE_DIR)`. Adding an app needs that object's kinds, and today nothing on
-   disk points at it.
+   `tokei`) applies here, and the decisions in D5 were made against current research rather
+   than assumed.
+
+**Scope was narrowed during `/ai:decide`.** The change originally carried a second operation,
+`add app`, which emitted into an existing project. It is dropped. That single cut removed the
+design's hardest open question (discovering a target project's declared kinds, which required
+either importing user code or inventing a convention the kernel does not have) and removed the
+need to *edit* a configuration file at all — emitting a fresh one is plain text substitution.
+A spoc app is `__init__.py` plus one near-empty module per kind; once `init` has produced a
+working example, the second app is a copy-paste, and a surface must earn its complexity.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- One command yields a project that starts unedited; a second adds an app to an existing one.
+- One command yields a project that starts unedited.
 - The emitted shape is data, replaceable by a downstream framework without forking anything.
 - Every failure mode is a refusal before the first byte is written.
 - The kernel's install footprint is bit-for-bit unchanged.
 
 **Non-Goals:**
 
+- **No `add app` command.** Dropped deliberately (see Context).
 - Not a general project generator. It emits spoc projects, not arbitrary Python packages.
-- Not a migration tool. It does not upgrade or rewrite an existing project's layout.
-- Not an interactive wizard in this change. Prompt-driven flows are a later concern; the first
-  surface is non-interactive and scriptable.
+- Not a migration tool. It does not upgrade, re-apply to, or rewrite an existing project.
+- Not an interactive wizard. The surface is non-interactive and scriptable.
 - No kernel behavior changes. If the scaffolder needs something the kernel does not expose,
   that is a separate proposal, not a quiet addition here.
 
@@ -40,22 +44,22 @@ Three constraints shape everything below:
 ### D1 — Core computes a plan; adapters perform I/O
 
 The core is pure: it resolves a template set, validates names, and returns an immutable
-**generation plan** — an ordered set of (relative path, byte content) pairs plus the config
-edits an operation implies. It touches no filesystem and imports nothing external.
+**generation plan** — an ordered set of (relative path, content) pairs. It touches no
+filesystem and imports nothing external.
 
-This is what makes the spec's "nothing is written on failure" requirement structural rather
-than aspirational: the whole plan is computed and validated first, and a plan that cannot be
-fully realized is never handed to a writer. Conflict detection is a comparison between the plan
-and a directory listing — itself a pure function over a listing the adapter supplies.
+This makes the spec's "nothing is written on failure" requirement structural rather than
+aspirational: the whole plan is computed and validated first, and a plan that cannot be fully
+realized is never handed to a writer. Conflict detection is a pure comparison between the plan
+and a directory listing the adapter supplies.
 
 Ports: `TemplateSource` (yields template set data), `ProjectSink` (writes a plan, lists
-existing paths). Adapters implement both. Dependency direction is inward only; the core names
-the ports, the adapters depend on the core.
+existing paths). Dependency direction is inward only; the core names the ports, the adapters
+depend on the core.
 
 ### D2 — The CLI is a thin adapter over the plan
 
 The command surface translates arguments into a core call and renders the result. It holds no
-generation logic, no conflict rules, and no template knowledge, so the same operations are
+generation logic, no conflict rules, and no template knowledge, so the same operation is
 invocable from a downstream framework's own entry point without going through argv. This is
 what lets zmag expose `zmag-init` as a one-line adapter rather than a reimplementation.
 
@@ -70,35 +74,82 @@ Template files take a suffix marking them as templates rather than being valid s
 containing placeholders. The suffix is stripped on emit. Trade-off accepted: template files are
 not directly runnable, which is why D6 exists.
 
-### D4 — Kinds for "add app" come from the declaration, via a scaffolder-side convention
+### D4 — (withdrawn)
 
-`add app` must emit one module per kind that the *target project's* framework declares. The
-kinds live in the `Framework(...)` call, which nothing on disk points at.
+This slot held the mechanism for discovering a target project's declared kinds, needed only by
+`add app`. With that operation dropped, `init` knows the kinds because it is the thing choosing
+them. Retained as a numbered stub so the decision references in `tasks.md` and `HANDOFF.md`
+stay stable.
 
-Chosen: the scaffolder resolves the declaration by its own documented convention (the module
-path it generated in the first place), overridable by an explicit argument. The convention
-belongs to the scaffolder, not the kernel.
+### D5 — Build-vs-adopt outcomes
 
-Rejected: recording the kinds in `spoc.toml`. It is the more discoverable option, but it makes
-the kind set exist in two places that can disagree — exactly the drift this change is meant to
-end — and it would turn a purely additive change into a modification of the
-`project-configuration` capability.
+Researched and decided during `/ai:decide`. The findings that drove them:
 
-Deferred to an open question: whether resolving that convention should *import* the module
-(reusing the kernel's own importer, consistent with how `start()` already treats user code) or
-read it without execution. Importing is simpler and matches kernel behavior; not importing is
-safer for a tool that runs against a project the user may have just cloned.
+- Cookiecutter renders a template directory to a *different* output directory by design and
+  cannot render in place — irrelevant now that `add app` is gone, but it was the original
+  reason to doubt a wholesale adopt.
+- Jinja2 (which both copier and cookiecutter carry) *evaluates expressions*. The
+  `scaffold-templates` spec requires substitution values to be "a declared, enumerable set
+  rather than arbitrary evaluation" and requires template content not to be executed. Adopting
+  Jinja means writing rules to restrict it; `string.Template` is that restriction by
+  construction, and `Template.get_identifiers()` (3.11+) satisfies "declared values are
+  enumerable" in one call.
+- Requiring users to install a separate generator adds friction at exactly the moment the
+  change exists to remove it. `spoc init` immediately after installing spoc is the shortest
+  possible path.
+- Django's `TemplateCommand` is the precedent: it backs `startproject` with no external
+  templating dependency.
 
-### D5 — Build-vs-adopt: three concerns, all pending `/ai:decide`
+#### Decision: Project generation and template rendering — Build (thin) on the standard library
 
-Per the canon these are not decided here. Recorded with a leaning only, to be confirmed,
-overturned, and written up as ADRs by `/ai:decide` before any implementation task starts:
+- **Status**: approved
+- **Why**: `string.Template` matches the spec's no-evaluation requirement by construction where
+  Jinja would have to be constrained into it, and adopting a generator would add an install
+  step to the one command whose whole purpose is removing friction.
+- **Considered**: Adopt copier (strong at new-project generation, and its `update` feature is
+  real — but a Jinja dependency plus a separate install for a once-per-project command);
+  adopt cookiecutter (the incumbent, but no in-place rendering and a weaker maintenance story
+  than copier for the same cost).
+- **Isolation**: `TemplateSource` port. The renderer is called from one adapter; swapping to
+  Jinja later changes that adapter and nothing in the core.
 
-| Concern | Leaning | Note |
-| ------- | ------- | ---- |
-| Project generation / template rendering | **Adopt** | Mature dedicated tools exist for exactly this (copier, cookiecutter are the obvious candidates to evaluate). Building a renderer is the `loc`-vs-`tokei` mistake in a new costume. The rubric question is whether their project model fits emitting *into* an existing project (the `add app` case), which is where generic scaffolders are typically weakest. |
-| Command-line surface | **Adopt** | `DECISIONS.md` already records cyclopts as this project's Python CLI framework. The decision is not automatic here, because that ADR governed workshop tools with no distribution constraint, and this surface ships to users — dependency weight now counts. Re-run the rubric rather than inherit the answer. |
-| Filesystem write safety | **Build (thin)** | Correctness-sensitive, but the requirement is narrow: stage, verify, commit, and never traverse outside the target. Adopting a library for this is likely more surface than the problem. Confirm against what the chosen generator already guarantees — if it stages atomically, this concern collapses into the row above. |
+#### Decision: Command-line surface — Adopt the standard library (`argparse`)
+
+- **Status**: approved
+- **Why**: Zero dependencies, so the scaffolder ships in the main package with
+  `dependencies = []` untouched, and one command with a handful of flags is squarely inside
+  what argparse does well.
+- **Considered**: cyclopts (this project's recorded choice for *workshop* tools, where nothing
+  ships to users — that ADR does not transfer, because dependency weight now counts against a
+  stated invariant); typer (same objection, plus a heavier tree).
+- **Isolation**: the CLI entry-point module only. It parses and renders; the core operation is
+  callable without it.
+- **Note**: the existing `DECISIONS.md` entry rejecting stdlib `flag` was about **Go**, whose
+  `flag` package has no subcommands. Python's `argparse` has subparsers, required arguments,
+  and short/long pairing. That rejection does not carry over.
+
+#### Decision: Filesystem write safety — Build (thin) on standard-library primitives
+
+- **Status**: approved
+- **Why**: The requirement is narrow — stage, verify, commit, never traverse outside the target
+  — and `tempfile` plus `os.replace` (atomic within a filesystem) plus
+  `Path.resolve().is_relative_to()` are the adopted, well-tested primitives underneath it.
+  A library here would be more surface than the problem.
+- **Considered**: delegating staging to an adopted generator (collapses into the row above, and
+  was rejected with it); a filesystem-transaction library (none mature enough to outweigh ~40
+  lines of stdlib).
+- **Isolation**: `ProjectSink` adapter.
+
+#### Decision: Configuration file writing — resolved by scope, no dependency needed
+
+- **Status**: approved
+- **Why**: Stdlib `tomllib` is read-only, and comment-preserving edits need `tomlkit` — but
+  only when *editing* an existing file. `init` emits a fresh `spoc.toml` from a template, which
+  is plain text substitution. Dropping `add app` removed this concern rather than solving it.
+- **Considered**: adopt tomlkit (correct had `add app` survived — round-trip editing is on the
+  canon's never-hand-roll list, so this was the only acceptable way to keep that operation);
+  hand-rolled TOML editing (rejected outright: standard-format serialization is mandatory-adopt).
+- **Isolation**: n/a — the kernel's existing `tomllib` read path is untouched.
 
 ### D6 — The generated project is tested by starting it
 
@@ -107,46 +158,47 @@ into a temporary directory, start the framework against it, assert the registry 
 down. This is the only mechanism that keeps templates honest as the kernel evolves — a kernel
 change that would break new projects fails the kernel's own suite instead of reaching users.
 
-### D7 — Distribution is an optional extra
+### D7 — Ships in the main package; no optional extra
 
-The scaffolder ships in the same distribution behind an opt-in extra with its own console entry
-point. `dependencies = []` stays literally unchanged. The kernel imports nothing from the
-scaffolder package; the dependency runs one way, which a test asserts.
+Because every decision in D5 landed on the standard library, the scaffolder adds no
+dependency. It ships in the same distribution with a console entry point, and
+`dependencies = []` stays literally unchanged.
 
-Rejected: a separate distribution. It is the cleaner isolation, but it doubles the release
-process for a pre-1.0 project and makes the version relationship between kernel and scaffolder
-something users have to reason about.
+This supersedes the original plan for an opt-in extra, which existed only to quarantine
+dependencies that no longer exist. The kernel still imports nothing from the scaffolder
+package — the dependency runs one way, which a test asserts, so the scaffolder can be deleted
+without touching the kernel.
 
 ## Risks / Trade-offs
 
-- **An adopted generator may not support emitting into an existing project.** → This is the
-  decisive rubric criterion for `/ai:decide`, not a detail to discover during implementation.
-  If no mature tool covers `add app`, the honest outcome is adopt-for-`init` and build the
-  narrow in-place path, recorded as such.
+- **`string.Template` is deliberately weak.** No conditionals, no loops. A template set needing
+  "include this file only when X" cannot express it. → Accepted: the emitted shape is a fixed
+  small tree. If a downstream set genuinely needs branching, that is the trigger to revisit the
+  D5 generation decision, not to smuggle logic into the manifest.
 - **Templates drift from the kernel as it evolves.** → D6. Drift becomes a failing test in this
   repo rather than a broken project in someone else's.
+- **Users who want a second app get no help.** → Accepted, and the reason the cut is safe:
+  `init` emits a working app that serves as the copy-paste source. If this proves wrong in
+  practice, `add app` returns as its own proposal with D4 reopened honestly.
 - **The scaffolder becomes a second definition of the project layout.** → It consumes the
-  documented conventions; where it needs one the kernel does not define (D4), that convention
-  is explicitly the scaffolder's own and is documented as such rather than implied.
-- **An optional extra that users do not discover.** → The getting-started path leads with it,
-  and the failure mode is benign: hand-assembly still works exactly as it does today.
-- **Resolving the declaration by importing runs user code.** → Open question below; if
-  importing is chosen it must be an explicit, documented behavior of the command, not a
-  side effect users meet by surprise.
+  documented conventions and is tested by starting what it emits (D6), so a divergence fails
+  the suite.
 
 ## Migration Plan
 
 Purely additive; nothing to migrate. Existing projects are unaffected and hand-assembly remains
 valid. Downstream, zmag's broken `zmag-init` entry point can be replaced by an adapter over the
-core operations plus its own template set — a deletion, not a port.
+core operation plus its own template set — a deletion, not a port.
 
 ## Open Questions
 
-1. **Does resolving the framework declaration import it?** (D4) Decide before implementing
-   `add app`. It is a user-visible safety property, not an implementation detail.
-2. **Does `init` generate one app or none?** The spec requires the generated project to start
-   with at least one registered component, which implies one. Confirm that an empty project is
-   not the more useful default for someone adding their own app immediately.
-3. **How is a downstream template set referenced** — by installed entry point, by path, or
-   both? The spec requires resolution failures to list candidates, which is cheap for entry
-   points and meaningless for arbitrary paths.
+All resolved during `/ai:decide`:
+
+1. ~~Does resolving the framework declaration import it?~~ Moot — `add app` was the only
+   operation that needed to, and it is gone.
+2. ~~Does `init` generate one app or none?~~ **One.** The spec requires the generated project
+   to start with at least one registered component, and with `add app` dropped, that app is
+   also the worked example a user copies for their second.
+3. ~~How is a downstream template set referenced?~~ **By installed entry point.** The spec
+   requires resolution failures to list candidates, which is cheap for entry points and
+   meaningless for arbitrary paths.

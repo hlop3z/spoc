@@ -20,10 +20,13 @@ developer experience, and the only part of it a new user meets first.
 
 - A **scaffolding capability** that emits a complete, runnable project from a single command:
   the configuration file, the framework declaration, one starter app, and an entry point that
-  starts successfully with zero edits.
-- A second, more frequently used operation: **adding an app** to an existing project —
-  creating the package with a module per declared kind and registering it in the correct mode
-  list, so the two stay in agreement by construction rather than by discipline.
+  starts successfully with zero edits. That generated app doubles as the worked example a user
+  copies when adding their second.
+- **One command, deliberately.** An `add app` operation was proposed and cut during
+  `/ai:decide`: a spoc app is `__init__.py` plus one near-empty module per kind, so once
+  `init` has emitted a working one, the second is a copy-paste. The cut also removed the only
+  reason the tool would have needed to discover a live project's declared kinds or to edit an
+  existing configuration file. See `design.md` Context.
 - **Generation is refusal-safe**: an operation that would overwrite existing user content
   fails and names the conflict instead of clobbering it.
 - The **project shape being emitted is treated as data**, not as strings embedded in code, so
@@ -39,9 +42,8 @@ developer experience, and the only part of it a new user meets first.
 
 ### New Capabilities
 
-- `project-scaffolding`: generating a runnable project skeleton and adding apps to an existing
-  project — what is emitted, what makes the result valid, and how conflicts with existing
-  files are refused rather than resolved.
+- `project-scaffolding`: generating a runnable project skeleton — what is emitted, what makes
+  the result valid, and how conflicts with existing files are refused rather than resolved.
 - `scaffold-templates`: the emitted project shape as a declared, replaceable data set, and the
   contract a downstream framework satisfies to supply its own.
 
@@ -54,16 +56,13 @@ project layout would be under-specified.
 
 ## Impact
 
-- **Critical concerns requiring a build-vs-adopt decision before implementation** (deferred to
-  `/ai:decide`, tool choices deliberately not made here):
-  - *Template rendering and project generation* — mature, widely used scaffolding tools exist
-    for exactly this problem, and the canon's rebuild-cost precedent applies directly.
-  - *Command-line surface* — argument parsing, subcommands, and help output.
-  - *Filesystem write safety* — refusing to clobber, partial-write behavior on failure, and
-    path traversal in user-supplied names. Correctness-sensitive: it writes to a user's disk.
-- **Distribution**: a new opt-in install surface and a console entry point. `dependencies = []`
-  in `pyproject.toml` stays literally unchanged; whatever the scaffolder needs is acquired only
-  by users who ask for it.
+- **Critical concerns** — all three were gated through `/ai:decide` and are recorded as ADRs in
+  `design.md` D5. Every one landed on the standard library: project generation and template
+  rendering, the command-line surface, and filesystem write safety. A fourth concern, editing
+  the configuration file, was dissolved by the scope cut rather than solved.
+- **Distribution**: a console entry point in the existing distribution. Because nothing was
+  adopted, no optional extra is needed and `dependencies = []` in `pyproject.toml` stays
+  literally unchanged.
 - **Kernel**: no change to `src/spoc/` behavior. The scaffolder consumes the same conventions
   the kernel already documents; it does not become a second definition of them.
 - **Docs**: the getting-started path currently walks through hand-assembly and would lead with

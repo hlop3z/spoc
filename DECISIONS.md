@@ -68,6 +68,10 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 ### Decision: Python CLI framework — Adopt cyclopts
 
 - **Status**: approved
+- **Scope**: workshop tools under `scripts/`, which ship to nobody. It does **not** govern CLI
+  surfaces inside the published `spoc` package, where a dependency would break the stated
+  `dependencies = []` invariant — that case is decided separately and currently lands on stdlib
+  `argparse` (see the `project-scaffolder` change's `design.md` D5).
 - **Why**: Beats typer on the two highest-weighted rubric criteria. Feature coverage (30%):
   Unions, Literals, and mutually exclusive groups, none of which typer supports. Documentation
   (10%): ships API docs; typer does not. Maintenance is strong — 138 releases, latest days

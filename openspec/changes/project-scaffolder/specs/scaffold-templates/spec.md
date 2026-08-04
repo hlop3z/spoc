@@ -21,7 +21,7 @@ looks like MUST be possible by changing that data alone.
 ### Requirement: A template set is replaceable
 
 A framework built on the kernel MUST be able to supply its own template set and obtain the same
-scaffolding operations against it, without modifying the scaffolder. The selected template set
+scaffolding operation against it, without modifying the scaffolder. The selected template set
 MUST be identified explicitly, and exactly one MUST be in effect for any single operation.
 
 #### Scenario: Downstream template set is used
