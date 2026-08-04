@@ -17,7 +17,7 @@ nav:
           - Framework: core/framework.md
           - App System: core/app-system.md
           - Components: core/components.md
-          - Loader: core/importer.md
+          - Loader: core/loader.md
           - Dependency Management: core/dependencies.md
       - Advanced Usage:
           - Plugins: advanced/plugins.md
@@ -27,7 +27,7 @@ nav:
           - Framework: api/framework.md
           - Registry: api/registry.md
           - Declaration: api/components.md
-          - Loader: api/importer.md
+          - Loader: api/loader.md
           - Core Utilities: api/core-utils.md
       - Examples:
           - Basic Example: examples/basic.md
