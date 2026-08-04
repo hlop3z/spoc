@@ -15,7 +15,6 @@ from spoc.core.exceptions import (
     ModuleNotCachedError,
     CircularDependencyError,
 )
-from spoc.core.utils import DependencyGraph
 
 
 @pytest.fixture
@@ -118,12 +117,12 @@ class TestImporter:
         assert "sys" in importer._module_cache
         assert "json" in importer._module_cache
 
-        # Verify dependency graph
-        assert "sys" in importer._dependency_graph.nodes
-        assert "os" in importer._dependency_graph.nodes
-        assert "json" in importer._dependency_graph.nodes
-        assert "os" in importer._dependency_graph.graph["sys"]
-        assert "json" in importer._dependency_graph.graph["os"]
+        # Verify dependency graph (node -> set of its dependencies)
+        assert "sys" in importer._dependency_graph
+        assert "os" in importer._dependency_graph
+        assert "json" in importer._dependency_graph
+        assert "sys" in importer._dependency_graph["os"]
+        assert "os" in importer._dependency_graph["json"]
 
     def test_module_with_lifecycle_hooks(self, clean_importer):
         """Test modules with initialize and teardown hooks."""
@@ -148,8 +147,8 @@ class TestImporter:
         # Add to importer
         importer._module_cache[module_a_name] = module_a_info
         importer._module_cache[module_c_name] = module_c_info
-        importer._dependency_graph.add_node(module_a_name)
-        importer._dependency_graph.add_node(module_c_name)
+        importer._dependency_graph.setdefault(module_a_name, set())
+        importer._dependency_graph.setdefault(module_c_name, set())
 
         # Check if hooks are recognized correctly
         assert importer._module_cache[module_a_name].has_initialize()
@@ -190,7 +189,7 @@ class TestImporter:
             teardown_func="cleanup",
         )
         importer._module_cache[module_name] = module_info
-        importer._dependency_graph.add_node(module_name)
+        importer._dependency_graph.setdefault(module_name, set())
 
         # Verify custom hooks are recognized
         assert module_info.initialize_func == "setup"
@@ -330,12 +329,10 @@ class TestImporter:
         # Add to cache and dependency graph
         importer._module_cache[module1_name] = module1_info
         importer._module_cache[module2_name] = module2_info
-        importer._dependency_graph.add_node(module1_name)
-        importer._dependency_graph.add_node(module2_name)
 
         # Create circular dependency
-        importer._dependency_graph.add_edge(module1_name, module2_name)
-        importer._dependency_graph.add_edge(module2_name, module1_name)
+        importer._add_dependency(module2_name, module1_name)
+        importer._add_dependency(module1_name, module2_name)
 
         # Startup should detect and raise circular dependency error
         with pytest.raises(CircularDependencyError):
@@ -348,7 +345,7 @@ class TestImporter:
 
         # Clear any state to avoid issues with other tests
         importer._module_cache.clear()
-        importer._dependency_graph = DependencyGraph[str]()
+        importer._dependency_graph = {}
 
         # Mock modules and their initialize methods
         modules = {}
@@ -371,8 +368,8 @@ class TestImporter:
             importer._module_cache[name] = module_info
 
         # Set up dependencies: c depends on b, b depends on a
-        importer._dependency_graph.add_edge("a", "b")
-        importer._dependency_graph.add_edge("b", "c")
+        importer._add_dependency("b", "a")
+        importer._add_dependency("c", "b")
 
         # Initialize modules
         importer.startup()
@@ -412,7 +409,7 @@ class TestImporter:
         # Start with a clean Importer
         importer = Importer()
         importer._module_cache.clear()
-        importer._dependency_graph = DependencyGraph[str]()
+        importer._dependency_graph = {}
 
         # Create a spy to track hook calls
         startup_spy = MagicMock()
@@ -432,7 +429,7 @@ class TestImporter:
         # Register in cache
         module_info = ModuleInfo(name=module_name, module=mock_module)
         importer._module_cache[module_name] = module_info
-        importer._dependency_graph.add_node(module_name)
+        importer._dependency_graph.setdefault(module_name, set())
 
         # Call hook directly to verify it works (bypassing _call_hook)
         startup_func = importer.module_hooks.generic[module_name]["startup"]
@@ -529,7 +526,7 @@ class Greeter:
         module_name = "error_module"
         module_info = ModuleInfo(name=module_name, module=module_with_error)
         importer._module_cache[module_name] = module_info
-        importer._dependency_graph.add_node(module_name)
+        importer._dependency_graph.setdefault(module_name, set())
 
         # Create a spy to capture exceptions during module processing
         exception_spy = MagicMock()

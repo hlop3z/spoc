@@ -1,126 +1,37 @@
 """
 Configuration Loading Utilities
 
-This module provides functions for discovering and loading configuration files
-from various common locations in a SPOC project.
+This module loads the kernel's declarative configuration: ``spoc.toml`` and
+the per-mode environment TOML files. These are the only configuration files
+the kernel reads — a user's ``settings.py`` (or any other module) is theirs
+alone and is never imported by SPOC.
 """
 
-import importlib.util
 import logging
-import sys
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 
-from .exceptions import ConfigurationError
 from .toml_core import TOML, validate_spoc_config
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_MODE = "development"
 
-def _import_module_from_path(module_path: Path, module_name: str) -> ModuleType:
-    """
-    Dynamically import a module from a file path.
-
-    Args:
-        module_path: Path to the Python module file
-        module_name: Name to give the imported module
-
-    Returns:
-        The imported module object
-
-    Raises:
-        ConfigurationError: If the module cannot be imported
-    """
-    try:
-        spec = importlib.util.spec_from_file_location(module_name, module_path)
-        if not spec or not spec.loader:
-            raise ConfigurationError(f"Could not load module spec from {module_path}")
-
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
-        spec.loader.exec_module(module)
-        return module
-    except Exception as e:
-        raise ConfigurationError(f"Failed to import {module_path}: {str(e)}") from e
-
-
-def discover_config_module(
-    base_dir: Path, possible_names: set[str] | None = None
-) -> tuple[Path | None, str | None]:
-    """
-    Discover configuration module in standard locations.
-
-    Args:
-        base_dir: The project base directory
-        possible_names: Optional set of possible module names to check
-
-    Returns:
-        Tuple of (config_path, module_name) or (None, None) if not found
-    """
-    possible_names = possible_names or {"settings", "config", "configuration"}
-
-    # Search for a config module in various locations
-    search_paths = [
-        base_dir / "config",
-        base_dir / "conf",
-        base_dir,
-    ]
-
-    for path in search_paths:
-        if not path.exists() or not path.is_dir():
-            continue
-
-        # Try as a Python module (directory with __init__.py)
-        for name in possible_names:
-            module_dir = path / name
-            if module_dir.is_dir() and (module_dir / "__init__.py").exists():
-                return module_dir / "__init__.py", name
-
-        # Try as a Python file
-        for name in possible_names:
-            module_file = path / f"{name}.py"
-            if module_file.exists():
-                return module_file, name
-
-    return None, None
-
-
-def load_configuration(base_dir: Path) -> ModuleType:
-    """
-    Load configuration from various possible locations.
-
-    The function searches for configuration files in standard locations and imports
-    the first one it finds. It checks for Python modules named 'config', 'settings',
-    or 'configuration' in the following locations:
-    - {base_dir}/config/
-    - {base_dir}/conf/
-    - {base_dir}/
-
-    Args:
-        base_dir: The project base directory
-
-    Returns:
-        The loaded configuration module
-
-    Raises:
-        ConfigurationError: If no configuration can be found
-    """
-    config_path, module_name = discover_config_module(base_dir)
-
-    if not config_path or not module_name:
-        raise ConfigurationError(
-            "Could not find configuration module. Expected to find 'settings.py', "
-            "'config.py', or 'configuration.py' in config/, conf/, or project root."
-        )
-
-    # Import the configuration module
-    return _import_module_from_path(config_path, module_name)
+#: Defaults for the ``[spoc]`` table — any key absent from spoc.toml.
+SPOC_DEFAULTS: dict[str, Any] = {
+    "mode": DEFAULT_MODE,
+    "debug": False,
+    "apps": {},
+    "plugins": {},
+}
 
 
 def load_spoc_toml(base_dir: Path) -> dict[str, Any]:
     """
     Load and validate the SPOC TOML configuration.
+
+    Absent keys fall back to :data:`SPOC_DEFAULTS`; a missing file loads as
+    all defaults with a warning naming the expected location.
 
     Args:
         base_dir: The project base directory
@@ -129,7 +40,7 @@ def load_spoc_toml(base_dir: Path) -> dict[str, Any]:
         The validated SPOC configuration dictionary
 
     Raises:
-        ConfigurationError: If the TOML file is invalid or cannot be found
+        ConfigurationError: If the TOML file is invalid
     """
     # Try standard locations for spoc.toml
     search_paths = [
@@ -141,14 +52,16 @@ def load_spoc_toml(base_dir: Path) -> dict[str, Any]:
         if path.exists():
             config = TOML(path).read()
             validate_spoc_config(config)
-            return config
+            return {"spoc": {**SPOC_DEFAULTS, **config.get("spoc", {})}}
 
-    # If no config found, return a minimal valid structure but log a warning
+    # If no config found, return the defaults but log a warning
     logger.warning(
-        "No spoc.toml configuration found in standard locations. "
-        "Using default minimal configuration. This may cause unexpected behavior.",
+        "No spoc.toml found at %s or %s. Using default configuration "
+        "(development mode, no apps, no plugins).",
+        search_paths[0],
+        search_paths[1],
     )
-    return {"spoc": {"mode": "development", "debug": False, "apps": {}, "plugins": {}}}
+    return {"spoc": dict(SPOC_DEFAULTS)}
 
 
 def load_environment(

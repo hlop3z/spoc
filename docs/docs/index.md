@@ -23,12 +23,15 @@ lookup.
   order; teardown runs in reverse
 - **One flat registry** — every component is a typed record with `kind`,
   `namespace`, and `name` facets; grouped views are derived, never stored
-- **Validated identity** — every segment must be lowercase snake_case,
-  checked at registration; SPOC **rejects, never normalizes**
+- **Conventional identity** — write PEP 8 Python; class names derive their
+  snake_case identifier automatically. A name you *state* is verbatim and
+  validated, and lookups are always exact
 - **Precise resolution** — `framework.resolve("models:blog.post")` fails per
   segment, naming what didn't resolve and the valid candidates
-- **Lifecycle hooks** — startup and shutdown per module pattern
-- **TOML configuration** — `spoc.toml` + settings + per-mode environments
+- **Lifecycle phases** — `on_ready` finalize after discovery, per-kind
+  startup/shutdown hooks, module `initialize`/`teardown`
+- **One config file** — `spoc.toml` is the only file the kernel reads;
+  your `settings.py` stays yours
 
 ## What SPOC deliberately does not do
 
@@ -48,18 +51,16 @@ not an accident.
 
 ```python
 from pathlib import Path
-from spoc import Components, Framework, Schema
+import spoc
 
-components = Components("models")
+framework = spoc.Framework("models")
+model = framework.kind("models")
 
-@components.register("models")
-class post:
+@model
+class Post:                                # → models:blog.post
     ...
 
-framework = Framework(
-    base_dir=Path(__file__).parent,
-    schema=Schema(modules=["models"]),
-)
+framework.start(Path(__file__).parent)
 
 record = framework.resolve("models:blog.post")   # a Component record
 for component in framework.registry:              # deterministic enumeration

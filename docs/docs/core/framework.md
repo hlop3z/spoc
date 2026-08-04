@@ -1,125 +1,119 @@
 # Framework
 
-`Framework` is the **composition root**: it owns its importer (and therefore
-its registry and hooks), loads configuration, discovers apps, and manages
-lifecycle. Two `Framework` instances in one process are fully independent —
-there is no global state.
+`Framework` is the **single declaration point** and the composition root: the
+kind set, inter-kind dependencies, and lifecycle hooks are stated once, on
+one object. It owns its importer (and therefore its registry and hooks).
+Two `Framework` instances in one process are fully independent — there is no
+global state.
 
-## Construction
+## Declaration
 
 ```python
-from pathlib import Path
-from spoc import Framework, Schema, Hook
+import spoc
 
-schema = Schema(
-    modules=["models", "views"],            # also the closed kind set
+framework = spoc.Framework(
+    "models", "views",                      # the closed kind set
     dependencies={"views": ["models"]},     # load order within each app
-    hooks={
-        "models": Hook(
-            startup=lambda objs: print("models up:", objs),
-            shutdown=lambda objs: print("models down:", objs),
-        ),
-    },
+    mode="strict",                          # raise when an app misses a module
 )
 
-framework = Framework(
-    base_dir=Path(__file__).parent,
-    schema=schema,
-    mode="strict",        # raise when an app is missing a declared module
-)
+model = framework.kind("models")            # ready-made decorators
+view = framework.kind("views")
 ```
 
-Construction runs the full startup sequence:
+Construction is **inert**: no filesystem access, no `sys.path` changes, no
+imports. It only records the declaration — which is why app modules can
+safely import the decorators before anything has started.
 
-1. `apps/` is put on the import path
-2. `spoc.toml`, settings, and the mode's environment are loaded
-3. Plugins are loaded from their URIs
-4. Apps are collected via the mode cascade and their modules registered
-5. **Components are discovered into the registry** — loudly: a declared
-   component that cannot be registered (kind mismatch, invalid segment,
-   duplicate identifier) fails startup with a precise error
-6. Modules initialize in dependency order, hooks firing per module
+- Kinds are identifier segments: lowercase snake_case, validated, never
+  normalized.
+- `dependencies` keys and values must be declared kinds — anything else
+  raises `UnknownKindError` immediately.
+- `framework.kind("controllers")` on an undeclared kind raises
+  `UnknownKindError` naming the declared set.
 
-## The registry
+## Registration decorators
 
-`framework.registry` is the single read surface — one flat store of
-`Component` records with derived, deterministic facet views:
+The callable returned by `framework.kind()` supports both forms:
 
 ```python
-for component in framework.registry:          # all records, ordered
-    print(component.identifier)
+@model                        # UserAccount → models:<app>.user_account
+class UserAccount: ...
 
-framework.registry.by_kind("models")          # one kind
-framework.registry.by_namespace("blog")       # one app
-framework.registry.namespaces("models")       # namespaces holding a kind
-len(framework.registry)
-"models:blog.post" in framework.registry
+@model(name="legacy_user")    # a stated name is verbatim and validated
+class OldAccount: ...
+
+@model(config={"table": "tags"}, metadata={"public": True})
+class Tag: ...                # config/metadata ride onto the registry record
 ```
 
-## Resolution
-
-```python
-record = framework.resolve("models:blog.post")
-```
-
-`resolve` is a **pure lookup**: the resolved object comes back unexecuted,
-and the kernel never calls it. Failures are per segment, in the fixed order
-kind → namespace → object_name, each naming the failing segment, its value,
-and the valid candidates:
-
-| Failure | Error |
-| --- | --- |
-| doesn't parse | `MalformedIdentifierError` |
-| bad segment charset | `InvalidSegmentError` |
-| kind not declared | `UnknownKindError` |
-| no such namespace for that kind | `UnknownNamespaceError` |
-| no such object in kind:namespace | `UnknownObjectError` |
-
-There are no `None` returns anywhere in the lookup path.
-
-## The mode cascade
-
-`spoc.toml` declares apps per mode; lower modes include the higher ones:
-
-```toml
-[spoc]
-mode = "development"
-
-[spoc.apps]
-production = ["auth"]
-staging    = ["reports"]
-development = ["sandbox"]
-```
-
-| mode | loads |
-| --- | --- |
-| `production` | `auth` |
-| `staging` | `reports` + `auth` |
-| `development` | `sandbox` + `reports` + `auth` |
-
-With one app per adapter, the cascade **is** adapter selection: register the
-fake engine as a development app and the real one as a production app, and
-switching modes swaps the implementation — no branching.
-
-`INSTALLED_APPS` in settings loads in every mode, first.
+The name is derived from the object in snake_case; pass `name=` only to
+override it. Lookup never converts — `models:blog.user_account` is the one
+canonical identifier.
 
 ## Lifecycle
 
 ```python
-framework.startup()     # runs automatically on construction
-framework.shutdown()    # reverse dependency order, shutdown hooks fire
+framework.start(BASE_DIR)     # boots the project — the only step with side effects
+framework.started             # True after a successful start
+framework.shutdown()          # reverse-order teardown; no-op if never started
 ```
 
-Modules may define `initialize()` / `teardown()` functions; schema hooks
-receive the set of registered objects belonging to their module.
+`start(base_dir)` runs, in order:
 
-## Independence
+1. `apps/` is put on the import path
+2. `config/spoc.toml` is loaded — the only file the kernel reads
+3. Plugins are loaded from `[spoc.plugins]` (a bad reference fails start)
+4. Apps are collected via the mode cascade and their modules registered
+5. **Components are discovered into the registry** — loudly: a declared
+   component that cannot be registered (kind mismatch, invalid segment,
+   duplicate identifier) fails start with a precise error
+6. **`on_ready` callbacks fire** with the completed registry
+7. Modules initialize in dependency order, firing per-kind startup hooks
 
-Each framework owns its state — importer, registry, hooks, installed apps:
+Starting an already-started framework raises `SpocError`.
+
+## on_ready — the finalize phase
+
+Anything that needs to see *all* components at once — ORM table building,
+route trees, DI graphs — belongs in an `on_ready` callback, not in an import
+side effect:
 
 ```python
-fw_a = Framework(base_dir=project_a, schema=schema_a)
-fw_b = Framework(base_dir=project_b, schema=schema_b)
-
-fw_a.registry is fw_b.registry        # False — nothing is shared
+@framework.on_ready
+def build_tables(registry):
+    for record in registry.by_kind("models"):
+        ...
 ```
+
+Callbacks fire exactly once per start, in registration order, after
+discovery and before module initialization. A callback error fails start.
+
+## Per-kind lifecycle hooks
+
+```python
+@framework.on_startup("models")
+def init_models(objects):        # the set of the module's registered objects
+    ...
+
+@framework.on_shutdown("models")
+def close_models(objects):
+    ...
+```
+
+Hooks fire for every app's module of that kind — see
+[Lifecycle](../advanced/lifecycle.md) for ordering details.
+
+## Reads
+
+```python
+framework.resolve("models:blog.post")    # one record, precise per-segment failures
+framework.registry                       # the flat store — enumerate, by_kind, by_namespace
+framework.installed_apps                 # the cascaded app list, after start
+framework.plugins                        # loaded plugin groups, after start
+framework.config.project                 # the [spoc] table
+framework.config.environment             # the mode's environment values
+```
+
+The kernel **describes; it never executes** — `resolve` returns the record
+with its object unexecuted. Invocation belongs to the surfaces built on top.

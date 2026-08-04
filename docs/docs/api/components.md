@@ -1,13 +1,8 @@
 # Components API Reference
 
-The declaration layer: decorators that mark objects as SPOC components.
-
-## Components Class
-
-::: spoc.components.Components
-    options:
-      show_root_heading: true
-      show_source: false
+The declaration layer: markers attached by `framework.kind()` decorators
+(or the low-level `component` function) that discovery turns into registry
+records.
 
 ## Component Decorator
 

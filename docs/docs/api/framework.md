@@ -9,20 +9,6 @@ This page provides detailed API documentation for the Framework module in SPOC.
       show_root_heading: true
       show_source: false
 
-## Schema Class
-
-::: spoc.framework.Schema
-    options:
-      show_root_heading: true
-      show_source: false
-
-## Hook Type
-
-::: spoc.framework.Hook
-    options:
-      show_root_heading: true
-      show_source: false
-
 ## Config Class
 
 ::: spoc.framework.Config

@@ -1,7 +1,8 @@
 # Core Utilities API Reference
 
-This page documents SPOC's core utility modules: exceptions, dependency
-management, case conversion, and path injection.
+This page documents SPOC's core utility modules: exceptions, case
+conversion, and path injection. (Dependency ordering uses the standard
+library's `graphlib` — there is no SPOC-specific graph API.)
 
 ## Exceptions
 
@@ -43,20 +44,6 @@ Identifier and registry errors are documented on the
     options:
       show_root_heading: true
       show_source: false
-
-## Dependency Management
-
-### DependencyGraph
-
-::: spoc.core.utils.DependencyGraph
-    options:
-      show_root_heading: true
-      show_source: false
-      members:
-        - add_node
-        - add_edge
-        - topological_sort
-        - reversed
 
 ## Case Style Conversion
 

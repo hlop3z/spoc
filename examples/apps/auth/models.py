@@ -2,19 +2,19 @@ import dataclasses as dc
 
 from framework.framework import model
 
-# PascalCase class names need an explicit conforming name —
-# identifiers are never inferred or normalized.
+# UserAccount → models:auth.user_account, Role → models:auth.role.
+# Pass name= only to override the derived identifier.
 
 
 @dc.dataclass
-@model(name="user_account")
+@model
 class UserAccount:
     id: int
     name: str
 
 
 @dc.dataclass
-@model(name="role")
+@model
 class Role:
     id: int
     name: str

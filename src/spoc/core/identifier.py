@@ -9,8 +9,10 @@ Each segment is lowercase snake_case (``^[a-z][a-z0-9_]*$``). This module is
 the only place the grammar is defined or validated — everything else calls
 :func:`parse` and :func:`compose`.
 
-Validation rejects; it never normalizes. A segment that would only be valid
-after case conversion is an error, not a rename.
+This module validates; it never converts. A segment reaching it must already
+conform — deriving a conforming name from an object's own name (snake_case
+conversion) happens one layer up, in the declaration layer, and the result is
+validated here like any other value.
 """
 
 from __future__ import annotations

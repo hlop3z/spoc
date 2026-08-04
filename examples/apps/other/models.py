@@ -4,7 +4,7 @@ from framework.framework import model
 
 
 @dc.dataclass
-@model(name="user_account")
+@model
 class UserAccount:
     id: int
     name: str

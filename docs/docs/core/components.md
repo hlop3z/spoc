@@ -16,65 +16,77 @@ kind:namespace.object_name
 | `namespace` | the app package name | `blog` |
 | `object_name` | the declared name | `post` |
 
-Every segment must match `^[a-z][a-z0-9_]*$` (lowercase snake_case),
-validated at registration. There are exactly three segments — an operation
-suffix is malformed by design.
+Every segment must match `^[a-z][a-z0-9_]*$` (lowercase snake_case). There
+are exactly three segments — an operation suffix is malformed by design.
 
-**Validation rejects; it never normalizes.** A class named `MyService` is a
-registration error, not a silent rename:
+**Derived names convert; stated names don't.** Write PEP 8 Python and the
+identifier follows from the object's own name:
 
 ```python
-@components.register("models")
-class MyService:          # InvalidSegmentError: invalid object_name 'MyService'
+@model
+class MyService:          # → models:blog.my_service
     ...
 
-@components.register("models", name="my_service")
-class MyService:          # OK — explicit, conforming name
+@model(name="legacy_svc")
+class MyService:          # → models:blog.legacy_svc (verbatim)
+    ...
+
+@model(name="LegacySvc")
+class Other:              # InvalidSegmentError — a stated name must conform
     ...
 ```
 
-## Declaring a kind set
+Conversion happens exactly once, when deriving a name from the object.
+A derived name that cannot conform even after conversion (a class named
+`2Cool`) is still an error — conversion is a convention, not a guess. And
+lookup never converts: `resolve("models:blog.MyService")` fails, because
+`models:blog.my_service` is the one canonical identifier.
 
-The kind set is **closed** and fixed at construction — there is no
-add-at-runtime:
+## Registration decorators
+
+The kind set is **closed**, declared once on the framework, and each kind's
+decorator comes from `framework.kind()` — there is no add-at-runtime:
 
 ```python
-from spoc import Components
+import spoc
 
-components = Components("models", "views")   # must match Schema.modules
-components.register("modle", name="x")       # UnknownKindError, lists declared kinds
+framework = spoc.Framework("models", "views")
+
+model = framework.kind("models")
+view = framework.kind("views")
+framework.kind("modle")     # UnknownKindError, lists declared kinds
 ```
 
 ## Registering components
 
 ```python
-# Classes and functions: name defaults from __name__ when it conforms
-@components.register("models")
-class post:
+# The name is derived from the object, in snake_case
+@view
+def list_posts():        # → views:blog.list_posts
     ...
 
-@components.register("views")
-def list_posts():
+@model
+class Post:              # → models:blog.post
     ...
 
-# Explicit name (required when __name__ doesn't conform)
-@components.register("models", name="comment_thread")
-class CommentThread:
+@model
+class CommentThread:     # → models:blog.comment_thread
     ...
 
 # Instances have no intrinsic name — an explicit name is always required
-components.register("models", repo, name="post_repository")
-components.register("models", repo)   # MissingNameError
+model(repo, name="post_repository")
+model(repo)   # MissingNameError
 ```
 
 Identity is never inferred from the execution environment (no stack
-inspection) and registration never mutates the object being registered.
+inspection). Registration attaches a declaration marker; discovery turns
+markers into registry records at `start()`.
 
 `config` and `metadata` ride along onto the registry record:
 
 ```python
-@components.register("models", config={"table": "posts"}, metadata={"public": True})
-class post:
+@model(config={"table": "posts"}, metadata={"public": True})
+class Post:
     ...
 ```
 
@@ -86,7 +98,7 @@ error**, never a silent drop:
 
 ```python
 # in blog/models.py
-@components.register("views")     # ComponentKindMismatchError at startup:
+@view                             # ComponentKindMismatchError at start:
 def list_posts():                 # declared 'views', discovered in 'models'
     ...
 ```
@@ -121,7 +133,8 @@ records alone. See [Framework](framework.md) for enumeration and resolution.
 ## Checking declarations
 
 ```python
-components.is_spoc(post)                  # carries a SPOC marker?
-components.is_component("models", post)   # declared under this kind?
-components.get_info(post)                 # the Internal marker, or None
+import spoc
+
+spoc.is_spoc(post)      # carries a SPOC marker?
+spoc.get_info(post)     # the Internal marker (name, config, metadata), or None
 ```

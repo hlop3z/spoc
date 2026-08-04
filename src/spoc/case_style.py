@@ -11,11 +11,21 @@ This module provides functions to convert strings between different case styles:
 from __future__ import annotations
 
 import re
-from functools import cache
+from functools import lru_cache
 from typing import Callable, Final, Literal, TypeAlias, TypeGuard
 
+#: Bounded so converting attacker- or user-supplied strings cannot grow the
+#: cache without limit. Declaration-time names are far below this.
+_CACHE_SIZE: Final[int] = 2048
+
 # —— Constants & Patterns —— #
-_CAMEL_BOUNDARY: Final[re.Pattern] = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+#: Word boundaries inside a camel/Pascal name. Two rules, both needed:
+#: a lower/digit→upper transition (``userAccount`` → ``user|Account``), and
+#: the tail of an acronym before a capitalized word (``HTTPServer`` →
+#: ``HTTP|Server``). Without the second, acronyms collapse (``httpserver``).
+_CAMEL_BOUNDARY: Final[re.Pattern] = re.compile(
+    r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])"
+)
 _SEPARATOR_CHARS: Final[str] = r"[_\-]+"
 _CLEAN_EDGE: Final[re.Pattern] = re.compile(rf"^{_SEPARATOR_CHARS}|{_SEPARATOR_CHARS}$")
 
@@ -33,7 +43,7 @@ def _split_to_words(s: str) -> list[str]:
     return [w for w in s.split("_") if w]
 
 
-@cache
+@lru_cache(maxsize=_CACHE_SIZE)
 def to_snake_case(s: str, clip_edges: bool = True) -> str:
     """AnyCase → snake_case."""
     words = _split_to_words(s)
@@ -41,20 +51,20 @@ def to_snake_case(s: str, clip_edges: bool = True) -> str:
     return result if clip_edges else f"_{result}_"
 
 
-@cache
+@lru_cache(maxsize=_CACHE_SIZE)
 def to_pascal_case(s: str) -> str:
     """snake_case (or any) → PascalCase."""
     return "".join(word.capitalize() for word in _split_to_words(s))
 
 
-@cache
+@lru_cache(maxsize=_CACHE_SIZE)
 def to_camel_case(s: str) -> str:
     """snake_case (or any) → camelCase."""
     words = _split_to_words(s)
     return words[0] + "".join(w.capitalize() for w in words[1:]) if words else ""
 
 
-@cache
+@lru_cache(maxsize=_CACHE_SIZE)
 def to_kebab_case(s: str) -> str:
     """snake_case (or any) → kebab-case."""
     return "-".join(_split_to_words(s))

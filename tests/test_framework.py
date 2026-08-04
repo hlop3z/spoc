@@ -1,6 +1,7 @@
 """
-Framework integration tests: discovery into the registry, loud failures,
-resolve(), and instance-scoped composition (no globals).
+Framework tests: single declaration point, kind() handles, inert
+construction, explicit start/shutdown, on_ready, and instance-scoped
+composition (no globals).
 """
 
 import sys
@@ -9,39 +10,50 @@ from pathlib import Path
 
 import pytest
 
-from spoc import Framework, Schema
-from spoc.core.exceptions import ComponentKindMismatchError, UnknownNamespaceError
+import spoc
+from spoc import Framework
+from spoc.core.exceptions import (
+    AppNotFoundError,
+    ComponentKindMismatchError,
+    InvalidSegmentError,
+    SpocError,
+    UnknownKindError,
+    UnknownNamespaceError,
+)
+
+MODELS_BODY = """
+    from spoc import component
+
+    @component(metadata={"type": "models"})
+    class Post:
+        ...
+"""
 
 
-def make_project(tmp_path: Path, app: str, models_body: str) -> Path:
-    """Build a minimal SPOC project with one app on disk."""
+def make_project(
+    tmp_path: Path, app: str, models_body: str = MODELS_BODY, extra_toml: str = ""
+) -> Path:
+    """Build a minimal SPOC project with one app on disk. No settings.py."""
     base = tmp_path / f"proj_{app}"
     (base / "config").mkdir(parents=True)
-    (base / "config" / "__init__.py").write_text("")
-    (base / "config" / "settings.py").write_text(
+    (base / "config" / "spoc.toml").write_text(
         textwrap.dedent(
             f"""
-            from pathlib import Path
-            BASE_DIR = Path(__file__).resolve().parent.parent
-            INSTALLED_APPS = ["{app}"]
-            PLUGINS = {{}}
+            [spoc]
+            mode = "development"
+            debug = true
+
+            [spoc.apps]
+            development = ["{app}"]
             """
         )
-    )
-    (base / "config" / "spoc.toml").write_text(
-        '[spoc]\nmode = "development"\ndebug = true\n\n[spoc.apps]\n\n[spoc.plugins]\n'
+        + extra_toml
     )
     app_dir = base / "apps" / app
     app_dir.mkdir(parents=True)
     (app_dir / "__init__.py").write_text("")
     (app_dir / "models.py").write_text(textwrap.dedent(models_body))
     return base
-
-
-DECLARATION_HEADER = """
-        from spoc import Components
-        components = Components("models")
-"""
 
 
 @pytest.fixture(autouse=True)
@@ -55,103 +67,338 @@ def clean_sys_path_and_modules():
         del sys.modules[name]
 
 
-def test_discovery_populates_registry_and_resolve_works(tmp_path):
+# ── Declaration ───────────────────────────────────────────────────────────
+
+
+def test_kind_handle_bare_and_named_forms():
+    fw = Framework("models")
+    model = fw.kind("models")
+
+    @model
+    class CommentThread: ...  # derived → comment_thread
+
+    @model(name="legacy_user")
+    class UserAccount: ...  # explicit → verbatim
+
+    thread_info = spoc.get_info(CommentThread)
+    account_info = spoc.get_info(UserAccount)
+    assert thread_info is not None and account_info is not None
+    assert thread_info.name == "comment_thread"
+    assert thread_info.metadata["type"] == "models"
+    assert account_info.name == "legacy_user"
+
+
+def test_kind_handle_rejects_stated_nonconforming_name():
+    """Explicit names are verbatim: stated, so used or rejected — never converted."""
+    fw = Framework("models")
+    model = fw.kind("models")
+    with pytest.raises(InvalidSegmentError):
+
+        @model(name="PascalCase")
+        class Anything: ...
+
+
+def test_kind_handle_for_undeclared_kind():
+    fw = Framework("models", "views")
+    with pytest.raises(UnknownKindError) as exc:
+        fw.kind("controllers")
+    message = str(exc.value)
+    assert "controllers" in message
+    assert "models" in message and "views" in message
+
+
+def test_dependencies_must_reference_declared_kinds():
+    with pytest.raises(UnknownKindError):
+        Framework("models", dependencies={"views": ["models"]})
+    with pytest.raises(UnknownKindError):
+        Framework("models", "views", dependencies={"views": ["schemas"]})
+
+
+def test_construction_is_inert(tmp_path):
+    """No sys.path mutation, no filesystem writes, in an empty directory."""
+    path_before = list(sys.path)
+    fw = Framework("models", "views", dependencies={"views": ["models"]})
+    assert sys.path == path_before
+    assert list(tmp_path.iterdir()) == []
+    assert fw.started is False
+
+
+# ── Lifecycle ─────────────────────────────────────────────────────────────
+
+
+def test_start_discovers_and_resolve_works(tmp_path):
     base = make_project(
         tmp_path,
         "blog",
-        DECLARATION_HEADER
-        + """
-        @components.register("models")
-        class post:
+        """
+        from spoc import component
+
+        @component(metadata={"type": "models"})
+        class Post:
             ...
 
-        @components.register("models", name="comment_thread")
+        @component(metadata={"type": "models"})
         class CommentThread:
             ...
         """,
     )
-    framework = Framework(base_dir=base, schema=Schema(modules=["models"]))
+    fw = Framework("models").start(base)
 
-    identifiers = [c.identifier for c in framework.registry]
+    assert fw.started is True
+    identifiers = [c.identifier for c in fw.registry]
     assert identifiers == ["models:blog.comment_thread", "models:blog.post"]
 
-    record = framework.resolve("models:blog.post")
+    record = fw.resolve("models:blog.post")
     assert record.kind == "models"
     assert record.namespace == "blog"
     assert record.name == "post"
 
 
-def test_kind_location_mismatch_fails_startup(tmp_path):
-    """A views component declared in models.py is a startup error, not a drop."""
+def test_lookup_is_never_converted(tmp_path):
+    """Derivation converts; resolution does not — one canonical identifier."""
+    base = make_project(tmp_path, "exact")
+    fw = Framework("models").start(base)
+
+    assert fw.resolve("models:exact.post").name == "post"
+    with pytest.raises(InvalidSegmentError):
+        fw.resolve("models:exact.Post")
+
+
+def test_double_start_raises(tmp_path):
+    base = make_project(tmp_path, "once")
+    fw = Framework("models").start(base)
+    with pytest.raises(SpocError, match="already started"):
+        fw.start(base)
+
+
+def test_shutdown_without_start_is_noop():
+    fw = Framework("models")
+    assert fw.shutdown() is fw
+    assert fw.started is False
+
+
+def test_kind_location_mismatch_fails_start(tmp_path):
+    """A views component declared in models.py is a start error, not a drop."""
     base = make_project(
         tmp_path,
         "mismatch",
         """
-        from spoc import Components
-        components = Components("models", "views")
+        from spoc import component
 
-        @components.register("views")
+        @component(metadata={"type": "views"})
         def list_posts():
             ...
         """,
     )
+    fw = Framework("models")
     with pytest.raises(ComponentKindMismatchError) as exc:
-        Framework(base_dir=base, schema=Schema(modules=["models"]))
+        fw.start(base)
     message = str(exc.value)
     assert "list_posts" in message
     assert "views" in message and "models" in message
+    assert fw.started is False
 
 
-def test_imported_objects_register_where_defined_only(tmp_path):
+def test_settings_module_is_never_read(tmp_path):
+    """Only spoc.toml is consulted: a poison settings.py changes nothing."""
+    base = make_project(tmp_path, "toml_only")
+    (base / "config" / "__init__.py").write_text("")
+    (base / "config" / "settings.py").write_text(
+        "raise RuntimeError('spoc must never import settings.py')\n"
+    )
+    fw = Framework("models").start(base)
+    assert [c.identifier for c in fw.registry] == ["models:toml_only.post"]
+
+
+def test_handles_taken_before_start(tmp_path):
+    """Apps import the framework's own handles; marks land after discovery."""
     base = make_project(
         tmp_path,
-        "importer_app",
-        DECLARATION_HEADER
-        + """
-        @components.register("models")
-        class post:
+        "handleapp",
+        """
+        from fwdef import model
+
+        @model
+        class Post:
             ...
         """,
     )
-    # A second module of the same kind importing the first's component
-    (base / "apps" / "importer_app" / "views.py").write_text(
-        "from importer_app.models import post\n"
+    (base / "apps" / "fwdef.py").write_text(
+        "import spoc\n"
+        'framework = spoc.Framework("models")\n'
+        'model = framework.kind("models")\n'
     )
-    framework = Framework(base_dir=base, schema=Schema(modules=["models", "views"]))
-    assert [c.identifier for c in framework.registry] == ["models:importer_app.post"]
+    sys.path.insert(0, str(base / "apps"))
+    import fwdef
+
+    fwdef.framework.start(base)
+    assert [c.identifier for c in fwdef.framework.registry] == ["models:handleapp.post"]
+
+
+# ── on_ready ──────────────────────────────────────────────────────────────
+
+
+def test_on_ready_fires_once_with_full_registry_in_order(tmp_path):
+    base = make_project(tmp_path, "readyapp")
+    fw = Framework("models")
+    calls: list[tuple[str, list[str]]] = []
+
+    @fw.on_ready
+    def first(registry):
+        calls.append(("first", [c.identifier for c in registry]))
+
+    @fw.on_ready
+    def second(registry):
+        calls.append(("second", [c.identifier for c in registry]))
+
+    fw.start(base)
+    assert calls == [
+        ("first", ["models:readyapp.post"]),
+        ("second", ["models:readyapp.post"]),
+    ]
+
+
+def test_on_ready_failure_fails_start(tmp_path):
+    base = make_project(tmp_path, "readyfail")
+    fw = Framework("models")
+
+    @fw.on_ready
+    def boom(registry):
+        raise ValueError("finalize failed")
+
+    with pytest.raises(ValueError, match="finalize failed"):
+        fw.start(base)
+    assert fw.started is False
+
+
+def test_on_ready_runs_before_module_initialization(tmp_path):
+    base = make_project(
+        tmp_path,
+        "orderapp",
+        MODELS_BODY
+        + """
+    def initialize():
+        import fwprobe
+        fwprobe.events.append("initialize")
+    """,
+    )
+    (base / "apps" / "fwprobe.py").write_text("events = []\n")
+    sys.path.insert(0, str(base / "apps"))
+    import fwprobe
+
+    fw = Framework("models")
+
+    @fw.on_ready
+    def ready(registry):
+        fwprobe.events.append("ready")
+
+    fw.start(base)
+    assert fwprobe.events == ["ready", "initialize"]
+
+
+# ── Per-kind lifecycle hooks ──────────────────────────────────────────────
+
+
+def test_on_startup_and_on_shutdown_hooks_receive_components(tmp_path):
+    base = make_project(tmp_path, "hookapp")
+    fw = Framework("models")
+    seen: list[tuple[str, set]] = []
+
+    @fw.on_startup("models")
+    def up(objects):
+        seen.append(("up", {type(o).__name__ or o.__name__ for o in objects}))
+
+    @fw.on_shutdown("models")
+    def down(objects):
+        seen.append(("down", set()))
+
+    fw.start(base)
+    fw.shutdown()
+    assert [tag for tag, _ in seen] == ["up", "down"]
+    assert fw.started is False
+
+
+def test_hooks_for_undeclared_kind_fail():
+    fw = Framework("models")
+    with pytest.raises(UnknownKindError):
+        fw.on_startup("views")
+    with pytest.raises(UnknownKindError):
+        fw.on_shutdown("views")
+
+
+# ── Configuration behavior through start ──────────────────────────────────
+
+
+def test_mode_cascade():
+    apps = {
+        "production": ["auth"],
+        "staging": ["admin"],
+        "development": ["demo"],
+    }
+    assert Framework._collect_apps("development", apps) == ["demo", "admin", "auth"]
+    assert Framework._collect_apps("staging", apps) == ["admin", "auth"]
+    assert Framework._collect_apps("production", apps) == ["auth"]
+
+
+def test_unresolvable_plugin_fails_start(tmp_path):
+    base = make_project(
+        tmp_path,
+        "plugapp",
+        extra_toml='\n[spoc.plugins]\nhooks = ["no_such_module.attr"]\n',
+    )
+    fw = Framework("models")
+    with pytest.raises(AppNotFoundError, match="no_such_module"):
+        fw.start(base)
+    assert fw.started is False
+
+
+def test_declared_plugin_loads(tmp_path):
+    base = make_project(
+        tmp_path,
+        "plugok",
+        extra_toml='\n[spoc.plugins]\nhooks = ["plugok.extras.hook"]\n',
+    )
+    (base / "apps" / "plugok" / "extras.py").write_text(
+        "def hook():\n    return 'loaded'\n"
+    )
+    fw = Framework("models").start(base)
+    assert fw.plugins["hooks"]["plugok.extras.hook"]() == "loaded"
+
+
+# ── Independence and removed API ──────────────────────────────────────────
 
 
 def test_two_frameworks_are_independent(tmp_path):
-    """De-globalized composition: registries and hooks never leak (D7)."""
+    """De-globalized composition: registries, handles, hooks never leak."""
     base_a = make_project(
         tmp_path,
         "alpha",
-        DECLARATION_HEADER
-        + """
-        @components.register("models")
-        class post:
+        """
+        from spoc import component
+
+        @component(metadata={"type": "models"})
+        class Post:
             ...
         """,
     )
     base_b = make_project(
         tmp_path,
         "beta",
-        DECLARATION_HEADER
-        + """
-        @components.register("models")
-        class order:
+        """
+        from spoc import component
+
+        @component(metadata={"type": "models"})
+        class Order:
             ...
         """,
     )
     hooks_seen: list[str] = []
-    fw_a = Framework(base_dir=base_a, schema=Schema(modules=["models"]))
-    fw_b = Framework(
-        base_dir=base_b,
-        schema=Schema(
-            modules=["models"],
-            hooks={"models": {"startup": lambda m: hooks_seen.append("b")}},
-        ),
-    )
+    fw_a = Framework("models")
+    fw_b = Framework("models")
+    fw_b.on_startup("models")(lambda objects: hooks_seen.append("b"))
+
+    fw_a.start(base_a)
+    fw_b.start(base_b)
 
     assert [c.identifier for c in fw_a.registry] == ["models:alpha.post"]
     assert [c.identifier for c in fw_b.registry] == ["models:beta.order"]
@@ -164,9 +411,16 @@ def test_two_frameworks_are_independent(tmp_path):
         fw_a.resolve("models:beta.order")
 
 
-def test_no_legacy_lookup_surface(tmp_path):
-    """get_component and the namespace-of-dicts view are gone."""
-    base = make_project(tmp_path, "clean", DECLARATION_HEADER)
-    framework = Framework(base_dir=base, schema=Schema(modules=["models"]))
-    assert not hasattr(framework, "get_component")
-    assert not hasattr(type(framework), "components")
+def test_removed_api_is_absent():
+    """Green-field: the old declaration surface is gone, not deprecated."""
+    for gone in (
+        "Components",
+        "Schema",
+        "Hook",
+        "load_configuration",
+        "DependencyGraph",
+    ):
+        assert not hasattr(spoc, gone), gone
+    fw = Framework("models")
+    assert not hasattr(fw, "get_component")
+    assert not hasattr(type(fw), "components")

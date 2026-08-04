@@ -1,20 +1,26 @@
 """
 Core framework module for SPOC.
 
-The Framework is the composition root: it owns its importer (and therefore
-its registry and hooks), loads configuration, discovers apps, and manages
-lifecycle. Two Framework instances in one process are fully independent.
+The Framework is the single declaration point and the composition root: the
+kind set, inter-kind dependencies, and lifecycle hooks are stated once, on
+one object. Construction is inert — all discovery happens in an explicit
+``start(base_dir)`` step. Two Framework instances in one process are fully
+independent.
 
 Usage:
-    from spoc.framework import Framework, Schema
     from pathlib import Path
+    import spoc
 
-    schema = Schema(
-        modules=["models", "views"],
-        dependencies={"views": ["models"]},
-        hooks={}
-    )
-    framework = Framework(base_dir=Path("/path/to/app"), schema=schema)
+    framework = spoc.Framework("models", "views", dependencies={"views": ["models"]})
+
+    model = framework.kind("models")   # @model  /  @model(name="legacy_user")
+    view = framework.kind("views")
+
+    @framework.on_ready
+    def finalize(registry):
+        ...  # every component of every kind is registered here
+
+    framework.start(Path("/path/to/project"))
 
     record = framework.resolve("models:blog.post")   # a Component record
     for component in framework.registry.by_kind("models"):
@@ -30,46 +36,17 @@ from __future__ import annotations
 
 # Standard library imports
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, NotRequired, TypedDict
+from typing import Any, Callable
 
 # Local imports
-from .core.config_loader import load_configuration, load_environment, load_spoc_toml
+from .components import Components
+from .core.config_loader import DEFAULT_MODE, load_environment, load_spoc_toml
+from .core.exceptions import SpocError, UnknownKindError
 from .core.importer import FrameworkMode, Importer
 from .core.registry import Component, Registry
 from .inject_apps import inject_apps
-
-DEFAULT_MODE = "development"
-
-
-class Hook(TypedDict):
-    """
-    Type definition for lifecycle hooks.
-
-    A dictionary containing optional startup and shutdown callables
-    that are executed during framework initialization and termination.
-    Each callable receives the set of component objects registered for
-    the module it fires on.
-    """
-
-    startup: NotRequired[Callable[[set[Any]], Any]]
-    shutdown: NotRequired[Callable[[set[Any]], Any]]
-
-
-@dataclass
-class Schema:
-    """
-    Schema definition for application modules and their dependencies.
-
-    ``modules`` is also the project's closed kind set: objects declared in
-    ``<app>/<module>.py`` are components of kind ``<module>``, and no other
-    kinds exist (layout is taxonomy).
-    """
-
-    modules: list[str]
-    dependencies: dict[str, list[str]] = field(default_factory=dict)
-    hooks: dict[str, Hook] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -79,96 +56,186 @@ class Config:
 
     Attributes:
         `project`: Project configuration (the ``[spoc]`` table)
-        `settings`: Settings module
         `environment`: Environment variables for the active mode
     """
 
     project: dict[str, Any]
-    settings: Any
     environment: Any
 
 
 def build_config(base_dir: Path, echo: bool = False) -> Config:
     """
-    Build a configuration object from files in the specified directory.
+    Build a configuration object from ``spoc.toml`` in the given directory.
+
+    ``spoc.toml`` is the only configuration file the kernel reads — anything
+    else under the project's config directory belongs to the user.
 
     Args:
-        base_dir: Base directory containing configuration files
+        base_dir: Base directory containing the configuration file
+        echo: Whether to log warnings about missing configuration files
 
     Returns:
-        Config object populated with project, settings and environment data
+        Config object populated with project and environment data
     """
     raw = load_spoc_toml(base_dir).get("spoc", {})
     mode = raw.get("mode", DEFAULT_MODE)
     return Config(
         project=raw,
-        settings=load_configuration(base_dir),
         environment=load_environment(base_dir, mode, echo=echo),
     )
 
 
 class Framework:
     """
-    Core framework class for SPOC applications — the composition root.
+    The framework object — declaration point and composition root.
 
-    Manages the lifecycle of an application including module loading,
-    dependency resolution, and plugin registration, and owns the flat
-    component registry that external surfaces project from.
+    Declares the closed kind set and inter-kind dependency order, hands out
+    per-kind registration decorators, and owns the flat component registry
+    that external surfaces project from. Construction has no side effects;
+    ``start(base_dir)`` boots the project.
     """
-
-    def _collect_plugins(self) -> dict[str, OrderedDict[str, Any]]:
-        """
-        Collect and load all configured plugins.
-
-        Loads plugins from URIs defined in the configuration and organizes
-        them into a hierarchical dictionary by group.
-
-        Returns:
-            Dictionary of plugin groups with their loaded module instances
-        """
-        plugins = self.config.project.get("plugins", {})
-        plug_dict: dict[str, OrderedDict[str, Any]] = {}
-        for group, mods in getattr(self.config.settings, "PLUGINS", {}).items():
-            if group not in plugins:
-                plugins[group] = []
-            plugins[group].extend(mods)
-        if plugins:
-            for group, modules in plugins.items():
-                if group not in plug_dict:
-                    plug_dict[group] = OrderedDict()
-                for mod_uri in modules:
-                    if mod_uri not in plug_dict[group]:
-                        plug_dict[group][mod_uri] = self.importer.load_from_uri(mod_uri)
-        return plug_dict
 
     def __init__(
         self,
-        base_dir: Path,
-        schema: Schema,
-        echo: bool = False,
+        *kinds: str,
+        dependencies: dict[str, list[str]] | None = None,
         mode: FrameworkMode = "strict",
+        echo: bool = False,
     ) -> None:
         """
-        Initialize the framework instance.
+        Declare a framework. Pure — no filesystem, path, or import effects.
 
         Args:
-            base_dir: Base directory for the application.
-            schema: Schema describing modules (the kind set) and dependencies.
-            echo: Whether to echo debug information during operations.
-            mode: Whether to enforce modules (files.py) in all apps at startup.
+            *kinds: The closed kind set. Each kind is a module name
+                (``<app>/<kind>.py``) and an identifier segment; validated,
+                never normalized.
+            dependencies: Inter-kind load order, e.g. ``{"views": ["models"]}``.
+                Keys and values must be declared kinds. Kinds are stated, so
+                they are validated verbatim — never converted.
+            mode: "strict" raises on missing apps/modules; "loose" skips them.
+            echo: Whether to log warnings about missing configuration files.
         """
-        inject_apps(base_dir)
-
+        self._components = Components(*kinds)
+        self.dependencies = dict(dependencies or {})
+        for kind_name, deps in self.dependencies.items():
+            self._require_kind(kind_name)
+            for dep in deps:
+                self._require_kind(dep)
+        self.mode: FrameworkMode = mode
         self.echo = echo
-        self.base_dir = base_dir
-        self.schema = schema
+        self.importer = Importer(mode=mode, kinds=self.kinds)
+        self._ready_callbacks: list[Callable[[Registry], Any]] = []
+        self._lifecycle_hooks: dict[str, dict[str, Callable[..., Any]]] = {}
+        self._started = False
+        self.base_dir: Path | None = None
+        self.config: Config | None = None
+        self.plugins: dict[str, OrderedDict[str, Any]] = {}
         self.installed_apps: list[str] = []
-        self.importer = Importer(mode=mode, kinds=tuple(schema.modules))
-        self.config = build_config(base_dir, echo)
-        self.plugins = self._collect_plugins()
 
-        # Start the framework
-        self.startup()
+    # ── Declaration surface ───────────────────────────────────────────────
+
+    @property
+    def kinds(self) -> tuple[str, ...]:
+        """The declared kind set (closed; fixed at construction)."""
+        return self._components.kinds
+
+    def _require_kind(self, kind: str) -> None:
+        if kind not in self.kinds:
+            raise UnknownKindError(kind, self.kinds)
+
+    def kind(self, kind: str) -> Callable[..., Any]:
+        """
+        The registration decorator for a declared kind.
+
+        The returned callable supports both forms:
+
+            model = framework.kind("models")
+
+            @model                        # UserAccount → user_account
+            class UserAccount: ...
+
+            @model(name="legacy_user")    # explicit name, used verbatim
+            class UserAccount: ...
+
+        Raises:
+            UnknownKindError: If ``kind`` is not in the declared set.
+        """
+        self._require_kind(kind)
+
+        def register(
+            obj: Any = None,
+            *,
+            name: str | None = None,
+            config: dict[str, Any] | None = None,
+            metadata: dict[str, Any] | None = None,
+        ) -> Any:
+            return self._components.register(
+                kind, obj, name=name, config=config, metadata=metadata
+            )
+
+        register.__doc__ = f"Register an object as a {kind!r} component."
+        return register
+
+    def on_ready(
+        self, callback: Callable[[Registry], Any]
+    ) -> Callable[[Registry], Any]:
+        """
+        Register a finalize callback.
+
+        Callbacks fire exactly once per start, in registration order, after
+        every component is registered and before module initialization. They
+        receive the completed registry — the place for cross-component builds
+        (ORM tables, route trees, DI graphs). A callback error fails start.
+        """
+        self._ready_callbacks.append(callback)
+        return callback
+
+    def on_startup(
+        self, kind: str
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        """
+        Register a startup hook for every module of a kind.
+
+        The hook is called with the set of the module's registered component
+        objects, before the module's own ``initialize()``.
+
+        Raises:
+            UnknownKindError: If ``kind`` is not in the declared set.
+        """
+        self._require_kind(kind)
+
+        def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+            self._lifecycle_hooks.setdefault(kind, {})["startup"] = fn
+            return fn
+
+        return decorator
+
+    def on_shutdown(
+        self, kind: str
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        """
+        Register a shutdown hook for every module of a kind.
+
+        The hook is called with the set of the module's registered component
+        objects, before the module's own ``teardown()``.
+
+        Raises:
+            UnknownKindError: If ``kind`` is not in the declared set.
+        """
+        self._require_kind(kind)
+
+        def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+            self._lifecycle_hooks.setdefault(kind, {})["shutdown"] = fn
+            return fn
+
+        return decorator
+
+    # ── Reads ─────────────────────────────────────────────────────────────
+
+    @property
+    def started(self) -> bool:
+        """True once ``start`` has completed successfully."""
+        return self._started
 
     @property
     def registry(self) -> Registry:
@@ -194,25 +261,93 @@ class Framework:
         """
         return self.registry.resolve(identifier)
 
+    # ── Lifecycle ─────────────────────────────────────────────────────────
+
+    def start(self, base_dir: Path | str) -> Framework:
+        """
+        Boot the project rooted at ``base_dir``.
+
+        In order: inject the apps directory, load ``spoc.toml``, collect the
+        mode-cascaded app list, load plugins, register app modules, discover
+        declared components into the registry (loudly — a component that
+        cannot be registered fails startup), fire ``on_ready`` callbacks,
+        then initialize modules in dependency order.
+
+        Raises:
+            SpocError: If the framework is already started, or discovery,
+                a ready callback, or initialization fails.
+            CircularDependencyError: If module dependencies form a cycle.
+        """
+        if self._started:
+            raise SpocError("Framework is already started")
+
+        base_dir = Path(base_dir)
+        inject_apps(base_dir)
+        self.base_dir = base_dir
+        self.config = build_config(base_dir, self.echo)
+        self.plugins = self._collect_plugins()
+        self._register_all_apps()
+        self._register_hooks()
+
+        self.importer.discover()
+        for callback in self._ready_callbacks:
+            callback(self.registry)
+        self.importer.initialize()
+
+        self._started = True
+        return self
+
+    def shutdown(self) -> Framework:
+        """
+        Tear down the application.
+
+        Shuts down all modules in the reverse order of initialization,
+        calling shutdown hooks as needed. A no-op if the framework never
+        started.
+        """
+        if not self._started:
+            return self
+        self.importer.shutdown()
+        self._started = False
+        return self
+
+    # ── Boot steps (private) ──────────────────────────────────────────────
+
+    def _collect_plugins(self) -> dict[str, OrderedDict[str, Any]]:
+        """
+        Load all plugins declared in ``[spoc.plugins]``.
+
+        Raises:
+            AppNotFoundError: If a plugin reference names a missing module.
+            AttributeError: If a plugin reference names a missing attribute.
+        """
+        assert self.config is not None
+        plugins = self.config.project.get("plugins", {}) or {}
+        plug_dict: dict[str, OrderedDict[str, Any]] = {}
+        for group, modules in plugins.items():
+            plug_dict[group] = OrderedDict()
+            for mod_uri in modules:
+                if mod_uri not in plug_dict[group]:
+                    plug_dict[group][mod_uri] = self.importer.load_from_uri(mod_uri)
+        return plug_dict
+
     def _register_modules(self, app: str) -> None:
-        for mod in self.schema.modules:
+        for mod in self.kinds:
             fq = f"{app}.{mod}"
-            reqs = [f"{app}.{d}" for d in self.schema.dependencies.get(mod, ())]
+            reqs = [f"{app}.{d}" for d in self.dependencies.get(mod, ())]
             self.importer.register(fq, dependencies=reqs)
 
     def _register_hooks(self) -> None:
-        for mod_name, spec in self.schema.hooks.items():
-            if not spec:
-                continue  # Skip if no hooks defined
+        for kind_name, spec in self._lifecycle_hooks.items():
             self.importer.register_hook(
-                pattern=f"*.{mod_name}",
+                pattern=f"*.{kind_name}",
                 on_startup=spec.get("startup"),
                 on_shutdown=spec.get("shutdown"),
             )
 
     @staticmethod
-    def _collect_apps(app_mode: str, the_apps: dict, py_apps: list) -> list:
-        """Collect apps based on the specified mode with preserved order and no duplicates."""
+    def _collect_apps(app_mode: str, the_apps: dict) -> list:
+        """Cascaded app list for a mode, order preserved, first wins."""
         installed_apps = []
         seen = set()
 
@@ -223,11 +358,6 @@ class Framework:
             "development": ["development", "staging", "production"],
         }
 
-        for app in py_apps:
-            if app not in seen:
-                seen.add(app)
-                installed_apps.append(app)
-
         for mode in mode_order.get(app_mode, []):
             for app in the_apps.get(mode, []):
                 if app not in seen:
@@ -236,45 +366,12 @@ class Framework:
 
         return installed_apps
 
-    def _register_all_apps(self) -> Framework:
-        py_apps = getattr(self.config.settings, "INSTALLED_APPS", [])
+    def _register_all_apps(self) -> None:
+        assert self.config is not None
         app_names = self._collect_apps(
             self.config.project.get("mode", DEFAULT_MODE),
             self.config.project.get("apps", {}),
-            py_apps,
         )
         for name in app_names:
             self._register_modules(name)
-        # Store for later use
         self.installed_apps = app_names
-        return self
-
-    def startup(self) -> Framework:
-        """
-        Bootstrap the application.
-
-        Registers all configured applications and hooks, discovers declared
-        components into the registry (loudly — a component that cannot be
-        registered fails startup), and initializes modules in dependency
-        order.
-
-        Returns:
-            Self instance for method chaining
-        """
-        self._register_all_apps()
-        self._register_hooks()
-        self.importer.startup()
-        return self
-
-    def shutdown(self) -> Framework:
-        """
-        Tear down the application.
-
-        Shuts down all modules in the reverse order of initialization,
-        calling shutdown hooks as needed.
-
-        Returns:
-            Self instance for method chaining
-        """
-        self.importer.shutdown()
-        return self

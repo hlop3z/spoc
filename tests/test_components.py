@@ -21,27 +21,47 @@ class TestComponentDecorator:
         assert isinstance(info, Internal)
         assert info.name == "list_users"
 
-    def test_nonconforming_class_name_rejected(self):
-        """PascalCase is an error, not a silent rename — reject, don't normalize."""
+    @pytest.mark.parametrize(
+        "class_name,expected",
+        [
+            ("Post", "post"),
+            ("MyService", "my_service"),
+            ("UserAccount", "user_account"),
+            ("CommentThread", "comment_thread"),
+            ("HTTPServer", "http_server"),
+            ("Post2", "post2"),
+        ],
+    )
+    def test_derived_class_name_is_converted_to_snake_case(self, class_name, expected):
+        """A PEP 8 class name yields the conventional identifier segment."""
+        obj = type(class_name, (), {})
+        component(obj)
+
+        info = get_info(obj)
+        assert info is not None and info.name == expected
+
+    def test_derived_name_that_cannot_conform_still_fails(self):
+        """Conversion is not a guess: a leading digit is still an error."""
         with pytest.raises(InvalidSegmentError) as exc:
+            component(type("2Cool", (), {}))
 
-            @component
-            class MyService: ...
-
-        assert "'MyService'" in str(exc.value)
+        assert "object_name" in str(exc.value)
 
     def test_explicit_name_overrides(self):
-        @component(name="my_service")
+        @component(name="legacy_service")
         class MyService: ...
 
         info = get_info(MyService)
-        assert info is not None and info.name == "my_service"
+        assert info is not None and info.name == "legacy_service"
 
-    def test_explicit_name_is_validated_too(self):
-        with pytest.raises(InvalidSegmentError):
+    def test_explicit_name_is_verbatim_and_validated(self):
+        """A stated name is never converted — it is used or rejected."""
+        with pytest.raises(InvalidSegmentError) as exc:
 
             @component(name="MyService")
             class Anything: ...
+
+        assert "'MyService'" in str(exc.value)
 
     def test_instance_requires_explicit_name(self):
         class Service: ...
@@ -103,9 +123,9 @@ class TestComponents:
         components = Components("models")
 
         @components.register("models")
-        class post: ...
+        class Post: ...
 
-        info = components.get_info(post)
+        info = components.get_info(Post)
         assert info is not None
         assert info.metadata["type"] == "models"
         assert info.name == "post"
@@ -120,12 +140,12 @@ class TestComponents:
         components = Components("models", "views")
 
         @components.register("models")
-        class post: ...
+        class Post: ...
 
-        assert components.is_component("models", post)
-        assert not components.is_component("views", post)
+        assert components.is_component("models", Post)
+        assert not components.is_component("views", Post)
         with pytest.raises(UnknownKindError):
-            components.is_component("commands", post)
+            components.is_component("commands", Post)
 
     def test_register_none_rejected(self):
         components = Components("models")

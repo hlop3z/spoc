@@ -25,6 +25,7 @@ from __future__ import annotations
 
 # Standard library imports
 import dataclasses
+import graphlib
 import importlib
 import logging
 import re
@@ -43,7 +44,6 @@ from .exceptions import (
     SpocError,
 )
 from .registry import Registry
-from .utils import DependencyGraph
 
 logger = logging.getLogger("spoc")
 
@@ -178,7 +178,8 @@ class Importer:
         self.registry = Registry(kinds)
         self.module_hooks = ModuleHooks()
         self._module_cache: dict[str, ModuleInfo] = {}
-        self._dependency_graph = DependencyGraph[str]()
+        # node -> set of predecessors (its dependencies), fed to graphlib
+        self._dependency_graph: dict[str, set[str]] = {}
         self.mode = mode
         self.on_startup_name = on_startup_name
         self.on_shutdown_name = on_shutdown_name
@@ -200,7 +201,7 @@ class Importer:
             module = importlib.import_module(name)
             module_info = ModuleInfo(name=name, module=module)
             self._module_cache[name] = module_info
-            self._dependency_graph.add_node(name)
+            self._dependency_graph.setdefault(name, set())
             return module
         except ImportError as e:
             if self.mode == "strict":
@@ -233,9 +234,14 @@ class Importer:
             if not self.has(dep):
                 self.load(dep)
                 logger.debug("Loaded dependency: %s", dep)
-            self._dependency_graph.add_edge(dep, name)
+            self._add_dependency(name, dep)
 
         return module
+
+    def _add_dependency(self, name: str, dep: str) -> None:
+        """Record that module `name` depends on module `dep`."""
+        self._dependency_graph.setdefault(dep, set())
+        self._dependency_graph.setdefault(name, set()).add(dep)
 
     def load_from_uri(self, uri: str) -> Any:
         """
@@ -333,38 +339,71 @@ class Importer:
                 if callable(hp.method):
                     hp.method(instance)
 
+    def _module_order(self) -> list[str]:
+        """
+        Cached modules in dependency order (dependencies first).
+
+        Raises:
+            CircularDependencyError: If the dependency graph has a cycle.
+        """
+        try:
+            order = graphlib.TopologicalSorter(self._dependency_graph).static_order()
+            return [m for m in order if m in self._module_cache]
+        except graphlib.CycleError as e:
+            raise CircularDependencyError([str(n) for n in e.args[1]]) from e
+
+    def discover(self) -> None:
+        """
+        Register all declared components into the registry.
+
+        Discovery runs across every module before any initialization, so
+        duplicate identifiers and kind mismatches fail startup before any
+        module's initialization side effects run.
+
+        Raises:
+            CircularDependencyError: If there are circular dependencies.
+            SpocError: If discovery of any module fails.
+        """
+        try:
+            self.on_startup()
+            for module_name in self._module_order():
+                self._register_components(module_name)
+        except (CircularDependencyError, SpocError):
+            raise
+        except Exception as e:
+            raise SpocError(f"Error during discovery: {e}") from e
+
+    def initialize(self) -> None:
+        """
+        Initialize modules in dependency order, firing startup hooks.
+
+        Raises:
+            CircularDependencyError: If there are circular dependencies.
+            SpocError: If initialization of any module fails.
+        """
+        try:
+            module_order = self._module_order()
+            logger.debug("Module initialization order: %s", module_order)
+            for module_name in module_order:
+                logger.debug("Initializing module: %s", module_name)
+                self._call_hook("startup", module_name)
+                self._module_cache[module_name].initialize()
+        except (CircularDependencyError, SpocError):
+            raise
+        except Exception as e:
+            raise SpocError(f"Error during startup: {e}") from e
+
     def startup(self) -> None:
         """
-        Register all declared components, then initialize modules in
-        dependency order.
-
-        Component discovery runs first across every module, so duplicate
-        identifiers and kind mismatches fail startup before any module's
-        initialization side effects run.
+        Discover declared components, then initialize modules in dependency
+        order. Equivalent to ``discover()`` followed by ``initialize()``.
 
         Raises:
             CircularDependencyError: If there are circular dependencies.
             SpocError: If discovery or initialization of any module fails.
         """
-        try:
-            self.on_startup()
-
-            module_order = self._dependency_graph.topological_sort()
-            logger.debug("Module initialization order: %s", module_order)
-
-            cached_order = [m for m in module_order if m in self._module_cache]
-            for module_name in cached_order:
-                self._register_components(module_name)
-
-            for module_name in cached_order:
-                logger.debug("Initializing module: %s", module_name)
-                self._call_hook("startup", module_name)
-                self._module_cache[module_name].initialize()
-
-        except (CircularDependencyError, SpocError):
-            raise
-        except Exception as e:
-            raise SpocError(f"Error during startup: {e}") from e
+        self.discover()
+        self.initialize()
 
     def shutdown(self) -> None:
         """
@@ -374,19 +413,15 @@ class Importer:
             SpocError: If teardown of any module fails.
         """
         try:
-            reversed_graph = self._dependency_graph.reversed()
-            module_order = reversed_graph.topological_sort()
-
-            for module_name in module_order:
-                if module_name in self._module_cache:
-                    info = self._module_cache[module_name]
-                    self._call_hook("shutdown", module_name)
-                    if info.initialized and info.has_teardown():
-                        info.teardown()
+            for module_name in reversed(self._module_order()):
+                info = self._module_cache[module_name]
+                self._call_hook("shutdown", module_name)
+                if info.initialized and info.has_teardown():
+                    info.teardown()
 
             self.on_shutdown()
 
-        except SpocError:
+        except (CircularDependencyError, SpocError):
             raise
         except Exception as e:
             raise SpocError(f"Error during shutdown: {e}") from e
@@ -416,7 +451,7 @@ class Importer:
                 del sys.modules[name]
 
         self._module_cache.clear()
-        self._dependency_graph = DependencyGraph[str]()
+        self._dependency_graph = {}
 
     def on_startup(self) -> None:
         """
