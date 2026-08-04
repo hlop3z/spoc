@@ -58,14 +58,14 @@
       template set and the not-executed guarantee
 - [x] 6.4 Confirm the template files are excluded from ruff and ty, and that excluding them
       does not hide the emitted project from the round-trip test
-- [ ] 6.5 Run the full `.canon/checks.md` suite and confirm CI passes
+- [x] 6.5 Run the full `.canon/checks.md` suite and confirm CI passes
 
 ## 7. Documentation
 
-- [ ] 7.1 Lead the getting-started path with `spoc init`; keep hand-assembly as the explanation
+- [x] 7.1 Lead the getting-started path with `spoc init`; keep hand-assembly as the explanation
       of what was generated, not as the first instruction
-- [ ] 7.2 Document adding a second app by hand, pointing at the generated app as the example —
+- [x] 7.2 Document adding a second app by hand, pointing at the generated app as the example —
       this is the DX the `add app` cut depends on being adequate
-- [ ] 7.3 Document how a downstream framework supplies its own template set
-- [ ] 7.4 Update the architecture diagram in `docs/architecture/` to show the scaffolder as a
+- [x] 7.3 Document how a downstream framework supplies its own template set
+- [x] 7.4 Update the architecture diagram in `docs/architecture/` to show the scaffolder as a
       surface over the core, with the inward-only dependency direction visible (Rule 1)
