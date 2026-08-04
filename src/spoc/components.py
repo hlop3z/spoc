@@ -2,28 +2,32 @@
 """
 components.py
 
-The declaration layer: decorators that mark objects as SPOC components.
+The declaration layer: markers that tag objects as SPOC components.
 
-Usage:
-    from spoc import Components
+:class:`Components` is **internal** — it is not exported from the package.
+Authors reach this layer through ``Framework.kind()``, which owns a
+``Components`` instance and returns its decorator per kind:
 
-    components = Components("models", "views")
+    import spoc
+
+    framework = spoc.Framework("models", "views")
+    model = framework.kind("models")
 
     # A PEP 8 class name is converted to its snake_case identifier:
-    @components.register("models")
+    @model
     class UserAccount:      # → user_account
         ...
 
     # An explicit name is used verbatim — validated, never converted:
-    @components.register("models", name="legacy_user")
+    @model(name="legacy_user")
     class UserAccount:
         ...
 
     # Instances have no intrinsic name, so a name is always required:
-    components.register("models", repo, name="post_repository")
+    model(repo, name="post_repository")
 
 Declaration attaches an :class:`Internal` marker; discovery (the importer)
-turns markers into registry records at startup. The kind set is closed at
+turns markers into registry records at start. The kind set is closed at
 construction — there is no way to add a kind at runtime.
 """
 
@@ -118,11 +122,8 @@ class Components:
     """
     A declared, closed set of component kinds and their register decorator.
 
-    Examples:
-        >>> components = Components("commands", "models")
-        >>> @components.register("commands")
-        ... def sync_users():
-        ...     ...
+    Internal: owned by :class:`~spoc.framework.Framework`, which exposes it
+    per kind through ``Framework.kind()``. Not exported from the package.
     """
 
     def __init__(self, *kinds: str) -> None:
