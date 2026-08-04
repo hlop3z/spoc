@@ -9,6 +9,12 @@ authors = [
 requires-python = ">=3.13"
 dependencies = []
 
+# The scaffolder ships in this distribution and needs nothing: every one of its
+# build-vs-adopt decisions landed on the standard library, so `dependencies`
+# above stays empty. The kernel imports nothing from `spoc.scaffold`.
+[project.scripts]
+spoc = "spoc.scaffold.cli:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
