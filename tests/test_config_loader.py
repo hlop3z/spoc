@@ -138,21 +138,16 @@ class TestConfigLoader:
         assert module.database["url"] == "postgresql://localhost/testdb"
         assert module.database["pool_size"] == 5
 
-    # def test_load_yaml_configuration(self):
-    #    """Test loading configuration from a YAML file."""
-    #    # This loader does not support YAML directly, so skip or adapt this test
-    #    pass
-
     def test_load_environment(self, config_files):
         """Test loading configuration from environment TOML files."""
         base_dir, _ = config_files
         config = load_environment(base_dir, "development")
         assert config["NAME"] == "env-app"
         assert config["DEBUG"] == "true"
-        # Test fallback to default
-        config_default = load_environment(base_dir, "production")
-        assert config_default["URL"] == "postgresql://localhost/envdb"
-        assert config_default["POOL_SIZE"] == "10"
+        # production.toml exists, so it is loaded directly (no fallback)
+        config_prod = load_environment(base_dir, "production")
+        assert config_prod["URL"] == "postgresql://localhost/envdb"
+        assert config_prod["POOL_SIZE"] == "10"
 
     def test_load_spoc_toml(self, config_files):
         """Test loading the spoc.toml configuration file."""
@@ -236,16 +231,22 @@ class TestConfigLoader:
             with pytest.raises(ConfigurationError):
                 load_configuration(base_dir)
 
-    def test_load_missing_environment(self, config_files):
-        """Test loading a missing environment file."""
+    def test_load_missing_environment_falls_back_to_default(self, config_files):
+        """A missing mode-specific file falls back to default.toml (echo off)."""
         base_dir, _ = config_files
 
-        # Load non-existent environment
         env = load_environment(base_dir, "nonexistent")
 
-        # Should return an empty object
-        assert not hasattr(env, "DATABASE_URL")
-        assert not hasattr(env, "DEBUG")
+        assert env == {
+            "NAME": "default-app",
+            "URL": "postgresql://localhost/defaultdb",
+        }
+
+    def test_load_environment_no_files(self, tmp_path):
+        """No mode-specific file and no default.toml yields an empty dict."""
+        (tmp_path / ".env").mkdir()
+
+        assert load_environment(tmp_path, "development") == {}
 
     def test_load_empty_environment(self, config_files):
         """Test loading an empty environment file."""
@@ -254,20 +255,16 @@ class TestConfigLoader:
         # Load empty environment
         env = load_environment(base_dir, "empty")
 
-        # Should return an empty object
-        assert not hasattr(env, "DATABASE_URL")
-        assert not hasattr(env, "DEBUG")
+        assert env == {}
 
     def test_load_invalid_environment(self, config_files):
-        """Test loading an invalid environment file."""
+        """Test loading an environment file with no values."""
         base_dir, _ = config_files
 
-        # Load invalid environment
+        # Load environment whose [env] table is empty
         env = load_environment(base_dir, "invalid")
 
-        # Should ignore invalid lines but still work
-        assert not hasattr(env, "KEY")
-        assert not hasattr(env, "ANOTHER_KEY")
+        assert env == {}
 
     @pytest.mark.parametrize(
         "mode,expected",
@@ -301,9 +298,6 @@ class TestConfigLoader:
         # Check that the values from the file are loaded
         assert env["API_KEY"] == "dev-key-1234"
 
-        # We could skip the test with a more informative message
-        # pytest.skip("Environment variable override is not implemented in load_environment")
-
     def test_nested_config_access(self, config_files):
         """Test accessing nested configuration via dictionary access."""
         base_dir, _ = config_files
@@ -334,5 +328,4 @@ class TestConfigLoader:
             # No .env directory exists
             env = load_environment(base_dir, "development")
 
-            # Should return an empty object
-            assert not hasattr(env, "API_KEY")
+            assert env == {}

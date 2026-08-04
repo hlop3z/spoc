@@ -161,23 +161,27 @@ def load_environment(
         base_dir: The project base directory
         mode: The current application mode (e.g., "development", "production")
         env_dir: Optional custom environment directory path
+        echo: Whether to log warnings about missing configuration files
 
     Returns:
-        Dictionary containing environment variables for the specified mode
+        Dictionary containing environment variables for the specified mode.
+        Falls back to ``default.toml`` when no mode-specific file exists.
     """
     # Determine the environment directory
     if not env_dir:
         env_dir = base_dir / "config" / ".env"
         if not env_dir.exists():
             env_dir = base_dir / ".env"
-            if not env_dir.exists() and echo:
-                logger.warning(
-                    "No .env directory found at %s/config/.env or %s/.env. "
-                    "Using empty environment configuration.",
-                    base_dir,
-                    base_dir,
-                )
-                return {}
+
+    if not env_dir.exists():
+        if echo:
+            logger.warning(
+                "No .env directory found at %s/config/.env or %s/.env. "
+                "Using empty environment configuration.",
+                base_dir,
+                base_dir,
+            )
+        return {}
 
     # Try to load mode-specific environment file
     env_file = env_dir / f"{mode}.toml"
@@ -186,12 +190,13 @@ def load_environment(
 
     # Fall back to default environment if mode-specific one doesn't exist
     default_env = env_dir / "default.toml"
-    if default_env.exists() and echo:
-        logger.warning(
-            "No environment configuration found for mode '%s'. "
-            "Falling back to default configuration.",
-            mode,
-        )
+    if default_env.exists():
+        if echo:
+            logger.warning(
+                "No environment configuration found for mode '%s'. "
+                "Falling back to default configuration.",
+                mode,
+            )
         return dict(TOML(default_env).read().get("env", {}))
 
     if echo:
