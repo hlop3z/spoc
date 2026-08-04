@@ -15,10 +15,14 @@ from spoc import Importer
 
 importer = Importer(kinds=("models",))          # closed kind set for its registry
 importer.register("blog.models", dependencies=["blog.utils"])
-importer.startup()      # discovery + initialize in dependency order
+importer.startup()      # discover() + initialize(), in dependency order
 ...
 importer.shutdown()     # teardown in reverse order
 ```
+
+`startup()` is the composite; `discover()` (components → registry) and
+`initialize()` (hooks + module `initialize()`) are separately callable — the
+framework calls them separately so `on_ready` can fire between the two.
 
 ## Module lifecycle
 

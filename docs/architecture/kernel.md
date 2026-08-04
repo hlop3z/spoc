@@ -1,8 +1,9 @@
 # SPOC — kernel architecture
 
-What **is**, as of v0.4.0. SPOC is a registry-first runtime kernel: apps
-declare components inward, surfaces project outward from the registry, and
-every dependency points at the kernel — never out of it.
+What **is**, as of the framework-object API. SPOC is a registry-first
+runtime kernel: one `Framework` object declares the kind set, apps declare
+components inward, surfaces project outward from the registry, and every
+dependency points at the kernel — never out of it.
 
 ## The shape
 
@@ -17,16 +18,17 @@ flowchart TB
 
     subgraph kernel ["SPOC kernel — zero runtime dependencies"]
         direction TB
-        framework["Framework<br/><i>composition root</i>"]
-        config["Config<br/>spoc.toml · settings · mode cascade"]
+        framework["Framework<br/><i>declaration + composition root</i><br/>kinds · kind() decorators · on_ready"]
+        config["Config<br/>spoc.toml only · mode cascade"]
         importer["Importer<br/>load · cache · lifecycle"]
         discovery["Discovery<br/>markers → records, loud failures"]
         registry[("Registry<br/>flat store of Component records<br/>kind : namespace . object_name")]
 
-        framework --> config
+        framework -- "start(base_dir)" --> config
         framework --> importer
         importer --> discovery
         discovery --> registry
+        registry -. "on_ready(registry)" .-> framework
     end
 
     subgraph apps ["Apps — the domain (apps/ directory)"]
@@ -36,7 +38,7 @@ flowchart TB
     end
 
     surfaces -- "enumerate · resolve<br/>(read-only, public API)" --> registry
-    apps -- "declare<br/>@components.register" --> discovery
+    apps -- "declare<br/>@model = framework.kind('models')" --> discovery
 ```
 
 ## The identifier
@@ -44,7 +46,7 @@ flowchart TB
 ```mermaid
 flowchart LR
     id["models : blog . post"]
-    kind["kind<br/>= module file name<br/>(closed set = Schema.modules)"]
+    kind["kind<br/>= module file name<br/>(closed set, declared on Framework)"]
     ns["namespace<br/>= app package name"]
     name["object_name<br/>= declared name"]
 

@@ -1,7 +1,7 @@
 # Quick Start
 
 Build a minimal SPOC project: one app, one kind, resolved through the
-registry.
+registry. There is one way to do this — declare, mark, start.
 
 ## Project layout
 
@@ -12,72 +12,57 @@ myproject/
 │       ├── __init__.py
 │       └── models.py        # objects here are kind "models"
 ├── config/
-│   ├── __init__.py
-│   ├── settings.py
-│   └── spoc.toml
-├── framework.py             # composition root
+│   └── spoc.toml            # the only file the kernel reads
+├── framework.py             # the whole framework definition
 └── main.py
 ```
 
 Layout **is** taxonomy: objects declared in `<app>/models.py` are components
-of kind `models`, and the app directory name is the namespace. The kinds are
-exactly `Schema.modules` — a closed set, fixed at composition time.
+of kind `models`, and the app directory name is the namespace.
 
-## 1. Configuration
+## 1. Declare the framework
+
+`framework.py` — the kind set is stated exactly once, here:
+
+```python
+import spoc
+
+framework = spoc.Framework("models")
+
+model = framework.kind("models")
+```
+
+That's the entire framework definition. `framework.kind()` returns a
+ready-made decorator; asking for an undeclared kind raises
+`UnknownKindError` naming the declared set.
+
+## 2. Configure
 
 `config/spoc.toml`:
 
 ```toml
 [spoc]
 mode = "development"
-debug = true
 
 [spoc.apps]
-production = []
-staging = []
-development = []
-
-[spoc.plugins]
+development = ["blog"]
 ```
 
-`config/settings.py`:
-
-```python
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-INSTALLED_APPS = ["blog"]
-PLUGINS: dict = {}
-```
-
-## 2. The composition root
-
-`framework.py`:
-
-```python
-from config import settings
-from spoc import Components, Framework, Schema
-
-# The declared, closed kind set — must match Schema.modules
-components = Components("models")
-
-SCHEMA = Schema(modules=["models"])
-
-framework = Framework(settings.BASE_DIR, SCHEMA)
-```
+Every key is optional — absent keys use defaults. No `settings.py` is
+needed; if you have one, it is yours and SPOC never reads it.
 
 ## 3. Declare components
 
 `apps/blog/models.py`:
 
 ```python
-from framework import components
+from framework import model
 
-@components.register("models")
+@model
 class post:                        # snake_case name → conforms as-is
     ...
 
-@components.register("models", name="comment_thread")
+@model(name="comment_thread")
 class CommentThread:               # PascalCase → explicit name required
     ...
 ```
@@ -87,12 +72,15 @@ class CommentThread:               # PascalCase → explicit name required
     `CommentThread` registered without `name=` raises
     `InvalidSegmentError` — SPOC never silently renames anything.
 
-## 4. Use the registry
+## 4. Start and use the registry
 
 `main.py`:
 
 ```python
+from pathlib import Path
 from framework import framework
+
+framework.start(Path(__file__).resolve().parent)
 
 # Resolve one component by canonical identifier
 record = framework.resolve("models:blog.post")
@@ -112,6 +100,9 @@ framework.registry.by_namespace("blog")
 
 framework.shutdown()
 ```
+
+Construction is inert — nothing happens until `start(base_dir)`. Starting
+twice raises; `shutdown()` before `start()` is a harmless no-op.
 
 ## Precise failures
 
@@ -153,5 +144,5 @@ including a FastAPI projection.
 ## Next steps
 
 - [Configuration](configuration.md) — modes, environments, and the app cascade
-- [Framework](../core/framework.md) — the composition root in detail
+- [Framework](../core/framework.md) — declaration and lifecycle in detail
 - [Components](../core/components.md) — declaration rules and the identifier grammar

@@ -117,7 +117,7 @@ spoc
 You can also verify the installation by checking the available modules:
 
 ```python
->>> from spoc import Framework, Schema
+>>> from spoc import Framework
 >>> from spoc.components import component
 >>> print("SPOC is ready to use!")
 SPOC is ready to use!

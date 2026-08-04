@@ -46,18 +46,16 @@ pip install spoc
 
 ```python
 from pathlib import Path
-from spoc import Components, Framework, Schema
+import spoc
 
-components = Components("models")          # the closed kind set
+framework = spoc.Framework("models")       # the closed kind set, declared once
+model = framework.kind("models")           # a ready-made decorator
 
-@components.register("models")
+@model
 class post:                                # declared in apps/blog/models.py
     ...
 
-framework = Framework(
-    base_dir=Path(__file__).parent,
-    schema=Schema(modules=["models"]),
-)
+framework.start(Path(__file__).parent)     # construction is inert; start boots
 
 record = framework.resolve("models:blog.post")
 print(record.identifier, record.object)

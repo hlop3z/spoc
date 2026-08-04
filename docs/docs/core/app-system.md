@@ -19,16 +19,16 @@ myproject/
 │       ├── models.py
 │       └── views.py
 └── config/
-    ├── settings.py
     └── spoc.toml
 ```
 
-`inject_apps` (called by the framework) puts `apps/` on the import path, so
-apps import as top-level packages: `blog.models`, `shop.views`.
+`start(base_dir)` puts `apps/` on the import path, so apps import as
+top-level packages: `blog.models`, `shop.views`.
 
-The module files each app must provide are `Schema.modules` — which is also
-the project's closed kind set. In `strict` mode a missing module file is a
-startup error; in `loose` mode it is skipped.
+The module files each app must provide are the framework's declared kinds —
+`spoc.Framework("models", "views")` means every app has `models.py` and
+`views.py`. In `strict` mode a missing module file is a startup error; in
+`loose` mode it is skipped.
 
 !!! note "Namespace rules"
     The app directory name becomes an identifier segment, so it must be
@@ -37,10 +37,7 @@ startup error; in `loose` mode it is skipped.
 
 ## Selecting apps
 
-Two sources merge, in order:
-
-1. **`INSTALLED_APPS`** in `settings.py` — loaded in every mode, first
-2. **`[spoc.apps]`** in `spoc.toml` — per-mode, with the cascade
+Apps are declared per mode in `[spoc.apps]` — the only source:
 
 ```toml
 [spoc]
@@ -52,7 +49,7 @@ staging     = ["reports"]
 development = ["sandbox"]
 ```
 
-| mode | apps loaded (after INSTALLED_APPS) |
+| mode | apps loaded |
 | --- | --- |
 | `production` | auth |
 | `staging` | reports, auth |
@@ -77,11 +74,12 @@ branching anywhere.
 
 ## Dependencies between modules
 
-`Schema.dependencies` orders module loading *within* every app:
+The framework's `dependencies` declaration orders module loading *within*
+every app:
 
 ```python
-Schema(
-    modules=["models", "views"],
+spoc.Framework(
+    "models", "views",
     dependencies={"views": ["models"]},   # views load after models
 )
 ```

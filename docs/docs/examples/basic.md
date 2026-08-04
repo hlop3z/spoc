@@ -12,46 +12,27 @@ examples/
 │   ├── auth/       models.py            (production app)
 │   ├── another/    models.py, views.py  (staging app)
 │   ├── other/      models.py, views.py  (development app)
-│   └── demo/       models.py, views.py  (INSTALLED_APPS)
+│   └── demo/       models.py, views.py  (development app)
 ├── config/
-│   ├── settings.py
-│   └── spoc.toml
+│   ├── spoc.toml        # the only file the kernel reads
+│   └── settings.py      # user-owned; SPOC never imports it
 ├── framework/
-│   └── framework.py     # composition root
+│   └── framework.py     # the whole framework definition
 ├── main.py
 └── http_app.py          # routes generated from the registry
 ```
 
-## Composition root
+## The framework definition
 
-`framework/framework.py`:
+`framework/framework.py` — the entire thing:
 
 ```python
-import functools
-from typing import Any
+import spoc
 
-from config import settings
-from spoc import Components, Framework, Hook, Schema
+framework = spoc.Framework("models", "views", dependencies={"views": ["models"]})
 
-components = Components("models", "views")
-
-def model(obj: Any = None, *, name: str | None = None):
-    """Model decorator. Pass name= when the class name isn't snake_case."""
-    if obj is None:
-        return functools.partial(model, name=name)
-    return components.register("models", obj, name=name)
-
-def view(obj: Any = None, *, name: str | None = None):
-    if obj is None:
-        return functools.partial(view, name=name)
-    return components.register("views", obj, name=name)
-
-SCHEMA = Schema(
-    modules=["models", "views"],
-    dependencies={"views": ["models"]},
-)
-
-framework = Framework(settings.BASE_DIR, SCHEMA, mode="strict")
+model = framework.kind("models")
+view = framework.kind("views")
 ```
 
 ## Declaring components
@@ -79,23 +60,36 @@ def list_posts():
     return {"posts": []}
 ```
 
-## Resolving
+## Starting and resolving
 
 `main.py`:
 
 ```python
+from pathlib import Path
 from framework.framework import framework
+
+BASE_DIR = Path(__file__).resolve().parent
+
+@framework.on_ready
+def announce(registry):
+    print(f"Ready: {len(registry)} components registered")
+
+framework.start(BASE_DIR)
 
 record = framework.resolve("models:auth.user_account")
 print(record.identifier, "->", record.object)
 
 for component in framework.registry:
     print(" -", component.identifier)
+
+framework.shutdown()
 ```
 
 Output:
 
 ```
+Ready: 7 components registered
+Installed apps: ['demo', 'other', 'another', 'auth']
 models:auth.user_account -> <class 'auth.models.UserAccount'>
  - models:auth.role
  - models:auth.user_account
@@ -108,10 +102,16 @@ models:auth.user_account -> <class 'auth.models.UserAccount'>
 
 ## Projecting an HTTP surface
 
-`http_app.py` builds its routes **purely by enumerating the registry** — no
-kernel internals involved:
+`http_app.py` starts the framework, then builds its routes **purely by
+enumerating the registry** — no kernel internals involved:
 
 ```python
+from pathlib import Path
+from framework.framework import framework
+
+if not framework.started:
+    framework.start(Path(__file__).resolve().parent)
+
 def build_routes(registry):
     return [
         {
