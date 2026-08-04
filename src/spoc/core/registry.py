@@ -1,14 +1,19 @@
 """
 The component registry — the kernel's single flat store.
 
-All registered components live in one enumerable collection of
-:class:`Component` records, keyed by canonical identifier. Kind and namespace
-are queryable facets of that one collection; every grouped view is derived,
-never maintained as independent state.
+All registered components live in one enumerable collection of :class:`Component`
+records, keyed by canonical identifier. Kind and namespace are queryable *facets* of that
+one collection: every grouped view is derived on read, never maintained as independent
+state that could drift.
 
-The registry describes — it never executes. Resolution is a pure lookup that
-fails per segment with a precise error; it never calls, constructs, or
-otherwise invokes what it returns.
+The registry describes; it never executes. Resolution is a pure lookup that returns the
+object uninvoked, and that fails per segment — kind, then namespace, then object_name —
+so a typo is reported against the step that could not match it rather than as a blanket
+"not found".
+
+Nothing here imports the module loader or touches the filesystem. The registry is
+constructed from a declaration and populated by discovery; it has no opinion about where
+components came from.
 """
 
 from __future__ import annotations
@@ -23,43 +28,25 @@ from .exceptions import (
     UnknownNamespaceError,
     UnknownObjectError,
 )
-from .identifier import compose, parse, validate_segment
+from .identity import compose, parse, validate_segment
 
 
 @dataclass(frozen=True)
 class Component:
-    """
-    One registry record — the unit of enumeration and projection.
-
-    A record carries everything an external surface needs to build a
-    projection (routes, schemas, docs) by reading it alone: the canonical
-    identifier, its three segments individually, the registered object, and
-    the configuration and metadata supplied at registration.
-    """
+    """One registry record — the unit of enumeration and projection."""
 
     identifier: str
     kind: str
     namespace: str
     name: str
     object: Any
-    config: dict[str, Any] = field(default_factory=dict)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: Any = field(default=None)
 
 
 class Registry:
-    """
-    Single flat store of component records with faceted, deterministic reads.
-
-    The kind set is closed at construction time — registering under an
-    unknown kind raises; there is no API to extend the set at runtime.
-    """
+    """Flat store of component records with faceted, deterministic reads."""
 
     def __init__(self, kinds: tuple[str, ...] = ()) -> None:
-        """
-        Args:
-            kinds: The declared (closed) kind set, fixed at composition time.
-                Each kind must conform to the segment grammar.
-        """
         self._kinds: tuple[str, ...] = tuple(validate_segment("kind", k) for k in kinds)
         self._store: dict[str, Component] = {}
 
@@ -74,17 +61,9 @@ class Registry:
         namespace: str,
         name: str,
         obj: Any,
-        config: dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: Any = None,
     ) -> Component:
-        """
-        Register an object, building its record and canonical identifier.
-
-        Raises:
-            UnknownKindError: If ``kind`` is not in the declared set.
-            InvalidSegmentError: If any segment violates the grammar.
-            DuplicateComponentError: If the identifier is already registered.
-        """
+        """Register an object, building its record and canonical identifier."""
         if kind not in self._kinds:
             raise UnknownKindError(kind, self._kinds)
         identifier = compose(kind, namespace, name)
@@ -99,8 +78,7 @@ class Registry:
             namespace=namespace,
             name=name,
             object=obj,
-            config=dict(config or {}),
-            metadata=dict(metadata or {}),
+            metadata=metadata,
         )
         self._store[identifier] = record
         return record
@@ -138,21 +116,7 @@ class Registry:
     # ── Resolution: pure lookup, per-segment precise failure ──────────────
 
     def resolve(self, identifier: str) -> Component:
-        """
-        Resolve a canonical identifier to its record.
-
-        Checks proceed in the fixed order kind → namespace → object_name;
-        each step raises a dedicated error naming the failing segment, its
-        value, and the candidates valid at that step. The resolved object is
-        returned unexecuted — invocation is the caller's responsibility.
-
-        Raises:
-            MalformedIdentifierError: If the string doesn't parse.
-            InvalidSegmentError: If a segment violates the grammar.
-            UnknownKindError: If the kind is not declared.
-            UnknownNamespaceError: If no such namespace holds that kind.
-            UnknownObjectError: If the name is absent in kind:namespace.
-        """
+        """Resolve a canonical identifier to its record, failing per segment."""
         parsed = parse(identifier)
 
         if parsed.kind not in self._kinds:

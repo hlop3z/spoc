@@ -1,13 +1,20 @@
 """
-Tests for the canonical identifier grammar (spec: object-identity).
+Tests for canonical identity (spec: object-identity).
 
-Validation rejects — it never normalizes.
+Validation rejects — it never normalizes. Conversion is a separate step that applies only
+to names the kernel *derives*, never to names the author *states*.
 """
 
 import pytest
 
 from spoc.core.exceptions import InvalidSegmentError, MalformedIdentifierError
-from spoc.core.identifier import Identifier, compose, parse, validate_segment
+from spoc.core.identity import (
+    Identifier,
+    compose,
+    parse,
+    to_snake_case,
+    validate_segment,
+)
 
 
 class TestSegmentValidation:
@@ -35,7 +42,6 @@ class TestSegmentValidation:
     def test_nonconforming_segments_rejected(self, value):
         with pytest.raises(InvalidSegmentError) as exc:
             validate_segment("object_name", value)
-        # The error names the segment and the offending value
         assert "object_name" in str(exc.value)
         assert repr(value) in str(exc.value)
 
@@ -43,6 +49,37 @@ class TestSegmentValidation:
         """A value that would conform after case-folding still fails."""
         with pytest.raises(InvalidSegmentError):
             validate_segment("kind", "Models")
+
+
+class TestSnakeCaseDerivation:
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("Post", "post"),
+            ("MyService", "my_service"),
+            ("UserAccount", "user_account"),
+            ("CommentThread", "comment_thread"),
+            ("HTTPServer", "http_server"),
+            ("Post2", "post2"),
+            ("already_snake", "already_snake"),
+            ("kebab-case-name", "kebab_case_name"),
+            ("camelCaseName", "camel_case_name"),
+            ("__dunder__", "dunder"),
+        ],
+    )
+    def test_conversion(self, value, expected):
+        assert to_snake_case(value) == expected
+
+    def test_acronym_boundary_is_not_collapsed(self):
+        """Without the acronym rule, HTTPServer would become 'httpserver'."""
+        assert to_snake_case("HTTPServer") == "http_server"
+        assert to_snake_case("parseHTTPResponse") == "parse_http_response"
+
+    def test_conversion_feeds_validation_not_replaces_it(self):
+        """Conversion is not a guess — a leading digit still fails validation."""
+        assert to_snake_case("2Cool") == "2_cool"
+        with pytest.raises(InvalidSegmentError):
+            validate_segment("object_name", to_snake_case("2Cool"))
 
 
 class TestParse:

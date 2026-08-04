@@ -1,37 +1,45 @@
 """
-Framework tests: single declaration point, kind() handles, inert
-construction, explicit start/shutdown, on_ready, and instance-scoped
-composition (no globals).
+Framework tests: single declaration point, kind() handles, inert construction, explicit
+start/shutdown, on_ready, per-kind optionality, and instance-scoped composition (no
+globals).
 """
 
 import sys
 import textwrap
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
 import spoc
-from spoc import Framework
+from spoc import Framework, KindSpec
+from spoc.core.declaration import get_info
 from spoc.core.exceptions import (
     AppNotFoundError,
     ComponentKindMismatchError,
     InvalidSegmentError,
+    MetadataContractError,
+    MissingModuleError,
     SpocError,
     UnknownKindError,
     UnknownNamespaceError,
 )
 
 MODELS_BODY = """
-    from spoc import component
+    from spoc.core.declaration import component
 
-    @component(metadata={"type": "models"})
+    @component(kind="models")
     class Post:
         ...
 """
 
 
 def make_project(
-    tmp_path: Path, app: str, models_body: str = MODELS_BODY, extra_toml: str = ""
+    tmp_path: Path,
+    app: str,
+    models_body: str = MODELS_BODY,
+    extra_toml: str = "",
+    extra_modules: dict[str, str] | None = None,
 ) -> Path:
     """Build a minimal SPOC project with one app on disk. No settings.py."""
     base = tmp_path / f"proj_{app}"
@@ -53,6 +61,8 @@ def make_project(
     app_dir.mkdir(parents=True)
     (app_dir / "__init__.py").write_text("")
     (app_dir / "models.py").write_text(textwrap.dedent(models_body))
+    for name, body in (extra_modules or {}).items():
+        (app_dir / f"{name}.py").write_text(textwrap.dedent(body))
     return base
 
 
@@ -80,11 +90,11 @@ def test_kind_handle_bare_and_named_forms():
     @model(name="legacy_user")
     class UserAccount: ...  # explicit → verbatim
 
-    thread_info = spoc.get_info(CommentThread)
-    account_info = spoc.get_info(UserAccount)
+    thread_info = get_info(CommentThread)
+    account_info = get_info(UserAccount)
     assert thread_info is not None and account_info is not None
     assert thread_info.name == "comment_thread"
-    assert thread_info.metadata["type"] == "models"
+    assert thread_info.kind == "models"
     assert account_info.name == "legacy_user"
 
 
@@ -109,15 +119,22 @@ def test_kind_handle_for_undeclared_kind():
 
 def test_dependencies_must_reference_declared_kinds():
     with pytest.raises(UnknownKindError):
-        Framework("models", dependencies={"views": ["models"]})
+        Framework(KindSpec("views", depends_on=("models",)))
     with pytest.raises(UnknownKindError):
-        Framework("models", "views", dependencies={"views": ["schemas"]})
+        Framework("models", KindSpec("views", depends_on=("schemas",)))
+
+
+def test_bare_and_spec_forms_mix_in_one_declaration():
+    fw = Framework("models", KindSpec("views", depends_on=("models",), required=False))
+    assert fw.kinds == ("models", "views")
+    assert fw.spec("models") == KindSpec("models")
+    assert fw.spec("views").required is False
 
 
 def test_construction_is_inert(tmp_path):
     """No sys.path mutation, no filesystem writes, in an empty directory."""
     path_before = list(sys.path)
-    fw = Framework("models", "views", dependencies={"views": ["models"]})
+    fw = Framework("models", KindSpec("views", depends_on=("models",)))
     assert sys.path == path_before
     assert list(tmp_path.iterdir()) == []
     assert fw.started is False
@@ -131,13 +148,13 @@ def test_start_discovers_and_resolve_works(tmp_path):
         tmp_path,
         "blog",
         """
-        from spoc import component
+        from spoc.core.declaration import component
 
-        @component(metadata={"type": "models"})
+        @component(kind="models")
         class Post:
             ...
 
-        @component(metadata={"type": "models"})
+        @component(kind="models")
         class CommentThread:
             ...
         """,
@@ -183,9 +200,9 @@ def test_kind_location_mismatch_fails_start(tmp_path):
         tmp_path,
         "mismatch",
         """
-        from spoc import component
+        from spoc.core.declaration import component
 
-        @component(metadata={"type": "views"})
+        @component(kind="views")
         def list_posts():
             ...
         """,
@@ -233,6 +250,124 @@ def test_handles_taken_before_start(tmp_path):
 
     fwdef.framework.start(base)
     assert [c.identifier for c in fwdef.framework.registry] == ["models:handleapp.post"]
+
+
+def test_kind_dependency_order_across_modules(tmp_path):
+    base = make_project(
+        tmp_path,
+        "ordered",
+        MODELS_BODY
+        + """
+    def initialize():
+        import fwtrace
+        fwtrace.events.append("models")
+    """,
+        extra_modules={
+            "views": (
+                "def initialize():\n"
+                "    import fwtrace\n"
+                '    fwtrace.events.append("views")\n'
+            )
+        },
+    )
+    (base / "apps" / "fwtrace.py").write_text("events = []\n")
+    sys.path.insert(0, str(base / "apps"))
+    import fwtrace
+
+    Framework("models", KindSpec("views", depends_on=("models",))).start(base)
+    assert fwtrace.events == ["models", "views"]
+
+
+# ── Per-kind optionality ──────────────────────────────────────────────────
+
+
+def test_missing_required_module_fails_start(tmp_path):
+    base = make_project(tmp_path, "reqapp")
+    fw = Framework("models", "views")
+    with pytest.raises(MissingModuleError) as exc:
+        fw.start(base)
+    message = str(exc.value)
+    assert "reqapp" in message and "views" in message
+    assert fw.started is False
+
+
+def test_missing_optional_module_is_skipped(tmp_path):
+    base = make_project(tmp_path, "optapp")
+    fw = Framework("models", KindSpec("views", required=False)).start(base)
+    assert fw.started is True
+    assert [c.identifier for c in fw.registry] == ["models:optapp.post"]
+    assert fw.registry.by_kind("views") == []
+
+
+def test_optionality_does_not_leak_between_kinds(tmp_path):
+    """One optional kind must not weaken the guarantee for a required one."""
+    base = make_project(tmp_path, "mixedapp", models_body="")
+    (base / "apps" / "mixedapp" / "models.py").unlink()
+    fw = Framework(KindSpec("views", required=False), "models")
+    with pytest.raises(MissingModuleError) as exc:
+        fw.start(base)
+    message = str(exc.value)
+    assert "models" in message
+    assert "views" not in message
+
+
+def test_broken_optional_module_is_still_an_error(tmp_path):
+    """Absent and broken are different: a module that exists must import."""
+    base = make_project(
+        tmp_path,
+        "brokenapp",
+        extra_modules={"views": "import no_such_dependency\n"},
+    )
+    fw = Framework("models", KindSpec("views", required=False))
+    with pytest.raises(ModuleNotFoundError) as exc:
+        fw.start(base)
+    assert exc.value.name == "no_such_dependency"
+
+
+def test_required_is_the_default(tmp_path):
+    assert KindSpec("views").required is True
+    base = make_project(tmp_path, "defapp")
+    with pytest.raises(MissingModuleError):
+        Framework("models", "views").start(base)
+
+
+# ── Typed per-kind metadata ───────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class ModelMeta:
+    table: str
+
+
+def test_declared_metadata_reaches_the_record(tmp_path):
+    base = make_project(
+        tmp_path,
+        "metaapp",
+        """
+        from dataclasses import dataclass
+        from spoc.core.declaration import component
+
+        @dataclass(frozen=True)
+        class ModelMeta:
+            table: str
+
+        @component(kind="models", meta=ModelMeta(table="posts"))
+        class Post:
+            ...
+        """,
+    )
+    fw = Framework(KindSpec("models", metadata=ModelMeta)).start(base)
+    record = fw.resolve("models:metaapp.post")
+    assert record.metadata.table == "posts"
+
+
+def test_metadata_violating_the_contract_is_rejected():
+    fw = Framework(KindSpec("models", metadata=ModelMeta))
+    model = fw.kind("models")
+    with pytest.raises(MetadataContractError):
+
+        @model(meta={"table": "posts"})
+        class Post: ...
 
 
 # ── on_ready ──────────────────────────────────────────────────────────────
@@ -296,34 +431,33 @@ def test_on_ready_runs_before_module_initialization(tmp_path):
     assert fwprobe.events == ["ready", "initialize"]
 
 
-# ── Per-kind lifecycle hooks ──────────────────────────────────────────────
+# ── Per-kind lifecycle hooks (declared on the KindSpec) ───────────────────
 
 
-def test_on_startup_and_on_shutdown_hooks_receive_components(tmp_path):
+def test_hooks_receive_components_and_fire_in_order(tmp_path):
     base = make_project(tmp_path, "hookapp")
-    fw = Framework("models")
-    seen: list[tuple[str, set]] = []
+    seen: list[tuple[str, int]] = []
 
-    @fw.on_startup("models")
-    def up(objects):
-        seen.append(("up", {type(o).__name__ or o.__name__ for o in objects}))
-
-    @fw.on_shutdown("models")
-    def down(objects):
-        seen.append(("down", set()))
-
+    fw = Framework(
+        KindSpec(
+            "models",
+            on_startup=lambda objects: seen.append(("up", len(objects))),
+            on_shutdown=lambda objects: seen.append(("down", len(objects))),
+        )
+    )
     fw.start(base)
     fw.shutdown()
+
     assert [tag for tag, _ in seen] == ["up", "down"]
+    assert seen[0][1] == 1  # the one discovered Post
     assert fw.started is False
 
 
-def test_hooks_for_undeclared_kind_fail():
+def test_hooks_are_a_kind_attribute_not_a_second_surface():
+    """Every per-kind attribute rides the KindSpec — there is no decorator form."""
     fw = Framework("models")
-    with pytest.raises(UnknownKindError):
-        fw.on_startup("views")
-    with pytest.raises(UnknownKindError):
-        fw.on_shutdown("views")
+    assert not hasattr(fw, "on_startup")
+    assert not hasattr(fw, "on_shutdown")
 
 
 # ── Configuration behavior through start ──────────────────────────────────
@@ -374,9 +508,9 @@ def test_two_frameworks_are_independent(tmp_path):
         tmp_path,
         "alpha",
         """
-        from spoc import component
+        from spoc.core.declaration import component
 
-        @component(metadata={"type": "models"})
+        @component(kind="models")
         class Post:
             ...
         """,
@@ -385,28 +519,26 @@ def test_two_frameworks_are_independent(tmp_path):
         tmp_path,
         "beta",
         """
-        from spoc import component
+        from spoc.core.declaration import component
 
-        @component(metadata={"type": "models"})
+        @component(kind="models")
         class Order:
             ...
         """,
     )
     hooks_seen: list[str] = []
     fw_a = Framework("models")
-    fw_b = Framework("models")
-    fw_b.on_startup("models")(lambda objects: hooks_seen.append("b"))
+    fw_b = Framework(KindSpec("models", on_startup=lambda o: hooks_seen.append("b")))
 
     fw_a.start(base_a)
     fw_b.start(base_b)
 
     assert [c.identifier for c in fw_a.registry] == ["models:alpha.post"]
     assert [c.identifier for c in fw_b.registry] == ["models:beta.order"]
-    assert fw_a.importer is not fw_b.importer
+    assert fw_a.loader is not fw_b.loader
     assert fw_a.registry is not fw_b.registry
-    # fw_b's hook ran for fw_b only; fw_a's importer never saw it
+    # fw_b's hook ran for fw_b only
     assert hooks_seen == ["b"]
-    assert not fw_a.importer.module_hooks.pattern
     with pytest.raises(UnknownNamespaceError):
         fw_a.resolve("models:beta.order")
 
@@ -419,8 +551,20 @@ def test_removed_api_is_absent():
         "Hook",
         "load_configuration",
         "DependencyGraph",
+        "Importer",
+        "component",
+        "case_style",
+        "inject_apps",
     ):
         assert not hasattr(spoc, gone), gone
     fw = Framework("models")
     assert not hasattr(fw, "get_component")
+    assert not hasattr(fw, "importer")
     assert not hasattr(type(fw), "components")
+
+
+def test_framework_wide_strict_loose_switch_is_gone():
+    """Optionality is per kind; the global switch was deleted, not deprecated."""
+    with pytest.raises(TypeError):
+        Framework("models", mode="loose")  # ty: ignore[unknown-argument]
+    assert not hasattr(Framework("models"), "mode")

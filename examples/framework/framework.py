@@ -2,7 +2,7 @@
 
 import spoc
 
-framework = spoc.Framework("models", "views", dependencies={"views": ["models"]})
+framework = spoc.Framework("models", spoc.KindSpec("views", depends_on=("models",)))
 
 model = framework.kind("models")
 view = framework.kind("views")

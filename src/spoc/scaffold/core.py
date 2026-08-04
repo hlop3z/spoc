@@ -14,7 +14,7 @@ rendering.
 
 from string import Template
 
-from ..core.identifier import validate_segment
+from ..core.identity import validate_segment
 from .errors import (
     IncompleteTemplateSetError,
     PathConflictError,

@@ -1,18 +1,19 @@
 """
 SPOC — a registry-first runtime kernel for modular monolithic applications.
 
-Declare a framework once — its kinds, dependencies, and hooks — on one
-``Framework`` object, then ``start(base_dir)``. SPOC discovers apps, loads
-their modules in dependency order, manages lifecycle, and registers every
-declared object in one flat registry under a canonical identifier:
-``kind:namespace.object_name``. External surfaces (HTTP, CLI, workers) are
-built on top by enumerating the registry — the kernel describes, it never
+Declare a framework once — its kinds and their attributes — on one ``Framework`` object,
+then ``start(base_dir)``. SPOC discovers apps, loads their modules in dependency order,
+manages lifecycle, and registers every declared object in one flat registry under a
+canonical identifier: ``kind:namespace.object_name``. External surfaces (HTTP, CLI,
+workers) are built on top by enumerating the registry — the kernel describes, it never
 executes.
+
+What follows is the whole public surface. The declaration layer, the module loader, and
+the configuration adapter are reachable under ``spoc.core`` for anyone extending the
+kernel, but they are not part of what a framework author needs.
 """
 
-from .case_style import case_style
-from .components import Internal, component, get_info, is_spoc
-from .core.config_loader import load_environment, load_spoc_toml
+from .core.declaration import KindSpec
 from .core.exceptions import (
     AppNotFoundError,
     CircularDependencyError,
@@ -21,22 +22,22 @@ from .core.exceptions import (
     DuplicateComponentError,
     InvalidSegmentError,
     MalformedIdentifierError,
+    MetadataContractError,
+    MissingModuleError,
     MissingNameError,
-    ModuleNotCachedError,
     SpocError,
     UnknownKindError,
     UnknownNamespaceError,
     UnknownObjectError,
 )
-from .core.identifier import Identifier, compose, parse
-from .core.importer import Importer
+from .core.identity import Identifier, compose, parse
 from .core.registry import Component, Registry
 from .framework import Config, Framework
-from .inject_apps import inject_apps
 
 __all__ = [
-    # Framework
+    # Declaration
     "Framework",
+    "KindSpec",
     "Config",
     # Registry
     "Registry",
@@ -45,17 +46,10 @@ __all__ = [
     "Identifier",
     "parse",
     "compose",
-    # Declaration markers
-    "Internal",
-    "component",
-    "get_info",
-    "is_spoc",
-    # Core importer
-    "Importer",
     # Exceptions
     "SpocError",
     "AppNotFoundError",
-    "ModuleNotCachedError",
+    "MissingModuleError",
     "CircularDependencyError",
     "ConfigurationError",
     "MalformedIdentifierError",
@@ -66,10 +60,5 @@ __all__ = [
     "DuplicateComponentError",
     "ComponentKindMismatchError",
     "MissingNameError",
-    # Config loaders
-    "load_environment",
-    "load_spoc_toml",
-    # Utilities
-    "inject_apps",
-    "case_style",
+    "MetadataContractError",
 ]

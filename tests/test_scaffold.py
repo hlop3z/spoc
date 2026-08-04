@@ -244,7 +244,7 @@ def test_core_imports_nothing_beyond_stdlib_and_kernel():
         if line.startswith(("import ", "from ")):
             assert "spoc.scaffold" not in line or line.startswith("from ."), line
     # The only non-stdlib import is the kernel's own grammar.
-    assert "from ..core.identifier import validate_segment" in source
+    assert "from ..core.identity import validate_segment" in source
 
 
 def test_published_dependencies_stay_empty():

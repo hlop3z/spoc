@@ -1,23 +1,25 @@
 """
-Canonical component identifier grammar.
+Canonical component identity: the grammar, and the one conversion that feeds it.
 
 Every registered object is identified by exactly one canonical identifier:
 
     kind:namespace.object_name
 
-Each segment is lowercase snake_case (``^[a-z][a-z0-9_]*$``). This module is
-the only place the grammar is defined or validated — everything else calls
-:func:`parse` and :func:`compose`.
+Each segment is lowercase snake_case (``^[a-z][a-z0-9_]*$``). This module is the only
+place the grammar is defined or validated — everything else calls :func:`parse` and
+:func:`compose`.
 
-This module validates; it never converts. A segment reaching it must already
-conform — deriving a conforming name from an object's own name (snake_case
-conversion) happens one layer up, in the declaration layer, and the result is
-validated here like any other value.
+Validation and conversion are deliberately separate, and the split is by *origin*, not by
+value. A name the author **states** is used verbatim and validated; a name the kernel
+**derives** from an object is converted to snake_case by :func:`to_snake_case` first, then
+validated like any other value. So a PEP 8 class name yields the conventional segment
+without the author restating it, while a stated name is never silently rewritten.
 """
 
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import Final, NamedTuple
 
 from .exceptions import InvalidSegmentError, MalformedIdentifierError
@@ -29,6 +31,19 @@ SEGMENT_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[a-z][a-z0-9_]*$")
 GRAMMAR: Final[str] = "kind:namespace.object_name (each segment ^[a-z][a-z0-9_]*$)"
 
 _SEGMENT_NAMES: Final[tuple[str, str, str]] = ("kind", "namespace", "object_name")
+
+#: Word boundaries inside a camel/Pascal name. Two rules, both needed: a lower/digit→upper
+#: transition (``userAccount`` → ``user|Account``), and the tail of an acronym before a
+#: capitalized word (``HTTPServer`` → ``HTTP|Server``). Without the second, acronyms
+#: collapse into ``httpserver``.
+_CAMEL_BOUNDARY: Final[re.Pattern[str]] = re.compile(
+    r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])"
+)
+_SEPARATORS: Final[re.Pattern[str]] = re.compile(r"[_\-]+")
+
+#: Bounded so converting attacker- or user-supplied strings cannot grow the cache without
+#: limit. Declaration-time names are far below this.
+_CACHE_SIZE: Final[int] = 2048
 
 
 class Identifier(NamedTuple):
@@ -42,34 +57,23 @@ class Identifier(NamedTuple):
         return f"{self.kind}:{self.namespace}.{self.name}"
 
 
+@lru_cache(maxsize=_CACHE_SIZE)
+def to_snake_case(value: str) -> str:
+    """Convert any case style to snake_case. Used for derived names only."""
+    spaced = _CAMEL_BOUNDARY.sub("_", value)
+    words = [w for w in _SEPARATORS.sub("_", spaced).lower().split("_") if w]
+    return "_".join(words)
+
+
 def validate_segment(segment_name: str, value: str) -> str:
-    """
-    Validate a single identifier segment against the grammar.
-
-    Args:
-        segment_name: Which segment this is (``kind`` / ``namespace`` /
-            ``object_name``) — used in the error, never to alter behavior.
-        value: The candidate segment value.
-
-    Returns:
-        The value, unchanged, if it conforms.
-
-    Raises:
-        InvalidSegmentError: If the value violates the grammar. The value is
-            never transformed to make it conform.
-    """
+    """Return `value` unchanged if it conforms to the segment grammar, else raise."""
     if not isinstance(value, str) or not SEGMENT_PATTERN.match(value):
         raise InvalidSegmentError(segment_name, value)
     return value
 
 
 def compose(kind: str, namespace: str, name: str) -> str:
-    """
-    Compose a canonical identifier from validated segments.
-
-    Raises:
-        InvalidSegmentError: If any segment violates the grammar.
-    """
+    """Compose a canonical identifier from three segments, validating each."""
     validate_segment("kind", kind)
     validate_segment("namespace", namespace)
     validate_segment("object_name", name)
@@ -77,17 +81,7 @@ def compose(kind: str, namespace: str, name: str) -> str:
 
 
 def parse(identifier: str) -> Identifier:
-    """
-    Parse a canonical identifier string into its three segments.
-
-    The grammar has exactly three segments — an operation suffix (a fourth
-    segment) is malformed by design.
-
-    Raises:
-        MalformedIdentifierError: If the string does not have the
-            ``kind:namespace.object_name`` shape.
-        InvalidSegmentError: If a segment violates the segment grammar.
-    """
+    """Parse a canonical identifier into its three segments."""
     if not isinstance(identifier, str):
         raise MalformedIdentifierError(repr(identifier), "identifier must be a string")
 

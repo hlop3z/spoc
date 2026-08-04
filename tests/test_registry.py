@@ -19,7 +19,7 @@ from spoc.core.registry import Component, Registry
 @pytest.fixture
 def registry():
     r = Registry(("models", "views"))
-    r.add("models", "blog", "post", object(), config={"c": 1}, metadata={"m": 2})
+    r.add("models", "blog", "post", object(), metadata={"m": 2})
     r.add("models", "blog", "tag", object())
     r.add("models", "shop", "order", object())
     r.add("views", "blog", "list_posts", lambda: "posts")
@@ -54,8 +54,14 @@ class TestStore:
             "post",
         )
         assert record.object is not None
-        assert record.config == {"c": 1}
         assert record.metadata == {"m": 2}
+
+    def test_no_second_free_form_channel(self, registry):
+        """Records carry one metadata channel — the untyped `config` mapping is gone."""
+        record = registry.resolve("models:blog.post")
+        assert not hasattr(record, "config")
+        with pytest.raises(TypeError):
+            registry.add("models", "blog", "extra", object(), config={"a": 1})
 
     def test_duplicate_identifier_rejected(self, registry):
         with pytest.raises(DuplicateComponentError) as exc:
