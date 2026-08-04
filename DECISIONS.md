@@ -70,8 +70,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Status**: approved
 - **Scope**: workshop tools under `scripts/`, which ship to nobody. It does **not** govern CLI
   surfaces inside the published `spoc` package, where a dependency would break the stated
-  `dependencies = []` invariant — that case is decided separately and currently lands on stdlib
-  `argparse` (see the `project-scaffolder` change's `design.md` D5).
+  `dependencies = []` invariant — see "CLI framework for shipped surfaces" below.
 - **Why**: Beats typer on the two highest-weighted rubric criteria. Feature coverage (30%):
   Unions, Literals, and mutually exclusive groups, none of which typer supports. Documentation
   (10%): ships API docs; typer does not. Maintenance is strong — 138 releases, latest days
@@ -97,3 +96,60 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   references a path that isn't there); a shared `lab` package with pooled dependencies (one
   experiment's dependency becomes everyone's).
 - **Isolation**: `scripts/py/lab/`, listed under `exclude` in the workspace root.
+
+### Decision: Project generation and template rendering — Build (thin) on the standard library
+
+- **Status**: approved
+- **Why**: `string.Template` matches the scaffolder's spec by construction where Jinja would
+  have to be constrained into it — the contract requires substitution values to be a declared,
+  enumerable set that is never evaluated, and `Template.get_identifiers()` satisfies the
+  enumerability requirement in one call. Adopting a generator would also add a separate install
+  step to the one command whose whole purpose is removing friction.
+- **Considered**: copier (strong at new-project generation and its `update` feature is real,
+  but carries Jinja and needs its own install for a once-per-project command); cookiecutter
+  (the incumbent, but renders a template directory to a *different* output directory by design
+  — it cannot render in place, which ruled it out while the change still had an `add app`
+  operation).
+- **Precedent**: Django's `TemplateCommand` backs `startproject` with no external templating
+  dependency. This is that shape.
+- **Isolation**: the `TemplateSource` port. The renderer is called from one adapter; swapping
+  to Jinja later changes that adapter and nothing in the core.
+
+### Decision: CLI framework for shipped surfaces — Adopt the standard library (`argparse`)
+
+- **Status**: approved
+- **Why**: Zero dependencies, so a CLI can ship inside the published package with
+  `dependencies = []` untouched — verified in the built wheel, which declares no
+  `Requires-Dist`. One command with a handful of flags is squarely inside what argparse does
+  well.
+- **Considered**: cyclopts (this project's choice for *workshop* tools, where nothing ships —
+  that ADR does not transfer, because dependency weight counts against a stated invariant
+  here); typer (same objection, heavier tree).
+- **Note**: the Go ADR above rejects stdlib `flag` for lacking subcommands. That reasoning is
+  Go-specific — Python's `argparse` has subparsers, required arguments, and short/long pairing.
+- **Isolation**: the CLI entry-point module only. The operation is callable without argv.
+
+### Decision: Filesystem write safety — Build (thin) on standard-library primitives
+
+- **Status**: approved
+- **Why**: The requirement is narrow — stage, verify, commit, never traverse outside the target
+  — and `tempfile`, `os.replace` (atomic within a filesystem), and
+  `Path.resolve().is_relative_to()` are the adopted, well-tested primitives underneath it. A
+  library here would be more surface than the problem.
+- **Considered**: delegating staging to an adopted generator (collapsed into the decision
+  above and was rejected with it); a filesystem-transaction library (none mature enough to
+  outweigh ~40 lines of stdlib).
+- **Isolation**: the `ProjectSink` port.
+
+### Decision: TOML writing — not needed, dissolved by scope
+
+- **Status**: approved
+- **Why**: Stdlib `tomllib` is read-only, and comment-preserving edits require `tomlkit` — but
+  only when *editing* an existing file. Dropping the scaffolder's `add app` operation left only
+  emission of a fresh `spoc.toml` from a template, which is plain text substitution. The
+  concern was removed rather than solved, which is why the scaffolder still ships with no
+  dependencies.
+- **Considered**: adopt tomlkit (the correct answer had `add app` survived — round-trip TOML
+  editing is standard-format serialization and therefore never hand-rolled); hand-rolled TOML
+  editing (rejected outright on that same rule).
+- **Isolation**: n/a — the kernel's existing `tomllib` read path is untouched.

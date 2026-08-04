@@ -5,7 +5,7 @@
 - [x] 1.2 Resolve the open questions in design.md — all three closed, two of them dissolved by
       the scope cut
 - [x] 1.3 Narrow scope to `init` only; drop `add app` and reconcile proposal, specs, and design
-- [ ] 1.4 Fold the D5 ADRs into `DECISIONS.md` on archive, so the project-wide record carries
+- [x] 1.4 Fold the D5 ADRs into `DECISIONS.md` on archive, so the project-wide record carries
       the stdlib-over-cyclopts reasoning for shipped surfaces
 
 ## 2. Core — pure, no I/O
