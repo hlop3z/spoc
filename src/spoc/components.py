@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 components.py
 
@@ -91,14 +90,8 @@ def component(
         if resolved is None:
             raise MissingNameError(target_obj)
         validate_segment("object_name", resolved)
-        setattr(
-            target_obj,
-            "__spoc__",
-            Internal(
-                name=resolved,
-                config=dict(config or {}),
-                metadata=dict(metadata or {}),
-            ),
+        target_obj.__spoc__ = Internal(
+            name=resolved, config=dict(config or {}), metadata=dict(metadata or {})
         )
         return target_obj
 

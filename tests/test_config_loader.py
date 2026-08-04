@@ -1,6 +1,7 @@
-import pytest
 import tempfile
 from pathlib import Path
+
+import pytest
 
 from spoc.core.config_loader import (
     load_environment,

@@ -110,7 +110,9 @@ def parse(identifier: str) -> Identifier:
         )
 
     namespace, name = parts
-    for segment_name, value in zip(_SEGMENT_NAMES, (kind, namespace, name)):
+    for segment_name, value in zip(
+        _SEGMENT_NAMES, (kind, namespace, name), strict=True
+    ):
         validate_segment(segment_name, value)
 
     return Identifier(kind=kind, namespace=namespace, name=name)

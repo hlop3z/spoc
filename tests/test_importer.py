@@ -2,19 +2,20 @@
 Tests for the Importer class functionality.
 """
 
-import pytest
-from unittest.mock import MagicMock
-import sys
 import os
+import sys
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock
 
-from spoc.core.importer import Importer, ModuleInfo
+import pytest
+
 from spoc.core.exceptions import (
     AppNotFoundError,
-    ModuleNotCachedError,
     CircularDependencyError,
+    ModuleNotCachedError,
 )
+from spoc.core.importer import Importer, ModuleInfo
 
 
 @pytest.fixture
@@ -537,7 +538,7 @@ class Greeter:
             # but without the dependency graph topological sort that's causing issues
             module_info.initialize()
             # Should not reach here
-            assert False, "Expected exception not raised"
+            pytest.fail("Expected exception not raised")
         except RuntimeError as e:
             # Capture the exception for verification
             exception_spy(e)

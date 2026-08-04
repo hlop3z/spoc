@@ -3,14 +3,15 @@ Tool for handling TOML files and configuration validation.
 """
 
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Dict, Mapping, Type, Union
+from typing import Any
 
 from .exceptions import ConfigurationError
 
 # Type alias for schema definition
-SchemaType = Union[Type, Dict[str, Any]]
-SchemaDict = Dict[str, SchemaType]
+type SchemaType = type | dict[str, Any]
+type SchemaDict = dict[str, SchemaType]
 
 
 class TOML:
@@ -43,7 +44,7 @@ class TOML:
             return {}
         except tomllib.TOMLDecodeError as e:
             raise ConfigurationError(
-                f"Invalid TOML format in {self.file}: {str(e)}"
+                f"Invalid TOML format in {self.file}: {e!s}"
             ) from e
 
 

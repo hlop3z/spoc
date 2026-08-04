@@ -33,7 +33,7 @@ import sys
 from collections.abc import Callable
 from re import Pattern
 from types import ModuleType
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal
 
 # Local imports
 from .components_discovery import discover_components
@@ -48,7 +48,7 @@ from .registry import Registry
 logger = logging.getLogger("spoc")
 
 
-FrameworkMode: TypeAlias = Literal["strict", "loose"]
+type FrameworkMode = Literal["strict", "loose"]
 
 
 @dataclasses.dataclass
@@ -335,9 +335,13 @@ class Importer:
 
         for current in self.module_hooks.pattern.values():
             hp = current.get(hook_type)
-            if hp and hp.pattern and hp.pattern.fullmatch(module_name):
-                if callable(hp.method):
-                    hp.method(instance)
+            if (
+                hp
+                and hp.pattern
+                and hp.pattern.fullmatch(module_name)
+                and callable(hp.method)
+            ):
+                hp.method(instance)
 
     def _module_order(self) -> list[str]:
         """

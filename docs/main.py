@@ -35,9 +35,9 @@ def define_env(env):
 
     @env.macro
     def current_year():
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        return datetime.now().year
+        return datetime.now(UTC).year
 
     @env.macro
     def url(url):

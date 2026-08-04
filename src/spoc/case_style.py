@@ -11,8 +11,9 @@ This module provides functions to convert strings between different case styles:
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from functools import lru_cache
-from typing import Callable, Final, Literal, TypeAlias, TypeGuard
+from typing import Final, Literal, TypeGuard
 
 #: Bounded so converting attacker- or user-supplied strings cannot grow the
 #: cache without limit. Declaration-time names are far below this.
@@ -29,7 +30,7 @@ _CAMEL_BOUNDARY: Final[re.Pattern] = re.compile(
 _SEPARATOR_CHARS: Final[str] = r"[_\-]+"
 _CLEAN_EDGE: Final[re.Pattern] = re.compile(rf"^{_SEPARATOR_CHARS}|{_SEPARATOR_CHARS}$")
 
-CaseStyle: TypeAlias = Literal["snake", "camel", "pascal", "kebab"]
+type CaseStyle = Literal["snake", "camel", "pascal", "kebab"]
 
 
 def _split_to_words(s: str) -> list[str]:
