@@ -1,0 +1,121 @@
+---
+name: "AI: Migration"
+description: "Reverse-engineer OpenSpec into a single self-contained PROJECT.md so OpenSpec can be removed without losing what matters"
+category: AI
+tags: [ai, migration, openspec, consolidation, archive]
+---
+
+Distill everything that matters from the OpenSpec workflow into **one self-contained file**
+(`PROJECT.md` at the project root) so the user can delete `openspec/` — config, specs,
+changes, tasks — and still retain the core of what the project is, why, and how it was
+decided. This is a **consolidation**, not a snapshot: OpenSpec is going away, so the output
+must stand on its own with **zero pointers back into `openspec/`**.
+
+**The canon is not in scope.** `.canon/` is ours and survives OpenSpec's removal untouched —
+so `PROJECT.md` must NOT absorb, duplicate, or condense the engineering rules and guidelines.
+Pointing at `.canon/` is correct here; copying it in would create a second home for rules that
+already have one.
+
+**This is the inverse of `/ai:handoff`.** Handoff _references_ canonical homes and stays
+gitignored. Migration _absorbs_ those homes into a single committed file that becomes the
+new canonical home once OpenSpec is removed.
+
+## What to keep (the things that matter most)
+
+Include only durable essence. When in doubt, ask: "if OpenSpec were deleted tomorrow, would
+losing this hurt?" If no, drop it.
+
+- **Capability contracts** — for each capability in `openspec/specs/`, its purpose and its
+  core requirements/invariants (the MUST/SHOULD behavior that must hold). Condense scenarios
+  to the invariant they protect; drop exhaustive WHEN/THEN tables.
+- **Architecture** — the structural shape: core vs adapters, inward-only dependency
+  direction, workspace/crate layout, where composition wiring lives. The HOW that outlives
+  any single change.
+- **Decisions (ADRs)** — every recorded build-vs-adopt decision from the `design.md` ADR
+  blocks across **all** changes (active _and_ archived): the concern, the choice
+  (Rent/Adopt/Extend/Fork/Build), the chosen tool, and the one-line why. This is the highest-
+  value content — decisions and their rationale are the least recoverable from code.
+- **Chosen tech stack** — the concrete tools/vendors actually selected (languages, backends,
+  libraries), each tied to the decision that picked it.
+
+## What to drop
+
+- Process ceremony (the pipeline itself, command mechanics, RFC draft→approved lifecycle).
+- `tasks.md` checklists and in-flight notes — implementation detail, not durable contract.
+- Superseded or competing variants that a decision already resolved.
+- Anything derivable from the code itself (module structure, signatures) — don't snapshot it.
+- The engineering rules and guidelines — they live in `.canon/` and outlive OpenSpec.
+
+## Hard rules
+
+1. **Self-contained.** No links or paths into `openspec/`. Every fact the user needs to keep
+   is written _in_ `PROJECT.md`. After this runs, deleting `openspec/` must lose nothing that
+   mattered.
+2. **Overwrite, never append.** If `PROJECT.md` exists, regenerate it wholesale from current
+   sources. It is a distillation of the present state, not a growing log.
+3. **Distill, don't dump.** Do not paste `guidelines.md` or full spec files verbatim. Compress
+   to the rule / invariant / decision. If a section is as long as its source, you failed to
+   distill.
+4. **Committed, not ignored.** `PROJECT.md` is the new canonical home — it must NOT be
+   gitignored. If a `.gitignore` entry for it exists, remove it.
+5. **Decisions keep their why.** An ADR with no rationale is a defect — chase it down in the
+   source `design.md` or state plainly that the rationale was not recorded.
+
+## Steps
+
+1. **Gather sources.** Run `openspec list --json` (skip silently if not an OpenSpec project).
+   Read: `openspec/config.yaml`, every `openspec/specs/**/spec.md`,
+   and every `design.md` under `openspec/changes/**` (active and archived). For broad reads
+   across many change folders, delegate to the `Explore` subagent and keep only the distilled
+   ADR blocks and spec invariants — don't pull the file dumps into the main thread.
+2. **Distill** each source per the keep/drop lists above.
+3. **Write `PROJECT.md`** at the project root using the structure below, OVERWRITING any
+   existing file. Ensure it is not gitignored.
+4. **Report** the path written, the counts (capabilities, decisions consolidated), and remind
+   the user they can now remove `openspec/` — and that after removal, `PROJECT.md` plus
+   `CLAUDE.md` and `.canon/` are the source of truth. Do **not** delete `openspec/` yourself
+   unless the user explicitly asks.
+
+## PROJECT.md structure
+
+```markdown
+# <Project> — Consolidated Reference
+
+> Self-contained distillation of the OpenSpec workflow. Everything that mattered from
+> `openspec/` lives here; the source folder can be removed. The engineering rules are
+> unaffected and stay in `.canon/`. Regenerated by /ai:migration.
+
+## Architecture
+
+<!-- Core vs adapters, dependency direction, workspace/crate layout, composition root. -->
+
+## Capabilities
+
+<!-- Per capability: purpose + its core invariants/requirements (the WHAT that must hold). -->
+
+### <capability>
+
+- **Purpose:** …
+- **Must hold:** …
+
+## Decisions (ADRs)
+
+<!-- Every build-vs-adopt decision that shaped the system. -->
+
+### <concern>
+
+- **Decision:** <Rent/Adopt/Extend/Fork/Build> — <chosen tool>
+- **Why:** …
+
+## Tech stack
+
+<!-- Concrete tools/vendors chosen, each tied to the decision that picked it. -->
+```
+
+## Guardrails
+
+- A `PROJECT.md` section that merely points at an `openspec/` path is a defect — inline the content.
+- If a capability's spec or a decision's rationale is missing from the sources, say so
+  explicitly rather than inventing it.
+- Keep it tight enough to read in one sitting. This file earns its keep by being the _short_
+  version of what OpenSpec held.
