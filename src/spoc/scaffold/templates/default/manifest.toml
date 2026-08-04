@@ -1,0 +1,36 @@
+# The built-in template set.
+#
+# `values` is the enumerable declaration the scaffold-templates spec requires:
+# every placeholder the templates below use must appear here, and every name here
+# must be supplied by the operation. Both directions are checked before writing.
+
+[template_set]
+name = "default"
+description = "A minimal runnable spoc project: config, declaration, one app, entry point."
+values = ["project_name", "app_name", "kinds_args", "kind_decorators", "kind"]
+
+# Emitted once each.
+
+[[files]]
+source = "config/spoc.toml.tmpl"
+target = "config/spoc.toml"
+
+[[files]]
+source = "framework.py.tmpl"
+target = "framework.py"
+
+[[files]]
+source = "app/__init__.py.tmpl"
+target = "apps/$app_name/__init__.py"
+
+[[files]]
+source = "main.py.tmpl"
+target = "main.py"
+
+# Emitted once per declared kind, with `kind` bound per iteration. The repetition
+# is declared here, in data — never expressed as a loop inside a template.
+
+[[files]]
+source = "app/kind.py.tmpl"
+target = "apps/$app_name/$kind.py"
+per_kind = true

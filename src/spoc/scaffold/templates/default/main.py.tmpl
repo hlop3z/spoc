@@ -1,0 +1,25 @@
+"""Entry point for $project_name."""
+
+from pathlib import Path
+
+from framework import framework
+
+BASE_DIR = Path(__file__).resolve().parent
+
+
+@framework.on_ready
+def announce(registry):
+    print(f"Ready: {len(registry)} components registered")
+
+
+if __name__ == "__main__":
+    framework.start(BASE_DIR)
+
+    print("Installed apps:", framework.installed_apps)
+
+    # The registry enumerates deterministically — every surface you build on top
+    # (HTTP, CLI, workers) is a projection of this.
+    for component in framework.registry:
+        print(" -", component.identifier)
+
+    framework.shutdown()

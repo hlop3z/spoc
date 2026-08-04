@@ -1,0 +1,14 @@
+# Application configuration — the only file the kernel reads.
+[spoc]
+mode = "development" # options: development, staging, production
+debug = true
+
+# Installed apps by mode. Development cascades staging and production in, so an
+# app listed under production is loaded in every mode.
+[spoc.apps]
+production = ["$app_name"]
+staging = []
+development = []
+
+# Additional components (plugins and hooks), each a resolvable reference.
+[spoc.plugins]
