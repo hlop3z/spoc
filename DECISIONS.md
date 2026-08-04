@@ -141,6 +141,48 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   outweigh ~40 lines of stdlib).
 - **Isolation**: the `ProjectSink` port.
 
+### Decision: Declarative configuration validation — Build (minimal) on the standard library
+
+- **Status**: approved
+- **Why**: The reinvention here was never *validating the configuration* — it was having
+  written a general-purpose recursive schema engine to do it. The `[spoc]` table is four
+  closed keys authored by the project owner, not untrusted input, so the fix is to delete the
+  engine and check four keys explicitly: less build, not more. `tomllib` (stdlib) already
+  covers the part that is genuinely standard-format parsing and stays. Keeping the package at
+  zero `Requires-Dist` matters more here than for an application, because **spoc is a library
+  other frameworks build on** — every dependency it takes propagates into every downstream
+  framework's tree.
+- **Considered**: msgspec (0.21.1, April 2026, ships Python 3.10–3.14 wheels including
+  freethreaded, and has no dependencies of its own — it would delete the TOML module outright
+  and decode straight into a typed struct; rejected because it is a compiled C extension that
+  every downstream consumer would inherit as a platform wheel, and because upstream
+  maintenance is slow enough that a community fork, `msgspec-x`, exists to route around it);
+  jsonschema (the literal standards-first answer under Rule 9, and it would make the schema
+  data rather than code — rejected because it pulls attrs, referencing, and the Rust-compiled
+  rpds-py, four transitive dependencies to describe a four-key contract).
+- **Rule tension, accepted deliberately**: Rule 9 says adopt the recognized schema standard.
+  It is aimed at contracts and identifiers exchanged with the outside world, not a four-key
+  internal config file, and the current code violates the *adopt-before-build* rule more
+  severely than explicit checks ever could. Revisit if the configuration surface stops being
+  closed.
+- **Isolation**: the configuration adapter module. The kernel core never reads a file.
+
+### Decision: Component metadata validation — Adopt `ty` statically, build the boundary check
+
+- **Status**: approved
+- **Why**: This data originates in Python source that the framework author writes, and never
+  crosses a trust boundary. `ty` — already run as `uv run ty check` in `.canon/checks.md` — is
+  the adopted tool, and it proves the field types at authoring time, where the mistake is. All
+  the kernel needs at registration is one identity assertion that the supplied instance
+  matches the kind's declared type. Adopting a runtime validator would re-prove statically
+  known facts on the kernel's hottest path.
+- **Considered**: msgspec structs for metadata and configuration alike (one tool, one mental
+  model — rejected because declaring a kind would then require importing msgspec, making the
+  dependency part of spoc's *public API* rather than its internals); no runtime check at all
+  (smallest possible, but a wrong type would reach the registry and surface later inside an
+  unrelated projection, violating the loud-discovery invariant).
+- **Isolation**: the registration boundary in the declaration layer — one check, one place.
+
 ### Decision: TOML writing — not needed, dissolved by scope
 
 - **Status**: approved
