@@ -1,6 +1,6 @@
 # Components API Reference
 
-This page provides detailed API documentation for the Components module in SPOC.
+The declaration layer: decorators that mark objects as SPOC components.
 
 ## Components Class
 
@@ -16,12 +16,7 @@ This page provides detailed API documentation for the Components module in SPOC.
       show_root_heading: true
       show_source: false
 
-## Component Data Classes
-
-::: spoc.components.Component
-    options:
-      show_root_heading: true
-      show_source: false
+## Declaration Marker
 
 ::: spoc.components.Internal
     options:
@@ -35,7 +30,7 @@ This page provides detailed API documentation for the Components module in SPOC.
       show_root_heading: true
       show_source: false
 
-::: spoc.components.is_component
+::: spoc.components.get_info
     options:
       show_root_heading: true
-      show_source: false 
+      show_source: false

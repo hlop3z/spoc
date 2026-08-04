@@ -13,4 +13,4 @@ def teardown():
     return True
 """
 
-from .models import UserAccount
+from .models import UserAccount  # noqa: F401 -- imported objects register where defined, not here

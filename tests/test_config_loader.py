@@ -1,7 +1,6 @@
 import pytest
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Tuple
 
 from spoc.core.config_loader import (
     load_configuration,
@@ -12,7 +11,7 @@ from spoc.core.exceptions import ConfigurationError
 
 
 @pytest.fixture
-def config_files() -> Tuple[Path, Dict[str, Any]]:
+def config_files():
     """Create temporary configuration files for testing."""
     with tempfile.TemporaryDirectory() as temp_dir:
         base_dir = Path(temp_dir)

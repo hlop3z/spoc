@@ -3,19 +3,22 @@ Dynamic module importing and lifecycle management system.
 
 This module provides a class-based API for dynamically loading modules,
 caching them for efficient reuse, and managing their initialization
-and teardown in dependency order.
+and teardown in dependency order. Discovery of declared components happens
+here at startup: every module's SPOC-marked objects are registered into the
+importer's flat :class:`~spoc.core.registry.Registry`, loudly — a declared
+component that cannot be registered fails startup with a precise error.
 
 Usage:
     from spoc.core.importer import Importer
-    importer = Importer()
-    module = importer.load("os")
+    importer = Importer(kinds=("models", "views"))
     importer.register("myapp.models", dependencies=["myapp.utils"])
     importer.startup()
-    # ... use modules ...
+    # ... use importer.registry ...
     importer.shutdown()
 
-The Importer is central to the SPOC framework, enabling dynamic, dependency-aware
-module management for pluggable and testable applications.
+The Importer is a plain class: each instance owns its cache, its dependency
+graph, its hooks, and its registry. Two importers in one process are fully
+independent.
 """
 
 from __future__ import annotations
@@ -29,16 +32,17 @@ import sys
 from collections.abc import Callable
 from re import Pattern
 from types import ModuleType
-from typing import Any, ClassVar, Literal, Protocol, TypeAlias
+from typing import Any, Literal, Protocol, TypeAlias
 
 # Local imports
+from .components_discovery import discover_components
 from .exceptions import (
     AppNotFoundError,
     CircularDependencyError,
     ModuleNotCachedError,
     SpocError,
 )
-from .singleton import SingletonMeta
+from .registry import Registry
 from .utils import DependencyGraph
 
 logger = logging.getLogger("spoc")
@@ -100,16 +104,6 @@ class ModuleInfo:
         initialize_func: str | None = "initialize",
         teardown_func: str | None = "teardown",
     ) -> None:
-        """
-        Initialize module information.
-
-        Args:
-            name: The module name.
-            module: The loaded module object.
-            dependencies: List of module names this module depends on.
-            initialize_func: Name of the initialization function in the module, or None.
-            teardown_func: Name of the teardown function in the module, or None.
-        """
         self.name = name
         self.module = module
         self.dependencies = dependencies or []
@@ -121,30 +115,16 @@ class ModuleInfo:
         self.on_shutdown = None
 
     def has_initialize(self) -> bool:
-        """
-        Check if the module has an initialize function.
-
-        Returns:
-            True if the module has an initialize function, False otherwise.
-        """
-        has_init = self.initialize_func is not None and hasattr(
+        """True if the module has an initialize function."""
+        return self.initialize_func is not None and hasattr(
             self.module, self.initialize_func
         )
-        logger.debug("Module %s has_initialize: %s", self.name, has_init)
-        return has_init
 
     def has_teardown(self) -> bool:
-        """
-        Check if the module has a teardown function.
-
-        Returns:
-            True if the module has a teardown function, False otherwise.
-        """
-        has_tear = self.teardown_func is not None and hasattr(
+        """True if the module has a teardown function."""
+        return self.teardown_func is not None and hasattr(
             self.module, self.teardown_func
         )
-        logger.debug("Module %s has_teardown: %s", self.name, has_tear)
-        return has_tear
 
     def initialize(self) -> None:
         """
@@ -154,11 +134,9 @@ class ModuleInfo:
         """
         if self.has_initialize() and not self.initialized:
             logger.debug("Calling initialize for module %s", self.name)
-            # We've already checked that initialize_func is not None and that the attribute exists
             initialize_func = getattr(self.module, self.initialize_func or "initialize")
             initialize_func()
             self.initialized = True
-            logger.debug("Module %s initialized successfully", self.name)
         else:
             logger.debug("Skipping initialization for module %s", self.name)
 
@@ -170,53 +148,51 @@ class ModuleInfo:
         """
         if self.has_teardown() and self.initialized:
             logger.debug("Calling teardown for module %s", self.name)
-            # We've already checked that teardown_func is not None and that the attribute exists
             teardown_func = getattr(self.module, self.teardown_func or "teardown")
             teardown_func()
             self.initialized = False
-            logger.debug("Module %s torn down successfully", self.name)
         else:
             logger.debug("Skipping teardown for module %s", self.name)
 
 
-class Importer(metaclass=SingletonMeta):
+class Importer:
     """
-    Dynamic module importer with caching and lifecycle management.
+    Dynamic module importer with caching, lifecycle, and the registry.
 
     This class provides a clean API for:
     1. Dynamically importing modules at runtime
     2. Caching modules for efficient reuse
     3. Managing module lifecycle (initialization/teardown) based on dependencies
+    4. Discovering declared components into the flat registry at startup
 
-    Time Complexity:
-    - Module lookup in cache: O(1)
-    - Module loading: O(1) amortized (with caching)
-    - Startup/shutdown: O(N + E) where N = number of modules, E = number of dependencies
+    Each instance is fully independent — cache, graph, hooks, and registry
+    are all instance state.
 
     Attributes:
-        _module_cache: Internal cache of loaded modules
-        _dependency_graph: Graph of module dependencies for ordered initialization/teardown
-        module_hooks: Dictionary of hooks to apply to modules during lifecycle events
-        on_startup_name: Name of the function to call for module initialization
-        on_shutdown_name: Name of the function to call for module teardown
+        registry: The flat component registry this importer populates.
+        module_hooks: Hooks to apply to modules during lifecycle events.
+        on_startup_name: Name of the function called for module initialization.
+        on_shutdown_name: Name of the function called for module teardown.
     """
-
-    module_hooks: ClassVar[ModuleHooks] = ModuleHooks()
 
     def __init__(
         self,
         on_startup_name: str | None = "initialize",
         on_shutdown_name: str | None = "teardown",
         mode: FrameworkMode = "strict",
+        kinds: tuple[str, ...] = (),
     ) -> None:
         """
-        Initialize a new ModuleImporter instance.
+        Initialize a new Importer instance.
 
         Args:
             on_startup_name: Name of the initialization function in modules, or None
             on_shutdown_name: Name of the teardown function in modules, or None
+            mode: "strict" raises on missing apps/modules; "loose" skips them.
+            kinds: The declared (closed) kind set for the registry.
         """
-        self._components: dict[str, Any] = {}
+        self.registry = Registry(kinds)
+        self.module_hooks = ModuleHooks()
         self._module_cache: dict[str, ModuleInfo] = {}
         self._dependency_graph = DependencyGraph[str]()
         self.mode = mode
@@ -230,14 +206,8 @@ class Importer(metaclass=SingletonMeta):
         If the module is already in the cache, returns the cached module.
         Otherwise, imports the module and adds it to the cache.
 
-        Args:
-            name: The fully-qualified name of the module to load.
-
-        Returns:
-            The loaded module.
-
         Raises:
-            ModuleNotFoundError: If the module cannot be found.
+            AppNotFoundError: If the module cannot be found (strict mode).
         """
         if self.has(name):
             return self._module_cache[name].module
@@ -261,15 +231,8 @@ class Importer(metaclass=SingletonMeta):
         """
         Register a module with dependencies and lifecycle hooks.
 
-        Args:
-            name: The fully-qualified name of the module to register.
-            dependencies: List of module names this module depends on.
-
-        Returns:
-            The loaded module.
-
         Raises:
-            ModuleNotFoundError: If the module cannot be found.
+            AppNotFoundError: If the module cannot be found (strict mode).
         """
         # Load the module if not already loaded
         module = self.load(name)
@@ -311,26 +274,12 @@ class Importer(metaclass=SingletonMeta):
         return getattr(module, func_name)
 
     def has(self, name: str) -> bool:
-        """
-        Check if a module is in the cache.
-
-        Args:
-            name: The name of the module to check.
-
-        Returns:
-            True if the module is in the cache, False otherwise.
-        """
+        """True if a module is in the cache."""
         return name in self._module_cache
 
     def get(self, name: str) -> ModuleType:
         """
         Get a module from the cache.
-
-        Args:
-            name: The name of the module to get.
-
-        Returns:
-            The cached module.
 
         Raises:
             ModuleNotCachedError: If the module is not in the cache.
@@ -341,51 +290,39 @@ class Importer(metaclass=SingletonMeta):
 
     def clear(self, name: str) -> None:
         """
-        Remove a module from the cache.
-
-        This does not unload the module from sys.modules.
-
-        Args:
-            name: The name of the module to clear.
+        Remove a module from the cache (does not unload from sys.modules).
         """
         if self.has(name):
-            # Remove from our cache
             module_info = self._module_cache.pop(name)
-
-            # Teardown if initialized
             if module_info.initialized and module_info.has_teardown():
                 module_info.teardown()
 
-    def _get_module_objects(self, module_name: str) -> set[Any]:
-        """Return `spoc` attributes of a module."""
-        module: ModuleType = self.get(module_name)
-        objects = [
-            n for n in dir(module) if not n.startswith("_") and not n.endswith("_")
-        ]
-        items = set()
-        for name in objects:
-            current = getattr(module, name)
-            if hasattr(current, "__spoc__"):
-                type_name = getattr(current, "__spoc__").metadata.get("type")
-                pkg, mod = module_name.rsplit(".", 1)
-                if mod not in self._components:
-                    self._components[mod] = {}
-                if type_name == mod:
-                    items.add(current)
-                    self._components[mod][f"{pkg}.{name}"] = current
-        return items
+    # ── Component discovery — loud, once, into the flat registry ──────────
+
+    def _register_components(self, module_name: str) -> None:
+        """
+        Register every component declared in `module_name` into the registry.
+
+        Raises:
+            SpocError: If a declared component cannot be registered — a
+                kind/location mismatch, an invalid segment, a duplicate
+                identifier, or an underivable namespace. Never a silent drop.
+        """
+        discover_components(self.registry, self.get(module_name), module_name)
+
+    def _module_components(self, module_name: str) -> set[Any]:
+        """Registered objects belonging to `module_name` (for hooks)."""
+        pkg, _, mod = module_name.rpartition(".")
+        namespace = pkg.split(".")[0] if pkg else ""
+        return {
+            c.object for c in self.registry.by_kind(mod) if c.namespace == namespace
+        }
 
     def _call_hook(
         self, hook_type: Literal["startup", "shutdown"], module_name: str
     ) -> None:
-        """
-        Call a hook for a module.
-
-        Args:
-            hook_type: The type of hook to call.
-            module_name: The name of the module to call the hook for.
-        """
-        instance = self._get_module_objects(module_name)
+        """Call a lifecycle hook for a module with its registered objects."""
+        instance = self._module_components(module_name)
 
         hook = self.module_hooks.generic.get(module_name)
         if hook:
@@ -402,14 +339,16 @@ class Importer(metaclass=SingletonMeta):
 
     def startup(self) -> None:
         """
-        Initialize all registered modules in dependency order.
+        Register all declared components, then initialize modules in
+        dependency order.
 
-        This ensures that modules are initialized only after their
-        dependencies have been initialized.
+        Component discovery runs first across every module, so duplicate
+        identifiers and kind mismatches fail startup before any module's
+        initialization side effects run.
 
         Raises:
             CircularDependencyError: If there are circular dependencies.
-            LifecycleError: If initialization of any module fails.
+            SpocError: If discovery or initialization of any module fails.
         """
         try:
             self.on_startup()
@@ -417,13 +356,16 @@ class Importer(metaclass=SingletonMeta):
             module_order = self._dependency_graph.topological_sort()
             logger.debug("Module initialization order: %s", module_order)
 
-            for module_name in module_order:
-                if module_name in self._module_cache:
-                    logger.debug("Initializing module: %s", module_name)
-                    self._call_hook("startup", module_name)
-                    self._module_cache[module_name].initialize()
+            cached_order = [m for m in module_order if m in self._module_cache]
+            for module_name in cached_order:
+                self._register_components(module_name)
 
-        except CircularDependencyError:
+            for module_name in cached_order:
+                logger.debug("Initializing module: %s", module_name)
+                self._call_hook("startup", module_name)
+                self._module_cache[module_name].initialize()
+
+        except (CircularDependencyError, SpocError):
             raise
         except Exception as e:
             raise SpocError(f"Error during startup: {e}") from e
@@ -432,11 +374,8 @@ class Importer(metaclass=SingletonMeta):
         """
         Tear down all initialized modules in reverse dependency order.
 
-        This ensures that modules are torn down only after all modules
-        that depend on them have been torn down.
-
         Raises:
-            LifecycleError: If teardown of any module fails.
+            SpocError: If teardown of any module fails.
         """
         try:
             reversed_graph = self._dependency_graph.reversed()
@@ -451,15 +390,13 @@ class Importer(metaclass=SingletonMeta):
 
             self.on_shutdown()
 
+        except SpocError:
+            raise
         except Exception as e:
             raise SpocError(f"Error during shutdown: {e}") from e
 
     def clear_all(self) -> None:
-        """
-        Clear all modules from the cache.
-
-        This does not unload modules from sys.modules.
-        """
+        """Clear all modules from the cache (not from sys.modules)."""
         module_names = list(self._module_cache.keys())
         for name in module_names:
             self.clear(name)
@@ -501,15 +438,12 @@ class Importer(metaclass=SingletonMeta):
 
     @staticmethod
     def simple_regex(pattern: str) -> Pattern[str]:
-        """
-        Convert a simple pattern to a regex pattern.
-        """
+        """Convert a simple wildcard pattern to a regex pattern."""
         regex_pattern = pattern.replace(".", "\\.").replace("*", ".*").replace("?", ".")
         return re.compile(f"^{regex_pattern}$")
 
-    @classmethod
     def register_hook(
-        cls,
+        self,
         pattern: str,
         on_startup: Callable | None = None,
         on_shutdown: Callable | None = None,
@@ -517,46 +451,36 @@ class Importer(metaclass=SingletonMeta):
         """
         Pre-register custom initialization and teardown functions for modules.
 
-        These hooks will be attached to the module when it's loaded, overriding any default hooks.
+        Hooks are instance state: two importers never share them.
 
         Args:
             pattern: The fully-qualified name of the module or a pattern with wildcards.
             on_startup: Custom initialization function for this module.
             on_shutdown: Custom teardown function for this module.
         """
-
         if "*" in pattern or "?" in pattern:
-            regex_pattern = cls.simple_regex(pattern)
-            cls.module_hooks.pattern[pattern] = {
+            regex_pattern = self.simple_regex(pattern)
+            self.module_hooks.pattern[pattern] = {
                 "startup": HookPattern(),
                 "shutdown": HookPattern(),
             }
             if on_startup is not None:
-                cls.module_hooks.pattern[pattern]["startup"] = HookPattern(
+                self.module_hooks.pattern[pattern]["startup"] = HookPattern(
                     pattern=regex_pattern, method=on_startup
                 )
 
             if on_shutdown is not None:
-                cls.module_hooks.pattern[pattern]["shutdown"] = HookPattern(
+                self.module_hooks.pattern[pattern]["shutdown"] = HookPattern(
                     pattern=regex_pattern, method=on_shutdown
                 )
         else:
-            cls.module_hooks.generic[pattern] = {"startup": {}, "shutdown": {}}
+            self.module_hooks.generic[pattern] = {"startup": {}, "shutdown": {}}
             if on_startup is not None:
-                cls.module_hooks.generic[pattern]["startup"] = on_startup
+                self.module_hooks.generic[pattern]["startup"] = on_startup
 
             if on_shutdown is not None:
-                cls.module_hooks.generic[pattern]["shutdown"] = on_shutdown
+                self.module_hooks.generic[pattern]["shutdown"] = on_shutdown
 
     def keys(self) -> list[str]:
-        """
-        Get a list of all module names in the cache.
-        """
+        """All module names in the cache."""
         return list(self._module_cache.keys())
-
-    @property
-    def components(self) -> dict[str, dict[str, Any]]:
-        """
-        Get a dictionary of all components and their instances.
-        """
-        return self._components

@@ -1,10 +1,13 @@
 # Core Utilities API Reference
 
-This page provides detailed API documentation for SPOC's core utility modules, including exceptions, singleton patterns, dependency management, case conversion, and path injection utilities.
+This page documents SPOC's core utility modules: exceptions, dependency
+management, case conversion, and path injection.
 
 ## Exceptions
 
-SPOC provides a hierarchy of custom exceptions for clear error handling and debugging.
+SPOC provides a hierarchy of custom exceptions for clear error handling.
+Identifier and registry errors are documented on the
+[Registry API](registry.md) page.
 
 ### SpocError
 
@@ -48,24 +51,6 @@ SPOC provides a hierarchy of custom exceptions for clear error handling and debu
       show_root_heading: true
       show_source: false
 
-## Singleton Pattern
-
-SPOC provides two approaches to implementing the Singleton pattern: a metaclass and a decorator.
-
-### SingletonMeta
-
-::: spoc.core.singleton.SingletonMeta
-    options:
-      show_root_heading: true
-      show_source: false
-
-### singleton Decorator
-
-::: spoc.core.singleton.singleton
-    options:
-      show_root_heading: true
-      show_source: false
-
 ## Dependency Management
 
 ### DependencyGraph
@@ -89,7 +74,9 @@ SPOC provides two approaches to implementing the Singleton pattern: a metaclass 
 
 ## Case Style Conversion
 
-SPOC provides utilities to convert strings between different naming conventions.
+Projection utilities for rendering identifiers in other naming conventions
+(e.g. `post` → `Post` for documentation). Never applied during registration —
+identifiers are validated, not normalized.
 
 ### case_style Function
 

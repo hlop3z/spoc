@@ -1,14 +1,13 @@
-"""
-DEPENDENCIES = []
+from framework.framework import view
 
-NAME = "auth.models"
-
-def initialize():
-    print(f"Initializing {NAME}")
-    return True
+# View functions: snake_case function names conform on their own.
 
 
-def teardown():
-    print(f"Tearing down {NAME}")
-    return True
-"""
+@view
+def list_posts():
+    return {"posts": []}
+
+
+@view
+def get_post():
+    return {"post": None}

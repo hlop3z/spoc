@@ -1,57 +1,81 @@
 """
-Dynamic Module Import, Caching & Lifecycle Management System.
+SPOC — a registry-first runtime kernel for modular monolithic applications.
 
-This package provides tools for dynamically importing modules at runtime,
-caching them efficiently, and managing their lifecycle with dependency-based
-initialization and teardown.
+SPOC discovers apps, loads their modules in dependency order, manages
+lifecycle, and registers every declared object in one flat registry under a
+canonical identifier: ``kind:namespace.object_name``. External surfaces
+(HTTP, CLI, workers) are built on top by enumerating the registry — the
+kernel describes, it never executes.
 """
 
-from .components import Components
+from .case_style import case_style
+from .components import Components, Internal, component, get_info, is_spoc
 from .core.config_loader import load_configuration, load_environment, load_spoc_toml
 from .core.exceptions import (
     AppNotFoundError,
     CircularDependencyError,
+    ComponentKindMismatchError,
+    ConfigurationError,
+    DuplicateComponentError,
+    InvalidSegmentError,
     LifecycleError,
+    MalformedIdentifierError,
+    MissingNameError,
     ModuleNotCachedError,
     SpocError,
+    UnknownKindError,
+    UnknownNamespaceError,
+    UnknownObjectError,
 )
+from .core.identifier import Identifier, compose, parse
 from .core.importer import Importer
-from .core.singleton import SingletonMeta, singleton
+from .core.registry import Component, Registry
 from .core.utils import DependencyGraph
-
-# Framework
 from .framework import Config, Framework, Hook, Schema
 from .inject_apps import inject_apps
-from .case_style import case_style
-from .utils import get_info
 
 __all__ = [
-    # Framework Utilities
+    # Framework
     "Framework",
     "Config",
     "Hook",
     "Schema",
+    # Registry
+    "Registry",
+    "Component",
+    # Identity
+    "Identifier",
+    "parse",
+    "compose",
+    # Declaration
+    "Components",
+    "Internal",
+    "component",
+    "get_info",
+    "is_spoc",
     # Core importer
     "Importer",
-    # Components
-    "Components",
-    "get_info",
     # Exceptions
     "SpocError",
     "AppNotFoundError",
     "ModuleNotCachedError",
     "CircularDependencyError",
     "LifecycleError",
-    # Singleton
-    "SingletonMeta",
-    "singleton",
+    "ConfigurationError",
+    "MalformedIdentifierError",
+    "InvalidSegmentError",
+    "UnknownKindError",
+    "UnknownNamespaceError",
+    "UnknownObjectError",
+    "DuplicateComponentError",
+    "ComponentKindMismatchError",
+    "MissingNameError",
     # Config loaders
     "load_configuration",
     "load_environment",
     "load_spoc_toml",
-    # Inject apps
-    "inject_apps",
     # Utilities
+    "inject_apps",
     "case_style",
     "DependencyGraph",
 ]

@@ -8,16 +8,31 @@
 ![PyPI](https://img.shields.io/pypi/v/spoc?color=blue)
 ![Downloads](https://img.shields.io/pypi/dm/spoc?color=darkgreen)
 
-**SPOC** is a Python framework for building **modular monolithic applications**. Inspired by Django's app system, it provides automatic module discovery, dependency management, and lifecycle orchestration.
+**SPOC** is a registry-first runtime kernel for modular monolithic Python
+applications. It sits *below* your HTTP framework — FastAPI, Robyn, anything —
+managing internal resources and application objects, and registering every
+declared object in one flat registry under a canonical identifier:
+
+```
+kind:namespace.object_name        e.g.  models:blog.post
+```
+
+Surfaces are built on top by **enumerating the registry**. The kernel
+describes; it never executes.
 
 ## Features
 
-- **App-based architecture** - Organize code into self-contained, reusable modules
-- **Automatic discovery** - Apps and components are discovered and loaded at runtime
-- **Dependency management** - Define module dependencies with automatic load ordering
-- **Component registry** - Register and retrieve components using decorators
-- **Lifecycle hooks** - Startup and shutdown hooks for proper resource management
-- **TOML configuration** - Simple configuration with `spoc.toml`
+- **App discovery** — Django-style apps, selected per mode
+  (`development` → `staging` → `production` cascade) via `spoc.toml`
+- **Dependency-ordered loading** — modules initialize in topological order,
+  tear down in reverse
+- **One flat registry** — typed records with `kind` / `namespace` / `name`
+  facets; grouped views are derived, never stored
+- **Validated identity** — every segment checked at registration against
+  `^[a-z][a-z0-9_]*$`; SPOC **rejects, never normalizes**
+- **Precise resolution** — failures name the failing segment and the valid
+  candidates; a typo never falls through to `None`
+- **Zero runtime dependencies** — `dependencies = []` is an invariant
 
 ## Installation
 
@@ -31,22 +46,27 @@ pip install spoc
 
 ```python
 from pathlib import Path
-from spoc import Framework, Schema
+from spoc import Components, Framework, Schema
 
-# Define your application schema
-schema = Schema(
-    modules=["models", "views"],
-    dependencies={"views": ["models"]},
-)
+components = Components("models")          # the closed kind set
 
-# Create and run the framework
+@components.register("models")
+class post:                                # declared in apps/blog/models.py
+    ...
+
 framework = Framework(
     base_dir=Path(__file__).parent,
-    schema=schema,
+    schema=Schema(modules=["models"]),
 )
 
-# Access registered components
-print(framework.components.models.values())
+record = framework.resolve("models:blog.post")
+print(record.identifier, record.object)
+
+# Project a surface — routes from registry records, nothing else:
+routes = [
+    (f"/{c.namespace}/{c.name}", c.object)
+    for c in framework.registry.by_kind("models")
+]
 ```
 
 ## Documentation
