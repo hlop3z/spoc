@@ -8,10 +8,10 @@ different job and a different lifecycle. `/ai:tool` builds and manages what live
 | `go/`       | Reusable, compiled CLIs. Speed, reliability, single binary. | Maintained           |
 | `py/tools/` | Reusable Python CLIs. Ecosystem-heavy work.                 | Maintained           |
 | `py/lab/`   | Disposable single-file scripts. Exploration and research.   | Pruned on sight      |
-| `sh/`       | Legacy shell scripts.                                       | **Shrinking** — port |
 
-`sh/` is deliberately a shrinking set. Every script there is a candidate for replacement by a
-real tool; the point of this directory is to stop depending on generic OS-level commands.
+There is no shell environment. The legacy `sh/` set was deliberately shrinking and has now
+been ported away entirely — the point of this workshop is to stop depending on generic
+OS-level commands. A new shell script here is a port candidate before it is even written.
 
 ## Choosing
 
@@ -46,7 +46,6 @@ uv run scripts/py/lab/<name>.py              # inline deps, ephemeral env, no lo
 | ----------------------- | -------- | ------------------------------------------------------ |
 | `go/cmd/ensure`         | Go       | Install an adopted third-party CLI (currently `tokei`) |
 | `py/tools/mdlinks`      | Python   | Find broken relative links in Markdown                 |
-| `sh/format_markdown.sh` | sh       | Prettier over all Markdown — port candidate            |
 
 ## Adopted tools
 

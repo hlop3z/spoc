@@ -8,7 +8,7 @@ moment you first discover the real command, so the next session doesn't rediscov
 
 | Check             | Command                                                | Status                                                                    |
 | ----------------- | ------------------------------------------------------ | ------------------------------------------------------------------------- |
-| Formatter         | `uv run ruff format --check .` · `sh scripts/sh/format_markdown.sh` | Python + Markdown                                            |
+| Formatter         | `uv run ruff format --check .`                         | Python only. Markdown is unformatted — the ruff rule set drops `*.md` from `include` on purpose (see `pyproject.toml`). |
 | Linter            | `uv run ruff check` · `cd scripts/go && go vet ./...`  | Python + Go workspace                                                     |
 | Type checker      | `uv run ty check`                                      | Python (ty)                                                               |
 | Unit tests        | `uv run pytest`                                        | `testpaths = ["tests"]` is pinned in pyproject.toml                       |

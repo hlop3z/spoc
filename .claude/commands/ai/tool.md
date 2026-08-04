@@ -21,7 +21,7 @@ command exists to prevent.
 The right answer depends on **this** project, not on a default. Establish, in order:
 
 1. **Does a tool already exist for this?** Check `scripts/go/cmd/`, `scripts/py/tools/`,
-   `scripts/py/lab/`, and `scripts/sh/`. If something close exists, **extend it** rather than
+   and `scripts/py/lab/`. If something close exists, **extend it** rather than
    adding a near-duplicate (Rule 7). Two tools solving one problem is the failure mode here.
 2. **Does a mature CLI already solve this? — HARD GATE.** **Search the web before writing a
    line.** Do not answer this from memory: you will not remember the tool that already exists,
