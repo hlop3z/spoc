@@ -3,6 +3,31 @@
 Build a minimal SPOC project: one app, one kind, resolved through the
 registry. There is one way to do this — declare, mark, start.
 
+## Generate it
+
+```bash
+spoc init myproject
+cd myproject
+python main.py
+```
+
+```
+Ready: 2 components registered
+Installed apps: ['core']
+ - models:core.example
+ - views:core.example
+```
+
+That is a complete, running project. `spoc init` ships with the package and
+needs nothing else installed.
+
+Useful flags: `--kinds` sets the declared kind set (`--kinds models,views,tasks`),
+`--app` names the starter app, `--path` chooses the destination.
+
+The rest of this page explains what was generated. Read it once and you will
+not need the generator again — a SPOC app is a directory with a module per
+kind, which is quicker to copy than to scaffold.
+
 ## Project layout
 
 ```
@@ -157,6 +182,59 @@ def build_routes(registry):
 
 See the [Basic Example](../examples/basic.md) for the full working project,
 including a FastAPI projection.
+
+## Adding a second app
+
+There is no `spoc add-app`, deliberately. An app is a directory with an
+`__init__.py` and a module per kind — copy the generated one:
+
+```bash
+cp -r apps/core apps/billing
+```
+
+Then register it in `config/spoc.toml`:
+
+```toml
+[spoc.apps]
+production = ["core", "billing"]
+```
+
+That is the whole operation. Anything a generator could do here you can do in
+two commands, and the app you copy is already correct for your kind set.
+
+## Your own template set
+
+A framework built on SPOC can ship its own project shape and get `init`
+against it without writing a generator. A template set is a directory of files
+in the format they are emitted as, plus a manifest declaring its substitution
+values:
+
+```toml
+# manifest.toml
+[template_set]
+name = "myframework"
+values = ["project_name", "app_name", "kinds_args", "kind_decorators", "kind"]
+
+[[files]]
+source = "config/spoc.toml.tmpl"
+target = "config/spoc.toml"
+
+# Emitted once per declared kind, with `kind` bound each time.
+[[files]]
+source = "app/kind.py.tmpl"
+target = "apps/$app_name/$kind.py"
+per_kind = true
+```
+
+Templates use `$name` substitution and nothing else — no expressions, no
+conditionals. Content is never executed during generation, so a template that
+looks like runnable code is emitted verbatim. Repetition is declared by the
+manifest (`per_kind`), never expressed inside a template.
+
+Register the directory under the `spoc.scaffold_templates` entry-point group,
+then `spoc init myproject --template myframework`. Every placeholder a template
+uses must appear in `values`; both directions are checked before anything is
+written.
 
 ## Next steps
 

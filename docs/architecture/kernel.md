@@ -75,10 +75,52 @@ flowchart LR
     o -- yes --> rec["Component record<br/>(object returned unexecuted)"]
 ```
 
+## The scaffolder
+
+`spoc init` is a surface, not kernel. It runs **before** a project exists, so
+it appears nowhere in the flow above: nothing in the kernel imports it, and
+removing it changes nothing at runtime. Like every other surface it is a thin
+adapter over a pure core, and its dependencies point inward.
+
+```mermaid
+flowchart LR
+    cli["spoc init<br/><i>argparse entry point</i><br/>parses · renders · no logic"]
+
+    subgraph core ["Scaffold core — pure, no I/O"]
+        direction TB
+        validate["validate names<br/><i>kernel's identity grammar</i>"]
+        plan["build plan<br/><i>$name substitution only</i>"]
+        conflicts["detect conflicts<br/><i>plan vs listing</i>"]
+        validate --> plan --> conflicts
+    end
+
+    subgraph adapters ["Adapters"]
+        direction TB
+        source["TemplateSource<br/>built-in set · entry points"]
+        sink["ProjectSink<br/>stage → verify → commit"]
+    end
+
+    templates[("Template sets<br/><i>directories of native-format files</i><br/>+ manifest declaring values")]
+    project["Generated project<br/>config · framework.py · one app · main.py"]
+
+    cli --> core
+    source -- "loads" --> core
+    templates --> source
+    core -- "GenerationPlan<br/>(all-or-nothing)" --> sink
+    sink --> project
+    project -. "starts unedited<br/><i>asserted by the test suite</i>" .-> templates
+```
+
+The dotted edge is the mechanism that keeps templates honest: the suite
+generates a project, starts it, and asserts the registry, so a kernel change
+that would break new projects fails here rather than reaching users.
+
 ## Invariants
 
 1. **Zero runtime dependencies** — anything needing a dependency is, by
-   definition, not kernel.
+   definition, not kernel. This holds for the shipped scaffolder too: every
+   build-vs-adopt decision behind it landed on the standard library, so the
+   published wheel declares no `Requires-Dist` at all.
 2. **Describes, never executes** — the kernel calls no user code beyond
    lifecycle hooks; resolution is a pure lookup.
 3. **One registry, one grammar** — all views are derived from the flat
