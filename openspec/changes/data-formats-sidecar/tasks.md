@@ -92,4 +92,6 @@
       also corrected invariant 1, which claimed the wheel declares no `Requires-Dist` at all;
       extras appear there as conditional entries a bare install never resolves
 - [x] 7.4 Run `.canon/checks.md`; report anything unrunnable as unverified (Rule 6)
-- [ ] 7.5 Fold the D6 ADRs into `DECISIONS.md` on archive
+- [x] 7.5 Fold the D6 ADRs into `DECISIONS.md` on archive — the four ADRs were rewritten to
+      stand alone, since the `D3`/`D5` cross-references stop resolving once `design.md` is
+      archived

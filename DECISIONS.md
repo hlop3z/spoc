@@ -195,3 +195,78 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   editing is standard-format serialization and therefore never hand-rolled); hand-rolled TOML
   editing (rejected outright on that same rule).
 - **Isolation**: n/a — the kernel's existing `tomllib` read path is untouched.
+
+### Decision: Multi-format loading and collection — Build (thin) over adopted parsers
+
+- **Status**: approved
+- **Why**: Adopting `anyconfig` would make it a dependency of *every* format including JSON,
+  breaking the bare-install requirement `format-codecs` already states — a conflict with an
+  approved spec requirement, not a preference. What remains to build is a dispatch table, a
+  directory walk, key derivation, and collision refusal — none of which is standard-format
+  parsing, and every parser underneath it is adopted.
+- **Considered**: adopt `anyconfig` (covers ~90% of the codec layer, but the bare-install
+  conflict is fatal and its query layer is jmespath, so RFC 9535 would still be a second
+  dependency); adopt `dynaconf` (same conflict, plus it re-owns the environment layering
+  `_MODE_CASCADE` already implements, and is a settings framework rather than a codec layer).
+- **Isolation**: the `Codec` port. Calling code sees the port, never a codec.
+
+### Decision: XML dict convention — Adopt `xmltodict`
+
+- **Status**: approved
+- **Why**: Maintained (1.0.4, February 2026), MIT, pure Python with no dependencies. Its
+  `force_list` accepts a **callable** receiving `(path, key, value)` — the precise extension
+  point the declared-repeating-*paths* design needs, which the tag-name form alone could not
+  express. `unparse` covers the write direction without a second library.
+- **Considered**: build over stdlib `ElementTree` (zero dependencies and `Element` is close to
+  the right shape, but it is hand-rolling standard-format parsing against the canon, and
+  `.text`/`.tail` mixed-content handling is where it would go wrong); adopt `xmljson` for a
+  named convention (implements all six named conventions but is unmaintained and its own
+  documentation redirects to `xmltodict` — a hard reject on maintenance).
+- **Note**: there is no de-jure XML-to-JSON standard, deliberately — W3C standardized the
+  opposite direction (`fn:json-to-xml`) because the mapping is lossy on attributes, namespaces,
+  ordering, and mixed content. This convention is therefore necessarily a de-facto adoption.
+  For CSV the situation is the reverse: `csv2json` (W3C Recommendation, 2015) *is* de jure, and
+  its minimal-mode output is what stdlib `csv.DictReader` already produces, so standards
+  alignment came free. CSVW's standard mode with a JSON-LD descriptor is the named upgrade path
+  if typed columns are ever needed.
+- **Isolation**: one codec adapter, which owns the path-matching predicate handed to
+  `force_list`.
+
+### Decision: JSON Pointer and JSONPath engine — Adopt `python-jsonpath`
+
+- **Status**: approved
+- **Why**: One MIT dependency with no third-party requirements covers both access standards —
+  RFC 6901 for exact addressing and RFC 9535 for querying — where the alternative needs two.
+  Version 2.2.1 (July 2026) also ships RFC 6902.
+- **Considered**: adopt `jsonpath-rfc9535` plus a separate pointer library (strict conformance
+  with no superset ambiguity, at the cost of a second dependency); adopt `jsonpath-ng`
+  (predates the RFC and implements a pre-standard dialect — rejected on those grounds before
+  the gate).
+- **Criterion**: passes the JSONPath Compliance Test Suite.
+- **Risk accepted**: `python-jsonpath` is a deliberate *superset* of RFC 9535 — its
+  strict-conformance sibling exists for that reason. Strictness is reached by pinning the
+  RFC-strict entry points via sentinel tokens; if that ever proves unavailable, the fallback is
+  the two-dependency option above. The companion `iregexp-check` is what makes the RFC's own
+  `match()`/`search()` functions available, so conformance is not partial.
+- **Isolation**: an access module that no codec imports.
+
+### Decision: YAML parser — Adopt `ruamel.yaml`
+
+- **Status**: approved
+- **Why**: YAML 1.2 is a strict JSON superset, which matches the "IR is a JSON value" contract
+  exactly rather than approximating it, and it avoids the Norway problem by specification
+  rather than by patching. PyYAML implements YAML **1.1**, whose implicit booleans parse `NO`
+  as `False` and whose sexagesimal rule parses `12:30` as `750`. `ruamel.yaml` dropped its
+  C-library dependency in 0.19.1. Maturity and enterprise adoption were tested explicitly and
+  pass: aws-cli v2, ansible-lint, mitmproxy, conda, esphome, jupyterlab-server,
+  check-jsonschema, ~0.5M downloads/day.
+- **Considered**: adopt `PyYAML` as-is (better governance — multi-maintainer, on GitHub,
+  ubiquitous — but inherits YAML 1.1's implicit-boolean and sexagesimal footguns knowingly);
+  extend `PyYAML` by narrowing its bool resolver (~5 lines, keeps PyYAML's governance and kills
+  the headline footgun, but leaves SPOC speaking a third dialect that disagrees with every
+  other PyYAML-based tool, and the quieter 1.1 quirks remain).
+- **Risk accepted**: single maintainer, hosted on SourceForge Mercurial, with a community fork
+  (`ruyaml`) existing explicitly "to secure the future of the library, mainly by having a pool
+  of maintainers." Bounded two ways: the `Codec` port makes a backend swap a one-adapter
+  change, and `ruyaml` is a drop-in replacement if upstream stalls. **Revisit ~August 2027.**
+- **Isolation**: one codec adapter, restricted to safe loading.
