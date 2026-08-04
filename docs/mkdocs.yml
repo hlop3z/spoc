@@ -22,6 +22,7 @@ nav:
       - Advanced Usage:
           - Plugins: advanced/plugins.md
           - Lifecycle Hooks: advanced/lifecycle.md
+          - Data & Formats: advanced/data-formats.md
       - API Reference:
           - Framework: api/framework.md
           - Registry: api/registry.md

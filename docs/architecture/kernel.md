@@ -169,12 +169,71 @@ The dotted edge is the mechanism that keeps templates honest: the suite
 generates a project, starts it, and asserts the registry, so a kernel change
 that would break new projects fails here rather than reaching users.
 
+## The data surface
+
+`spoc.formats` is the second sidecar, on the same contract as the scaffolder: nothing in the
+kernel imports it, `start()` never calls it, and removing it changes nothing at runtime. It
+exists for the *project's* own data — fixtures, tables, per-app settings — never for the
+kernel's configuration, which stays `spoc.toml` through stdlib `tomllib`.
+
+Note the arrow directions. The one edge crossing into the kernel is `formats → identity`,
+which is the dependency pointing *inward* exactly as the rule requires: the collection key
+grammar is the kernel's grammar, not a second one. No arrow runs the other way.
+
+```mermaid
+flowchart TB
+    project["Project code<br/><i>calls it directly — not a lifecycle hook</i>"]
+
+    subgraph formats ["spoc.formats — sidecar, imports resolve lazily"]
+        direction TB
+
+        subgraph fcore ["core — pure, no I/O, stdlib only"]
+            direction TB
+            port["Codec port<br/><i>one lazy factory per direction</i>"]
+            freg["FormatRegistry<br/>by name · by extension"]
+            ops["operations<br/>loads · dumps · read · write · collect"]
+        end
+
+        subgraph fad ["adapters — one per format"]
+            direction LR
+            std["json · csv · toml-read<br/><i>standard library</i>"]
+            opt["yaml · xml · toml-write<br/><i>behind extras</i>"]
+        end
+
+        access["access<br/>RFC 6901 pointer · RFC 9535 query"]
+    end
+
+    ir[("JSON representation<br/><i>object · array · string<br/>number · boolean · null</i>")]
+    files[("Files on disk<br/>a tree of mixed formats")]
+
+    project --> ops
+    project --> access
+    ops --> freg --> port
+    port -.-> std
+    port -.-> opt
+    files --> ops
+    ops --> ir
+    access --> ir
+    formats -- "validate_segment<br/><i>one grammar, pointing inward</i>" --> identity
+```
+
+The dotted edges are the laziness: a codec's dependency is imported the first time that
+*direction* of that *format* is used, so importing `spoc.formats` on a bare install pulls in
+nothing, and a missing extra fails naming itself rather than as an `ImportError`.
+
+Reading and querying are separate boxes on purpose. Addressing is split by failure semantics —
+a pointer names one value or raises, a query returns a possibly-empty list — and the two are
+never relaxed into each other.
+
 ## Invariants
 
 1. **Zero runtime dependencies** — anything needing a dependency is, by
-   definition, not kernel. This holds for the shipped scaffolder too: every
-   build-vs-adopt decision behind it landed on the standard library, so the
-   published wheel declares no `Requires-Dist` at all.
+   definition, not kernel. `dependencies` is empty, so installing spoc acquires
+   nothing, and this holds for the shipped scaffolder too: every build-vs-adopt
+   decision behind it landed on the standard library. The data sidecar does
+   adopt packages, but every one is quarantined behind an extra — they appear in
+   the wheel only as conditional `Requires-Dist ... ; extra == "…"` entries that
+   a bare install never resolves.
 2. **Describes, never executes** — the kernel calls no user code beyond
    lifecycle hooks; resolution is a pure lookup.
 3. **One registry, one grammar** — all views are derived from the flat
