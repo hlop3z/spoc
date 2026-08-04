@@ -1,8 +1,9 @@
 """
 Core framework module for SPOC.
 
-This module provides the foundational Framework class that manages application lifecycle,
-module loading, plugin registration, and dependency handling within SPOC applications.
+The Framework is the composition root: it owns its importer (and therefore
+its registry and hooks), loads configuration, discovers apps, and manages
+lifecycle. Two Framework instances in one process are fully independent.
 
 Usage:
     from spoc.framework import Framework, Schema
@@ -14,12 +15,15 @@ Usage:
         hooks={}
     )
     framework = Framework(base_dir=Path("/path/to/app"), schema=schema)
-    framework.startup()
-    # ... run your app ...
+
+    record = framework.resolve("models:blog.post")   # a Component record
+    for component in framework.registry.by_kind("models"):
+        ...  # project routes, schemas, docs from records
+
     framework.shutdown()
 
-The framework is designed for modular, testable, and extensible applications.
-It supports dynamic module loading, dependency management, and plugin systems.
+The kernel describes — it never executes. Resolution is a pure lookup;
+invocation belongs to the surfaces built on top.
 """
 
 from __future__ import annotations
@@ -28,12 +32,13 @@ from __future__ import annotations
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
+from types import ModuleType
 from typing import Any, Callable, Dict, List, NotRequired, TypedDict
 
 # Local imports
 from .core.config_loader import load_configuration, load_environment, load_spoc_toml
 from .core.importer import FrameworkMode, Importer
+from .core.registry import Component, Registry
 from .inject_apps import inject_apps
 
 DEFAULT_MODE = "development"
@@ -56,8 +61,9 @@ class Schema:
     """
     Schema definition for application modules and their dependencies.
 
-    Defines a structure for modules to be loaded, their dependencies,
-    and associated lifecycle hooks.
+    ``modules`` is also the project's closed kind set: objects declared in
+    ``<app>/<module>.py`` are components of kind ``<module>``, and no other
+    kinds exist (layout is taxonomy).
     """
 
     modules: List[str]
@@ -70,13 +76,10 @@ class Config:
     """
     Configuration container for the framework.
 
-    Holds project configuration, settings, and environment variables
-    loaded from configuration files.
-
     Attributes:
-        `project`: Project configuration
-        `settings`: Settings configuration
-        `environment`: Environment variables
+        `project`: Project configuration (the ``[spoc]`` table)
+        `settings`: Settings module
+        `environment`: Environment variables for the active mode
     """
 
     project: Dict[str, Any]
@@ -105,15 +108,12 @@ def build_config(base_dir: Path, echo: bool = False) -> Config:
 
 class Framework:
     """
-    Core framework class for SPOC applications.
+    Core framework class for SPOC applications — the composition root.
 
     Manages the lifecycle of an application including module loading,
-    dependency resolution, and plugin registration. Provides a structured
-    way to bootstrap and tear down applications.
+    dependency resolution, and plugin registration, and owns the flat
+    component registry that external surfaces project from.
     """
-
-    installed_apps: list[str] = []
-    components: SimpleNamespace = SimpleNamespace()
 
     def _collect_plugins(self) -> Dict[str, OrderedDict[str, Any]]:
         """
@@ -152,27 +152,46 @@ class Framework:
 
         Args:
             base_dir: Base directory for the application.
-            schema: Schema describing modules and dependencies.
+            schema: Schema describing modules (the kind set) and dependencies.
             echo: Whether to echo debug information during operations.
             mode: Whether to enforce modules (files.py) in all apps at startup.
         """
         inject_apps(base_dir)
 
-        self.echo = echo  # Store for potential future use
+        self.echo = echo
         self.base_dir = base_dir
         self.schema = schema
-        self.importer = Importer(mode=mode)
+        self.installed_apps: list[str] = []
+        self.importer = Importer(mode=mode, kinds=tuple(schema.modules))
         self.config = build_config(base_dir, echo)
         self.plugins = self._collect_plugins()
 
         # Start the framework
         self.startup()
 
-    def get_component(self, kind: str, name: str) -> Any:
-        """Get a framework component by <kind>.<name>"""
-        if hasattr(self.components, kind):
-            return getattr(self.components, kind).get(name)
-        return None
+    @property
+    def registry(self) -> Registry:
+        """The flat component registry — the single read surface."""
+        return self.importer.registry
+
+    def resolve(self, identifier: str) -> Component:
+        """
+        Resolve a canonical identifier (``kind:namespace.object_name``) to
+        its registry record.
+
+        A pure lookup: the resolved object is returned unexecuted. Failures
+        raise per segment — kind, then namespace, then object_name — each
+        error naming the failing segment, its value, and the valid
+        candidates at that step.
+
+        Raises:
+            MalformedIdentifierError: If the string doesn't parse.
+            InvalidSegmentError: If a segment violates the grammar.
+            UnknownKindError: If the kind is not declared.
+            UnknownNamespaceError: If no such namespace holds that kind.
+            UnknownObjectError: If the name is absent in kind:namespace.
+        """
+        return self.registry.resolve(identifier)
 
     def _register_modules(self, app: str) -> None:
         for mod in self.schema.modules:
@@ -192,7 +211,6 @@ class Framework:
 
     def _register_app(self, app_name: str) -> Framework:
         self._register_modules(app_name)
-        self._register_hooks()
         return self
 
     @staticmethod
@@ -234,25 +252,21 @@ class Framework:
         self.installed_apps = app_names
         return self
 
-    def _init_components(self) -> None:
-        for mod in self.schema.modules:
-            if mod not in self.importer.components:
-                self.importer.components[mod] = {}
-        self.components = SimpleNamespace(**self.importer.components)
-
     def startup(self) -> Framework:
         """
         Bootstrap the application.
 
-        Registers all configured applications, initializes modules in dependency
-        order, and loads all plugins.
+        Registers all configured applications and hooks, discovers declared
+        components into the registry (loudly — a component that cannot be
+        registered fails startup), and initializes modules in dependency
+        order.
 
         Returns:
             Self instance for method chaining
         """
         self._register_all_apps()
+        self._register_hooks()
         self.importer.startup()
-        self._init_components()
         return self
 
     def shutdown(self) -> Framework:

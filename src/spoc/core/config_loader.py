@@ -6,16 +6,16 @@ from various common locations in a SPOC project.
 """
 
 import importlib.util
+import logging
 import sys
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 from .exceptions import ConfigurationError
-from .logging_utils import LazyLogger
 from .toml_core import TOML, validate_spoc_config
 
-lazy_logger = LazyLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def _import_module_from_path(module_path: Path, module_name: str) -> ModuleType:
@@ -144,7 +144,7 @@ def load_spoc_toml(base_dir: Path) -> dict[str, Any]:
             return config
 
     # If no config found, return a minimal valid structure but log a warning
-    lazy_logger.warning(
+    logger.warning(
         "No spoc.toml configuration found in standard locations. "
         "Using default minimal configuration. This may cause unexpected behavior.",
     )
@@ -171,7 +171,7 @@ def load_environment(
         if not env_dir.exists():
             env_dir = base_dir / ".env"
             if not env_dir.exists() and echo:
-                lazy_logger.warning(
+                logger.warning(
                     "No .env directory found at %s/config/.env or %s/.env. "
                     "Using empty environment configuration.",
                     base_dir,
@@ -187,7 +187,7 @@ def load_environment(
     # Fall back to default environment if mode-specific one doesn't exist
     default_env = env_dir / "default.toml"
     if default_env.exists() and echo:
-        lazy_logger.warning(
+        logger.warning(
             "No environment configuration found for mode '%s'. "
             "Falling back to default configuration.",
             mode,
@@ -195,7 +195,7 @@ def load_environment(
         return dict(TOML(default_env).read().get("env", {}))
 
     if echo:
-        lazy_logger.warning(
+        logger.warning(
             "No environment configuration files found for mode '%s' or default. "
             "Using empty environment configuration.",
             mode,

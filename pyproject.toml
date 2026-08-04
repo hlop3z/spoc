@@ -24,12 +24,19 @@ root = ["./src"]
 [tool.ty.rules]
 unresolved-import = "ignore"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [dependency-groups]
 dev = [
     # Devs Tools
     "pytest>=9.0.2",
     "ruff>=0.14.13",
     "ty>=0.0.12",
+]
+examples = [
+    # HTTP surface for the registry-projection example (never a kernel dependency)
+    "fastapi>=0.115",
 ]
 docs = [
     # Docs Tools
