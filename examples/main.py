@@ -1,16 +1,14 @@
-# Standard Library
-from pprint import pprint
-
-from framework import App
+from framework.framework import framework
 
 if __name__ == "__main__":
-    app = App()
-    app.startup()
-    # pprint(app.config)
-    # print("\n")
-    # print(app.get_components("models"))
-    print(app.get_component("models", "auth.UserAccount").__spoc__)
-    # Later...
-    # loader.shutdown()
+    print("Installed apps:", framework.installed_apps)
 
-    # app.shutdown()
+    # Resolve one component by its canonical identifier
+    record = framework.resolve("models:auth.user_account")
+    print("Resolved:", record.identifier, "->", record.object)
+
+    # Enumerate the whole registry (deterministic order)
+    for component in framework.registry:
+        print(" -", component.identifier)
+
+    framework.shutdown()

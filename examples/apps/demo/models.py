@@ -2,16 +2,18 @@ import dataclasses as dc
 
 from framework.framework import model
 
-
-@dc.dataclass
-@model
-class UserAccount:
-    id: int
-    name: str
+# A snake_case class name already conforms, so no explicit name is needed.
 
 
 @dc.dataclass
 @model
-class Role:
+class post:
     id: int
-    name: str
+    title: str
+
+
+@dc.dataclass
+@model(name="comment_thread")
+class CommentThread:
+    id: int
+    post_id: int

@@ -2,33 +2,19 @@ import dataclasses as dc
 
 from framework.framework import model
 
-"""
-DEPENDENCIES = []
-
-NAME = "auth.models"
-
-def initialize():
-    print(f"Initializing {NAME}")
-    return True
-
-
-def teardown():
-    print(f"Tearing down {NAME}")
-    return True
-"""
-
-# Example module: auth.models
+# PascalCase class names need an explicit conforming name —
+# identifiers are never inferred or normalized.
 
 
 @dc.dataclass
-@model
+@model(name="user_account")
 class UserAccount:
     id: int
     name: str
 
 
 @dc.dataclass
-@model
+@model(name="role")
 class Role:
     id: int
     name: str
