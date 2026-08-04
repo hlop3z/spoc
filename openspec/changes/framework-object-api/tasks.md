@@ -9,6 +9,7 @@
 - [ ] 2.1 Implement `start(base_dir)`: inject apps → load `spoc.toml` → mode-cascade app list → register modules → plugins → discovery → `on_ready` callbacks → module init; double start raises; `shutdown()` before start is a no-op (D3, D4)
 - [ ] 2.2 Remove settings-module machinery: delete `load_configuration`, drop `Config.settings`, source `[spoc.apps]`/`[spoc.plugins]` from `spoc.toml` only; keep the `.env/<mode>.toml` cascade (D5)
 - [ ] 2.3 Verify the library imports standalone (no `config` package on `sys.path` required) and two `Framework` instances stay fully independent including their handles (D6, risk 1)
+- [ ] 2.4 Replace the hand-rolled `DependencyGraph` with stdlib `graphlib.TopologicalSorter`, translating `CycleError` to `CircularDependencyError` (cycle members preserved in the message); drop `DependencyGraph` from the public surface (ADR: dependency ordering)
 
 ## 3. Tests
 

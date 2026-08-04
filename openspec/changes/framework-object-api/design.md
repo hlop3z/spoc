@@ -92,7 +92,51 @@ Pre-1.0, downstream (zmag) pins an older version. `Components`, `Schema`, `Hook`
 `load_configuration` are removed outright; version bumps minor (0.x convention:
 breaking allowed). Alternative: deprecation aliases for one release — rejected; two
 ways to do everything is the problem being solved, and tests already pin absence of
-removed API as the pattern (`test_framework.py`).
+removed API as the pattern (`test_framework.py`). Confirmed by the user at the
+`/ai:decide` gate: green-field, no backward compatibility.
+
+### Decision: TOML config parsing — Adopt stdlib `tomllib`
+
+- **Status**: approved
+- **Why**: standard-format parsing is never hand-rolled; `tomllib` is the standard
+  library implementation and keeps the kernel zero-dependency.
+- **Considered**: `tomli` (redundant on ≥3.11), `tomlkit` (round-trip editing we
+  don't need).
+- **Isolation**: `core/toml_core.py` adapter — the only module that imports it.
+
+### Decision: Dependency ordering — Adopt stdlib `graphlib.TopologicalSorter`
+
+- **Status**: approved
+- **Why**: the hand-rolled `DependencyGraph` (~130 lines incl. cycle detection)
+  duplicates stdlib `graphlib`; zero differentiating value, strictly more code to
+  maintain.
+- **Considered**: keep hand-rolled implementation (rejected — stdlib duplicate);
+  `networkx` (rejected — heavyweight dependency for one algorithm).
+- **Isolation**: internal to `core/importer.py`; `graphlib.CycleError` is translated
+  to `CircularDependencyError` so the public error contract is unchanged.
+
+### Decision: Lifecycle hooks — Build (hand-written, in-kernel)
+
+- **Status**: approved
+- **Why**: the contract is an ordered callback list fired once (`on_ready`) plus
+  per-kind startup/shutdown — trivial scope; adopting a plugin framework would trade
+  the kernel's zero-dependency guarantee for ~5% feature use.
+- **Considered**: `pluggy` (mature, pytest-proven, but built for open plugin
+  ecosystems with hookspec/hookimpl discovery); `stevedore` (entry-point loading,
+  wrong problem).
+- **Isolation**: `Framework` composition root; callbacks receive only the public
+  `Registry` read surface.
+
+### Decision: Registry + decorator factories — Build (existing kernel core)
+
+- **Status**: approved
+- **Why**: the `kind:namespace.object_name` grammar, closed kind set, per-segment
+  resolution errors, and validate-never-normalize are the product's differentiating
+  value; no OSS registry implements this contract (best match covers ~40%).
+- **Considered**: `catalogue` (explosion — lightweight namespaced registries, no
+  identity grammar); `class-registry` (factory pattern + entry points, wrong model).
+- **Isolation**: pure core (`core/identifier.py`, `core/registry.py`);
+  `framework.kind()` is a thin factory over the existing registration path.
 
 ## Risks / Trade-offs
 
