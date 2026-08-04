@@ -28,7 +28,7 @@ class TestComponentDecorator:
             ("MyService", "my_service"),
             ("UserAccount", "user_account"),
             ("CommentThread", "comment_thread"),
-            ("HTTPServer", "httpserver"),
+            ("HTTPServer", "http_server"),
             ("Post2", "post2"),
         ],
     )
