@@ -55,6 +55,9 @@ def validate_config(
     """
     Validate a configuration dictionary against a schema.
 
+    Keys absent from the configuration are not errors — they fall back to
+    defaults at load time. Only the types of present values are validated.
+
     Args:
         config: The configuration dictionary to validate.
         schema: A schema dictionary where keys are configuration keys
@@ -66,13 +69,12 @@ def validate_config(
     """
     errors: list[str] = []
 
-    # Check for required keys and correct types
+    # Check types of present keys
     for key, expected_type in schema.items():
         # Build the current path
         current_path = f"{path_prefix}{key}" if path_prefix else key
 
         if key not in config:
-            errors.append(f"Missing required key: {current_path}")
             continue
 
         if isinstance(expected_type, dict):
