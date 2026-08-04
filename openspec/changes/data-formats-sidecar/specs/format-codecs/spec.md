@@ -100,6 +100,11 @@ A tabular format MUST read as an array of objects, one per data row, with the he
 supplying the keys. This mapping MUST match the minimal-mode output defined by the adopted
 tabular-to-JSON standard.
 
+Every value MUST read as a string, because the format carries no type information and
+inferring one from a value's appearance would make a row's type depend on its contents. This
+consequence — that comparisons over tabular values are lexicographic, not numeric — MUST be
+stated wherever the format is documented, since it is silent rather than loud.
+
 #### Scenario: Rows become records
 
 - **WHEN** a tabular source with a header row is read
@@ -110,6 +115,18 @@ tabular-to-JSON standard.
 
 - **WHEN** a tabular source containing exactly one data row is read
 - **THEN** the result is an array of length one, not a bare object
+
+#### Scenario: Values are strings regardless of appearance
+
+- **WHEN** a tabular source containing numeric-looking values is read
+- **THEN** every value in the result is a string, and no value has been converted to a number
+  on the basis of how it is written
+
+#### Scenario: The untyped consequence is not hidden
+
+- **WHEN** a comparison is applied to a value read from a tabular source
+- **THEN** it compares as a string, and this ordering behavior is stated in the format's
+  documentation rather than left for a caller to discover from a wrong result
 
 ### Requirement: Hierarchical markup maps to nested objects with declared repetition
 
