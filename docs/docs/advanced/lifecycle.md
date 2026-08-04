@@ -24,35 +24,33 @@ def build_derived_state(registry):
 
 ## Per-kind hooks
 
-Fire for every app's module of a kind, with the set of that module's
+Hooks are an attribute of a kind, so they are declared on its `KindSpec` —
+the same place its dependencies, optionality, and metadata contract live.
+They fire for every app's module of that kind, with the set of that module's
 registered component objects:
 
 ```python
-@framework.on_startup("models")
+import spoc
+
 def init_models(objects):
     ...
 
-@framework.on_shutdown("models")
 def close_models(objects):
     ...
+
+framework = spoc.Framework(
+    spoc.KindSpec("models", on_startup=init_models, on_shutdown=close_models),
+)
 ```
 
 Startup hooks fire before the module's own `initialize()`; shutdown hooks
 before its `teardown()`. Hooks are instance state — two frameworks never
 share them.
 
-For finer control, register a pattern hook directly on the importer:
-
-```python
-framework.importer.register_hook(
-    pattern="blog.*",              # wildcards: * and ?
-    on_startup=lambda objs: ...,
-    on_shutdown=lambda objs: ...,
-)
-```
-
-An exact-name hook overrides pattern hooks per hook type; pattern hooks
-still fire for hook types the exact-name entry does not define.
+There is no decorator form. Every attribute of a kind is stated on the kind
+it describes, so no second surface can disagree with the declaration. The
+practical consequence is ordering: a hook function must be defined before the
+`Framework(...)` call that references it.
 
 ## Module lifecycle functions
 
@@ -71,18 +69,24 @@ def teardown():
 ## Full start order
 
 1. Plugins load from `[spoc.plugins]`
-2. Component discovery — every module's declared components register into
-   the registry; any failure (kind mismatch, invalid segment, duplicate)
-   aborts start **before** any initialization side effects run
-3. `on_ready` callbacks fire with the completed registry
-4. For each module in dependency order: startup hooks fire, then the
+2. App modules import in dependency order. A module absent for a kind
+   declared `required=False` is skipped; absent for a required kind it raises
+   `MissingModuleError`. A module that exists but raises while importing is
+   always an error, whatever its kind's optionality
+3. Component discovery — every module's declared components register into
+   the registry; any failure (kind mismatch, invalid segment, duplicate,
+   metadata that departs from its kind's contract) aborts start **before**
+   any initialization side effects run
+4. `on_ready` callbacks fire with the completed registry
+5. For each module in dependency order: startup hooks fire, then the
    module's `initialize()`
-5. On `shutdown()`: for each module in reverse order, shutdown hooks fire,
+6. On `shutdown()`: for each module in reverse order, shutdown hooks fire,
    then the module's `teardown()`
 
 ## Errors
 
 Failures during start/shutdown surface as `SpocError` (or a more specific
 subclass — `CircularDependencyError`, `ComponentKindMismatchError`,
-`DuplicateComponentError`). Nothing is silently skipped, and a failed start
-leaves `framework.started` False.
+`DuplicateComponentError`, `MissingModuleError`, `MetadataContractError`).
+Nothing is silently skipped, and a failed start leaves `framework.started`
+False.

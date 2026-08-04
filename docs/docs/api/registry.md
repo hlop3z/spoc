@@ -18,22 +18,33 @@ The flat component registry and the canonical identifier grammar.
 
 ## Identifier Grammar
 
-::: spoc.core.identifier.parse
+Validation and conversion are separate, and the split is by *origin*. A name the
+author **states** is used verbatim and validated. A name the kernel **derives**
+from an object is converted to snake_case by `to_snake_case` first, then validated
+like any other value — so a PEP 8 class name yields the conventional segment
+without the author restating it.
+
+::: spoc.core.identity.parse
     options:
       show_root_heading: true
       show_source: false
 
-::: spoc.core.identifier.compose
+::: spoc.core.identity.compose
     options:
       show_root_heading: true
       show_source: false
 
-::: spoc.core.identifier.validate_segment
+::: spoc.core.identity.validate_segment
     options:
       show_root_heading: true
       show_source: false
 
-::: spoc.core.identifier.Identifier
+::: spoc.core.identity.to_snake_case
+    options:
+      show_root_heading: true
+      show_source: false
+
+::: spoc.core.identity.Identifier
     options:
       show_root_heading: true
       show_source: false
@@ -79,6 +90,11 @@ error naming the failing segment, its value, and the valid candidates.
       show_source: false
 
 ::: spoc.core.exceptions.MissingNameError
+    options:
+      show_root_heading: true
+      show_source: false
+
+::: spoc.core.exceptions.MetadataContractError
     options:
       show_root_heading: true
       show_source: false

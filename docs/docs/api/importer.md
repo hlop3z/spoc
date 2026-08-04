@@ -1,58 +1,60 @@
-# Importer API Reference
+# Loader API Reference
 
-The Importer enables dynamic, dependency-aware module management. It handles:
+The loader imports an application's modules in dependency order and runs their
+lifecycle. It is deliberately **kind-blind**: it is handed a kind label with each
+module and carries it back out for hook dispatch, but never reads or decides
+anything from it. That is what keeps the registry — a pure core concern — out of
+the loader entirely.
+
+It handles:
 
 - **Dynamic module loading** at runtime
-- **Caching** for efficient module reuse
-- **Lifecycle management** with dependency-ordered initialization and teardown
-- **Component discovery** into the flat registry at startup
-- **Hook registration** for custom startup/shutdown behavior
+- **Dependency-ordered** initialization and reverse-ordered teardown
+- **Per-kind lifecycle hooks**, dispatched by the label the caller supplied
+- **Absent vs. broken** module discrimination
 
-Each Importer instance is fully independent — cache, graph, hooks, and
-registry are all instance state.
+Each `Framework` owns one loader instance; nothing is shared between frameworks.
+The loader is not exported from the `spoc` package — it is reachable at
+`spoc.core.loader` for anyone extending the kernel.
 
-## Importer Class
+## Loader Class
 
-::: spoc.core.importer.Importer
+::: spoc.core.loader.Loader
     options:
       show_root_heading: true
       show_source: false
       members:
-        - __init__
-        - load
         - register
-        - register_hook
         - load_from_uri
-        - has
-        - get
-        - clear
-        - clear_all
-        - unload_all
-        - startup
+        - ordered
+        - initialize
         - shutdown
-        - keys
 
-## ModuleInfo Class
+## LoadedModule
 
-::: spoc.core.importer.ModuleInfo
+::: spoc.core.loader.LoadedModule
     options:
       show_root_heading: true
       show_source: false
 
 ## Component Discovery
 
-::: spoc.core.components_discovery.discover_components
+Discovery turns the declaration markers in a loaded module into registry records.
+It lives in the declaration layer, not the loader — it takes a module and a
+registry, and reaches into no cache.
+
+::: spoc.core.declaration.discover
     options:
       show_root_heading: true
       show_source: false
 
 ## Related Exceptions
 
-The Importer may raise the following exceptions:
+The loader may raise the following exceptions:
 
 - **[SpocError](core-utils.md#spoc.core.exceptions.SpocError)** - Base exception for all SPOC errors
 - **[AppNotFoundError](core-utils.md#spoc.core.exceptions.AppNotFoundError)** - Raised when a module cannot be found
-- **[ModuleNotCachedError](core-utils.md#spoc.core.exceptions.ModuleNotCachedError)** - Raised when accessing a module not in cache
+- **[MissingModuleError](core-utils.md#spoc.core.exceptions.MissingModuleError)** - Raised when a required kind's module is absent
 - **[CircularDependencyError](core-utils.md#spoc.core.exceptions.CircularDependencyError)** - Raised when circular dependencies are detected
 - **[ComponentKindMismatchError](registry.md)** and the other registration errors — see the [Registry API](registry.md)
 

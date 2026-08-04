@@ -1,23 +1,30 @@
 # Framework
 
-`Framework` is the **single declaration point** and the composition root: the
-kind set, inter-kind dependencies, and lifecycle hooks are stated once, on
-one object. It owns its importer (and therefore its registry and hooks).
-Two `Framework` instances in one process are fully independent — there is no
-global state.
+`Framework` is the **single declaration point** and the composition root. It
+owns the registry, the loader, and the configuration adapter, and it is the
+only place they are wired together. Two `Framework` instances in one process
+are fully independent — there is no global state.
 
 ## Declaration
 
+Every attribute of a kind lives on its `KindSpec`. A bare string is shorthand
+for a spec with all defaults, so simple kinds stay simple:
+
 ```python
+from dataclasses import dataclass
 import spoc
 
+@dataclass(frozen=True)
+class ModelMeta:
+    table: str
+
 framework = spoc.Framework(
-    "models", "views",                      # the closed kind set
-    dependencies={"views": ["models"]},     # load order within each app
-    mode="strict",                          # raise when an app misses a module
+    spoc.KindSpec("models", metadata=ModelMeta),
+    spoc.KindSpec("views", depends_on=("models",), required=False),
+    "commands",                              # shorthand: all defaults
 )
 
-model = framework.kind("models")            # ready-made decorators
+model = framework.kind("models")             # ready-made decorators
 view = framework.kind("views")
 ```
 
@@ -27,8 +34,11 @@ safely import the decorators before anything has started.
 
 - Kinds are identifier segments: lowercase snake_case, validated, never
   normalized.
-- `dependencies` keys and values must be declared kinds — anything else
-  raises `UnknownKindError` immediately.
+- `depends_on` entries must be declared kinds — anything else raises
+  `UnknownKindError` immediately.
+- `required` defaults to `True`, so tolerating a missing module is always a
+  deliberate act. It is decided per kind: declaring `views` optional does not
+  weaken the guarantee for `models`.
 - `framework.kind("controllers")` on an undeclared kind raises
   `UnknownKindError` naming the declared set.
 
@@ -37,15 +47,19 @@ safely import the decorators before anything has started.
 The callable returned by `framework.kind()` supports both forms:
 
 ```python
-@model                        # UserAccount → models:<app>.user_account
-class UserAccount: ...
+@model(meta=ModelMeta(table="posts"))   # metadata must match the kind's contract
+class Post: ...
 
-@model(name="legacy_user")    # a stated name is verbatim and validated
-class OldAccount: ...
+@model(name="legacy_user", meta=ModelMeta(table="users"))
+class OldAccount: ...                   # a stated name is verbatim and validated
 
-@model(config={"table": "tags"}, metadata={"public": True})
-class Tag: ...                # config/metadata ride onto the registry record
+@view                                   # ListPosts → views:<app>.list_posts
+class ListPosts: ...                    # `views` declares no contract, so no meta
 ```
+
+A kind that declares a `metadata` type has every component checked against it
+at registration. A kind that declares none accepts no metadata at all — there
+is no untyped channel to fall back on.
 
 The name is derived from the object in snake_case; pass `name=` only to
 override it. Lookup never converts — `models:blog.user_account` is the one
@@ -64,10 +78,14 @@ framework.shutdown()          # reverse-order teardown; no-op if never started
 1. `apps/` is put on the import path
 2. `config/spoc.toml` is loaded — the only file the kernel reads
 3. Plugins are loaded from `[spoc.plugins]` (a bad reference fails start)
-4. Apps are collected via the mode cascade and their modules registered
+4. Apps are collected via the mode cascade and their modules registered. A
+   module absent for a required kind raises `MissingModuleError`; absent for
+   an optional one it is skipped. A module that exists but fails to import is
+   an error either way
 5. **Components are discovered into the registry** — loudly: a declared
    component that cannot be registered (kind mismatch, invalid segment,
-   duplicate identifier) fails start with a precise error
+   duplicate identifier, metadata departing from its kind's contract) fails
+   start with a precise error
 6. **`on_ready` callbacks fire** with the completed registry
 7. Modules initialize in dependency order, firing per-kind startup hooks
 
@@ -91,14 +109,18 @@ discovery and before module initialization. A callback error fails start.
 
 ## Per-kind lifecycle hooks
 
+Hooks are a kind attribute, so they ride the `KindSpec` like every other one:
+
 ```python
-@framework.on_startup("models")
 def init_models(objects):        # the set of the module's registered objects
     ...
 
-@framework.on_shutdown("models")
 def close_models(objects):
     ...
+
+framework = spoc.Framework(
+    spoc.KindSpec("models", on_startup=init_models, on_shutdown=close_models),
+)
 ```
 
 Hooks fire for every app's module of that kind — see

@@ -74,18 +74,30 @@ branching anywhere.
 
 ## Dependencies between modules
 
-The framework's `dependencies` declaration orders module loading *within*
-every app:
+A kind's `depends_on` orders module loading *within* every app:
 
 ```python
 spoc.Framework(
-    "models", "views",
-    dependencies={"views": ["models"]},   # views load after models
+    "models",
+    spoc.KindSpec("views", depends_on=("models",)),   # views load after models
 )
 ```
 
-The importer topologically sorts `<app>.<module>` nodes; circular
-dependencies raise `CircularDependencyError` at startup.
+The loader topologically sorts `<app>.<module>` nodes; circular dependencies
+raise `CircularDependencyError` at startup.
+
+## Apps need not implement every kind
+
+A kind declared `required=False` may be absent from any app — that app simply
+contributes no components of it:
+
+```python
+spoc.Framework("models", spoc.KindSpec("views", required=False))
+```
+
+Optionality is per kind, so this does not weaken the guarantee for `models`:
+an app missing `models.py` still fails start with `MissingModuleError`. A
+module that *exists* but fails to import is an error regardless.
 
 ## Module lifecycle functions
 

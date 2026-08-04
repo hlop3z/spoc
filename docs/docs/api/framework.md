@@ -2,6 +2,16 @@
 
 This page provides detailed API documentation for the Framework module in SPOC.
 
+The framework object is the single declaration point and the composition root. It
+owns the registry, the loader, and the configuration adapter, and it is the only
+place they are wired together.
+
+Per-kind attributes — dependency order, optionality, the metadata contract, and
+lifecycle hooks — are declared on
+[`KindSpec`](components.md#spoc.core.declaration.KindSpec), not on the framework.
+There is no decorator form for them: a kind attribute is stated on the kind it
+describes, or nowhere.
+
 ## Framework Class
 
 ::: spoc.framework.Framework
@@ -15,10 +25,3 @@ This page provides detailed API documentation for the Framework module in SPOC.
     options:
       show_root_heading: true
       show_source: false
-
-## Helper Functions
-
-::: spoc.framework.build_config
-    options:
-      show_root_heading: true
-      show_source: false 

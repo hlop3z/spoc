@@ -82,13 +82,29 @@ Identity is never inferred from the execution environment (no stack
 inspection). Registration attaches a declaration marker; discovery turns
 markers into registry records at `start()`.
 
-`config` and `metadata` ride along onto the registry record:
+Metadata rides along onto the registry record, and its shape is declared by
+the kind rather than invented per component:
 
 ```python
-@model(config={"table": "posts"}, metadata={"public": True})
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class ModelMeta:
+    table: str
+    public: bool = False
+
+framework = spoc.Framework(spoc.KindSpec("models", metadata=ModelMeta))
+model = framework.kind("models")
+
+@model(meta=ModelMeta(table="posts", public=True))
 class Post:
     ...
 ```
+
+A kind that declares no `metadata` type accepts no metadata at all, so there
+is no untyped channel by default. `ty` proves the field types where they are
+written; the kernel checks at registration that the instance matches the kind's
+declared type, and a mismatch raises `MetadataContractError`.
 
 ## Layout is taxonomy
 

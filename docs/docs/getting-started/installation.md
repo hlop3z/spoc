@@ -107,18 +107,15 @@ After installation, verify that SPOC is correctly installed by importing it in P
 ```python
 $ python
 Python 3.13.0 (main, Oct  7 2024, 10:00:00)
->>> import spoc
->>> print(spoc.__version__)
-0.1.0
->>> print(spoc.__about__.__title__)
-spoc
+>>> from spoc.__about__ import __version__
+>>> print(__version__)
+0.4.0
 ```
 
 You can also verify the installation by checking the available modules:
 
 ```python
->>> from spoc import Framework
->>> from spoc.components import component
+>>> from spoc import Framework, KindSpec, Registry
 >>> print("SPOC is ready to use!")
 SPOC is ready to use!
 ```

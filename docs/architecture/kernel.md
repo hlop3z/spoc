@@ -1,11 +1,20 @@
 # SPOC — kernel architecture
 
-What **is**, as of the framework-object API. SPOC is a registry-first
-runtime kernel: one `Framework` object declares the kind set, apps declare
-components inward, surfaces project outward from the registry, and every
-dependency points at the kernel — never out of it.
+What **is**, as of the kernel collapse. SPOC is a registry-first runtime
+kernel: one `Framework` object declares the kind set, apps declare components
+inward, surfaces project outward from the registry, and every dependency points
+at the kernel — never out of it.
 
 ## The shape
+
+Four jobs, and the module boundaries match them. The core is pure — it performs
+no I/O and imports nothing outside the kernel. The adapters touch the outside
+world: one imports modules, one reads files. `Framework` is the only place they
+meet.
+
+The registry is **not** owned by the loader. That inversion — a pure core concern
+nested inside an adapter — is what forced the loader to know what a kind is, and
+removing it is the point of this shape.
 
 ```mermaid
 flowchart TB
@@ -16,19 +25,23 @@ flowchart TB
         workers["Workers / events<br/>(e.g. an execution engine app)"]
     end
 
+    root["<b>Framework</b><br/><i>composition root — the only wiring</i><br/>KindSpec × N · kind() handles · on_ready"]
+
     subgraph kernel ["SPOC kernel — zero runtime dependencies"]
         direction TB
-        framework["Framework<br/><i>declaration + composition root</i><br/>kinds · kind() decorators · on_ready"]
-        config["Config<br/>spoc.toml only · mode cascade"]
-        importer["Importer<br/>load · cache · lifecycle"]
-        discovery["Discovery<br/>markers → records, loud failures"]
-        registry[("Registry<br/>flat store of Component records<br/>kind : namespace . object_name")]
 
-        framework -- "start(base_dir)" --> config
-        framework --> importer
-        importer --> discovery
-        discovery --> registry
-        registry -. "on_ready(registry)" .-> framework
+        subgraph core ["core — pure, no I/O"]
+            direction TB
+            identity["identity<br/>grammar · parse · compose<br/>snake_case derivation"]
+            declaration["declaration<br/>KindSpec · markers · discovery"]
+            registry[("Registry<br/>flat store of Component records<br/>kind : namespace . object_name")]
+        end
+
+        subgraph adapters ["adapters — touch the outside world"]
+            direction LR
+            loader["loader<br/>import · dep order · lifecycle<br/><i>kind-blind</i>"]
+            config["config<br/>spoc.toml only · mode cascade"]
+        end
     end
 
     subgraph apps ["Apps — the domain (apps/ directory)"]
@@ -37,8 +50,49 @@ flowchart TB
         shop["shop/<br/>models.py · views.py"]
     end
 
+    declaration --> identity
+    registry --> identity
+    loader --> core
+    config --> core
+    root --> core
+    root --> adapters
+    registry -. "on_ready(registry)" .-> root
+
     surfaces -- "enumerate · resolve<br/>(read-only, public API)" --> registry
-    apps -- "declare<br/>@model = framework.kind('models')" --> discovery
+    apps -- "declare<br/>@model = framework.kind('models')" --> declaration
+```
+
+## A kind is one record
+
+Every per-kind attribute rides one `KindSpec`, so no second structure keyed by
+kind name can disagree with it. A bare string is shorthand for a spec with all
+defaults.
+
+```mermaid
+flowchart LR
+    spec["<b>KindSpec</b>"]
+    spec --- n["name<br/><i>module file name + identifier segment</i>"]
+    spec --- d["depends_on<br/><i>inter-kind load order</i>"]
+    spec --- r["required<br/><i>may an app omit this module?</i>"]
+    spec --- m["metadata<br/><i>the type its components carry</i>"]
+    spec --- h["on_startup / on_shutdown<br/><i>lifecycle hooks</i>"]
+```
+
+## Absent is not broken
+
+Optionality is decided per kind, never framework-wide, and it only governs
+*absence*. A module that exists and raises while importing is always an error —
+the author wrote something that does not work rather than declining to write it.
+The two are told apart by which module the import system reports as missing.
+
+```mermaid
+flowchart LR
+    reg["register(app.kind)"] --> imp{"imports?"}
+    imp -- yes --> ok["loaded"]
+    imp -- "ModuleNotFoundError<br/>naming a *different* module" --> broken["raise — present but broken"]
+    imp -- "ModuleNotFoundError<br/>naming *this* module" --> q{"kind.required?"}
+    q -- yes --> miss["MissingModuleError<br/>+ app, kind, expected module"]
+    q -- no --> skip["skipped, contributes nothing"]
 ```
 
 ## The identifier
@@ -127,3 +181,12 @@ that would break new projects fails here rather than reaching users.
    store; no second identifier scheme exists.
 4. **Loud registration** — a declared component that cannot register fails
    startup with a precise error; nothing is silently dropped.
+5. **Dependencies point inward** — the core imports nothing outside itself and
+   performs no I/O; the loader never sees a registry; the config adapter only
+   reads files. Every crossing is wired in `Framework` and nowhere else.
+6. **One declaration point** — every attribute of a kind lives on its
+   `KindSpec`. There is no decorator form and no parallel mapping, so a kind
+   attribute cannot be stated away from the kind it describes.
+7. **One metadata channel** — a record carries the metadata its kind declares
+   and nothing else. A kind stating no contract accepts no metadata, so there is
+   no untyped escape hatch by default.

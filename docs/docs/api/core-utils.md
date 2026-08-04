@@ -1,8 +1,8 @@
 # Core Utilities API Reference
 
-This page documents SPOC's core utility modules: exceptions, case
-conversion, and path injection. (Dependency ordering uses the standard
-library's `graphlib` — there is no SPOC-specific graph API.)
+This page documents SPOC's core utility modules: exceptions, the configuration
+adapter, and path injection. (Dependency ordering uses the standard library's
+`graphlib` — there is no SPOC-specific graph API.)
 
 ## Exceptions
 
@@ -24,9 +24,13 @@ Identifier and registry errors are documented on the
       show_root_heading: true
       show_source: false
 
-### ModuleNotCachedError
+### MissingModuleError
 
-::: spoc.core.exceptions.ModuleNotCachedError
+Raised when an app provides no module for a kind whose modules are required.
+Declaring the kind with `required=False` on its
+[`KindSpec`](components.md#spoc.core.declaration.KindSpec) makes the absence legal.
+
+::: spoc.core.exceptions.MissingModuleError
     options:
       show_root_heading: true
       show_source: false
@@ -45,44 +49,22 @@ Identifier and registry errors are documented on the
       show_root_heading: true
       show_source: false
 
-## Case Style Conversion
+## Configuration
 
-Projection utilities for rendering identifiers in other naming conventions
-(e.g. `post` → `Post` for documentation). Never applied during registration —
-identifiers are validated, not normalized.
+`spoc.toml` is the only configuration file the kernel reads. Absent keys fall back
+to defaults; a missing file loads as all defaults with a warning.
 
-### case_style Function
-
-::: spoc.case_style.case_style
+::: spoc.core.config.load_spoc_toml
     options:
       show_root_heading: true
       show_source: false
 
-### Conversion Functions
-
-::: spoc.case_style.to_snake_case
+::: spoc.core.config.load_environment
     options:
       show_root_heading: true
       show_source: false
 
-::: spoc.case_style.to_camel_case
-    options:
-      show_root_heading: true
-      show_source: false
-
-::: spoc.case_style.to_pascal_case
-    options:
-      show_root_heading: true
-      show_source: false
-
-::: spoc.case_style.to_kebab_case
-    options:
-      show_root_heading: true
-      show_source: false
-
-### Type Guards
-
-::: spoc.case_style.is_valid_case_style
+::: spoc.core.config.validate_spoc_config
     options:
       show_root_heading: true
       show_source: false
@@ -91,19 +73,7 @@ identifiers are validated, not normalized.
 
 ### inject_apps Function
 
-::: spoc.inject_apps.inject_apps
-    options:
-      show_root_heading: true
-      show_source: false
-
-### Helper Functions
-
-::: spoc.inject_apps.ensure_directory
-    options:
-      show_root_heading: true
-      show_source: false
-
-::: spoc.inject_apps.add_to_python_path
+::: spoc.core.paths.inject_apps
     options:
       show_root_heading: true
       show_source: false

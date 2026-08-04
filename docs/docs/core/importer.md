@@ -1,81 +1,98 @@
-# Importer
+# Loader
 
-The `Importer` is the machinery under `Framework`: dynamic module loading
-with caching, dependency-ordered lifecycle, and component discovery into the
-registry. You rarely use it directly — the framework owns one instance — but
-it is public for advanced composition.
+The `Loader` is the machinery under `Framework`: it imports an application's
+modules in dependency order and runs their lifecycle. You rarely touch it — the
+framework owns one instance and wires it — but it is reachable at
+`spoc.core.loader` for advanced composition.
 
-Each instance is fully independent: cache, dependency graph, hooks, and
-registry are all instance state.
+It is deliberately **kind-blind**. It is handed a kind label with each module and
+carries it back out for hook dispatch, but never reads or decides anything from
+it. That is what keeps the registry — a pure core concern — out of the loader
+entirely: the loader has never seen a registry, and discovery is not its job.
+
+Each instance is fully independent: module table, dependency graph, and state are
+all per-instance.
 
 ## Basic usage
 
 ```python
-from spoc import Importer
+from spoc.core.loader import Loader
 
-importer = Importer(kinds=("models",))          # closed kind set for its registry
-importer.register("blog.models", dependencies=["blog.utils"])
-importer.startup()      # discover() + initialize(), in dependency order
-...
-importer.shutdown()     # teardown in reverse order
+loader = Loader()
+loader.register("blog.models", kind="models", app="blog")
+loader.register(
+    "blog.views",
+    kind="views",
+    app="blog",
+    dependencies=("blog.models",),
+)
+
+for entry in loader.ordered():           # dependency order, dependencies first
+    ...                                  # entry.name, entry.module, entry.kind
+
+loader.initialize(hooks, components_for)
+loader.shutdown(hooks, components_for)
 ```
 
-`startup()` is the composite; `discover()` (components → registry) and
-`initialize()` (hooks + module `initialize()`) are separately callable — the
-framework calls them separately so `on_ready` can fire between the two.
+`initialize` and `shutdown` take the per-kind hook table and a callable that maps
+a loaded module to its registered component objects. Both are supplied by
+`Framework` — that inversion is what lets the loader fire registry-aware hooks
+without knowing the registry exists.
 
 ## Module lifecycle
 
-- `register(name, dependencies=[...])` loads a module and records its edges
-  in the dependency graph
-- `startup()` first discovers every declared component into the registry
-  (loudly — see below), then initializes modules in topological order,
-  calling each module's `initialize()` if present and firing matching hooks
-- `shutdown()` tears down in reverse order, calling `teardown()` if present
-- Circular dependencies raise `CircularDependencyError`
+- `register(name, kind=..., app=..., dependencies=..., required=...)` imports a
+  module and records its edges in the dependency graph. Edges are recorded even
+  when the dependency has not been registered yet, so registration order never
+  silently drops one
+- `ordered()` returns the modules in topological order; circular dependencies
+  raise `CircularDependencyError`
+- `initialize(...)` fires each module's startup hook, then its own
+  `initialize()` if present
+- `shutdown(...)` walks in reverse, firing shutdown hooks then `teardown()`
 
-In `strict` mode a missing module raises `AppNotFoundError`; in `loose` mode
-it is skipped.
+## Absent is not broken
+
+Whether a missing module is an error is decided by the declaring kind's
+`required` flag, passed in per registration — there is no framework-wide switch.
+
+| Situation | Result |
+| --------- | ------ |
+| Module absent, kind is required | `MissingModuleError` naming the app, kind, and expected module |
+| Module absent, kind is optional | Skipped; the app contributes nothing of that kind |
+| Module present but raises on import | Always an error, whatever the optionality |
+
+The distinction is made from which module the import system reports as missing:
+if it names the module being registered, the module is absent; if it names
+something else, the module exists and its own imports are broken.
 
 ## Component discovery
 
-At startup, each registered module `<app>.<kind>` is scanned for objects
-carrying a SPOC declaration marker:
+Discovery is **not** part of the loader. It lives in the declaration layer and
+takes a loaded module plus a registry, reaching into no cache. `Framework` walks
+`loader.ordered()` and calls it per module.
+
+For each module `<app>.<kind>`, objects carrying a declaration marker are
+registered:
 
 - the app package name becomes the `namespace` segment
-- the module file name is the `kind` — a declared kind that doesn't match
-  raises `ComponentKindMismatchError` naming the object, both kinds, and the
-  file
-- classes and functions imported from elsewhere are skipped (they register
-  where they are defined)
+- the module file name is the `kind` — a declared kind that doesn't match raises
+  `ComponentKindMismatchError` naming the object, both kinds, and the file
+- classes and functions imported from elsewhere are skipped (they register where
+  they are defined)
 - duplicates raise `DuplicateComponentError`
 
-Discovery runs for **all** modules before any module initializes, so
-registration errors surface before any initialization side effects run.
-
-The result lands in `importer.registry` — see the
-[Registry API](../api/registry.md).
-
-## Hooks
-
-```python
-importer.register_hook(
-    pattern="*.models",                  # wildcard per module name
-    on_startup=lambda objs: ...,         # receives the module's registered objects
-    on_shutdown=lambda objs: ...,
-)
-```
-
-Hooks are instance state — two importers never share them.
+Discovery runs for **all** modules before any module initializes, so registration
+errors surface before any initialization side effects run. The result lands in
+`framework.registry` — see the [Registry API](../api/registry.md).
 
 ## Loading helpers
 
 ```python
-importer.load("blog.models")             # import + cache
-importer.load_from_uri("blog.extras.hook")   # load an attribute by URI
-importer.get("blog.models")              # cached module (raises if absent)
-importer.has("blog.models")
-importer.keys()
-importer.clear("blog.models")            # drop from cache (teardown if needed)
-importer.unload_all()                    # full teardown + sys.modules removal
+loader.load_from_uri("blog.extras.hook")   # load an attribute by dotted reference
+len(loader)                                # how many modules are loaded
+list(loader)                               # LoadedModule entries, in dependency order
 ```
+
+The module cache manipulation API (`has`, `get`, `clear`, `clear_all`,
+`unload_all`, `keys`) was removed — nothing outside its own tests used it.
