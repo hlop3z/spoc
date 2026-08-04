@@ -30,7 +30,9 @@ nav:
           - Core Utilities: api/core-utils.md
       - Examples:
           - Basic Example: examples/basic.md
-  - Contributing: contributing.md
+  # One home: CONTRIBUTING.md lives at the repo root, where GitHub surfaces it in the
+  # issue and PR flows. It links into .canon/ and openspec/, which the site does not publish.
+  - Contributing: https://github.com/hlop3z/spoc/blob/main/CONTRIBUTING.md
 
 # Path Watch
 watch:
