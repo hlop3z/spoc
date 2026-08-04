@@ -70,8 +70,9 @@ def test_generated_project_starts_unedited(tmp_path):
     destination = tmp_path / "proj"
     generate(destination)
 
+    # Imported from the project that was just generated, not from this repo.
     sys.path.insert(0, str(destination))
-    from framework import framework  # ty: ignore[unresolved-import]
+    from framework import framework
 
     framework.start(destination)
     try:
