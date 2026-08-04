@@ -101,7 +101,7 @@ class TestCaseStyle:
 
     def test_invalid_mode_rejected(self):
         with pytest.raises(ValueError, match="Invalid case style"):
-            case_style("x", "shouty")  # type: ignore[arg-type]
+            case_style("x", "shouty")  # ty: ignore[invalid-argument-type]
 
     def test_is_valid_case_style(self):
         assert is_valid_case_style("snake")

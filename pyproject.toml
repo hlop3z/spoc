@@ -16,6 +16,41 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 path = "src/spoc/__about__.py"
 
+# Ruff runs on an explicit rule selection, never its defaults: a toolchain bump must
+# not silently change what CI enforces (.canon/checks.md is the gate).
+# `include` is ruff's default list minus `*.md` — 0.16 began formatting Python inside
+# Markdown, which reflows the aligned trailing comments the docs use as annotations.
+[tool.ruff]
+target-version = "py313"
+include = [
+    "*.py",
+    "*.pyi",
+    "*.ipynb",
+    "**/pyproject.toml",
+    "**/ruff.toml",
+    "**/.ruff.toml",
+]
+
+[tool.ruff.lint]
+select = [
+    "E4",  # pycodestyle: imports
+    "E7",  # pycodestyle: statements
+    "E9",  # pycodestyle: runtime errors
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade — this project is >=3.13; legacy typing spellings are defects
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "DTZ", # flake8-datetimez — naive datetimes are a correctness trap
+    "RUF", # ruff-specific
+]
+ignore = [
+    # `__all__` is grouped by concern with section comments (Framework, Registry,
+    # Identity, …). That grouping is the public surface's table of contents; sorting
+    # it alphabetically would flatten a deliberate structure into noise.
+    "RUF022",
+]
+
 [tool.ty.environment]
 root = ["./src"]
 

@@ -76,7 +76,7 @@ class TestParse:
 
     def test_non_string_rejected(self):
         with pytest.raises(MalformedIdentifierError):
-            parse(None)  # type: ignore[arg-type]
+            parse(None)  # ty: ignore[invalid-argument-type]
 
 
 class TestCompose:
