@@ -32,8 +32,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
-from types import ModuleType
-from typing import Any, Callable, Dict, List, NotRequired, TypedDict
+from typing import Any, Callable, NotRequired, TypedDict
 
 # Local imports
 from .core.config_loader import load_configuration, load_environment, load_spoc_toml
@@ -50,10 +49,12 @@ class Hook(TypedDict):
 
     A dictionary containing optional startup and shutdown callables
     that are executed during framework initialization and termination.
+    Each callable receives the set of component objects registered for
+    the module it fires on.
     """
 
-    startup: NotRequired[Callable[[ModuleType], Any]]
-    shutdown: NotRequired[Callable[[ModuleType], Any]]
+    startup: NotRequired[Callable[[set[Any]], Any]]
+    shutdown: NotRequired[Callable[[set[Any]], Any]]
 
 
 @dataclass
@@ -66,9 +67,9 @@ class Schema:
     kinds exist (layout is taxonomy).
     """
 
-    modules: List[str]
-    dependencies: Dict[str, List[str]] = field(default_factory=dict)
-    hooks: Dict[str, Hook] = field(default_factory=dict)
+    modules: list[str]
+    dependencies: dict[str, list[str]] = field(default_factory=dict)
+    hooks: dict[str, Hook] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -82,7 +83,7 @@ class Config:
         `environment`: Environment variables for the active mode
     """
 
-    project: Dict[str, Any]
+    project: dict[str, Any]
     settings: Any
     environment: Any
 
@@ -115,7 +116,7 @@ class Framework:
     component registry that external surfaces project from.
     """
 
-    def _collect_plugins(self) -> Dict[str, OrderedDict[str, Any]]:
+    def _collect_plugins(self) -> dict[str, OrderedDict[str, Any]]:
         """
         Collect and load all configured plugins.
 
@@ -126,8 +127,8 @@ class Framework:
             Dictionary of plugin groups with their loaded module instances
         """
         plugins = self.config.project.get("plugins", {})
-        plug_dict: Dict[str, OrderedDict[str, Any]] = {}
-        for group, mods in self.config.settings.PLUGINS.items():
+        plug_dict: dict[str, OrderedDict[str, Any]] = {}
+        for group, mods in getattr(self.config.settings, "PLUGINS", {}).items():
             if group not in plugins:
                 plugins[group] = []
             plugins[group].extend(mods)
@@ -209,10 +210,6 @@ class Framework:
                 on_shutdown=spec.get("shutdown"),
             )
 
-    def _register_app(self, app_name: str) -> Framework:
-        self._register_modules(app_name)
-        return self
-
     @staticmethod
     def _collect_apps(app_mode: str, the_apps: dict, py_apps: list) -> list:
         """Collect apps based on the specified mode with preserved order and no duplicates."""
@@ -247,7 +244,7 @@ class Framework:
             py_apps,
         )
         for name in app_names:
-            self._register_app(name)
+            self._register_modules(name)
         # Store for later use
         self.installed_apps = app_names
         return self

@@ -32,7 +32,7 @@ import sys
 from collections.abc import Callable
 from re import Pattern
 from types import ModuleType
-from typing import Any, Literal, Protocol, TypeAlias
+from typing import Any, Literal, TypeAlias
 
 # Local imports
 from .components_discovery import discover_components
@@ -51,20 +51,6 @@ logger = logging.getLogger("spoc")
 FrameworkMode: TypeAlias = Literal["strict", "loose"]
 
 
-class Initializable(Protocol):
-    """Protocol for objects that can be initialized."""
-
-    def initialize(self) -> None:
-        """Initialize the object."""
-
-
-class Teardownable(Protocol):
-    """Protocol for objects that can be torn down."""
-
-    def teardown(self) -> None:
-        """Tear down the object."""
-
-
 @dataclasses.dataclass
 class ModuleHooks:
     """Container for module lifecycle hooks."""
@@ -78,7 +64,7 @@ class HookPattern:
     """Pattern matching for module hooks."""
 
     pattern: Pattern[str] | None = None
-    method: Callable[[ModuleType], None] | None = None
+    method: Callable[[set[Any]], None] | None = None
 
 
 class ModuleInfo:
@@ -110,9 +96,6 @@ class ModuleInfo:
         self.initialize_func = initialize_func
         self.teardown_func = teardown_func
         self.initialized = False
-        # Store references to hooks
-        self.on_startup = None
-        self.on_shutdown = None
 
     def has_initialize(self) -> bool:
         """True if the module has an initialize function."""
@@ -166,7 +149,8 @@ class Importer:
     4. Discovering declared components into the flat registry at startup
 
     Each instance is fully independent — cache, graph, hooks, and registry
-    are all instance state.
+    are all instance state. Instances are not thread-safe: build and start
+    an importer from a single thread.
 
     Attributes:
         registry: The flat component registry this importer populates.
@@ -234,19 +218,15 @@ class Importer:
         Raises:
             AppNotFoundError: If the module cannot be found (strict mode).
         """
-        # Load the module if not already loaded
+        # Load the module if not already loaded (strict mode raises in load())
         module = self.load(name)
         if module is None:
-            if self.mode == "strict":
-                raise AssertionError(f"Failed to load module {name}")
             return None
 
-        # Update the module info with dependencies and lifecycle functions
+        # Update the module info with dependencies
         module_info = self._module_cache.get(name)
         assert module_info is not None, f"Module {name} not found in cache"
         module_info.dependencies = dependencies or []
-        module_info.on_startup = self.on_startup
-        module_info.on_shutdown = self.on_shutdown
 
         # Add dependencies to the graph
         for dep in module_info.dependencies:
@@ -258,13 +238,23 @@ class Importer:
         return module
 
     def load_from_uri(self, uri: str) -> Any:
-        """Load a function from a full URI like 'package.module.func'."""
+        """
+        Load a function from a full URI like 'package.module.func'.
+
+        Raises:
+            AppNotFoundError: If the module cannot be imported (any mode —
+                a URI names a specific attribute, so a missing module is
+                always an error, even in loose mode).
+            AttributeError: If the module lacks the named attribute.
+        """
         parts = uri.rsplit(".", 1)
         if len(parts) != 2:
             raise ValueError("URI must be in the form 'package.module.function'")
 
         module_path, func_name = parts
         module = self.load(module_path)
+        if module is None:
+            raise AppNotFoundError(module_path)
 
         if not hasattr(module, func_name):
             raise AttributeError(
@@ -321,7 +311,13 @@ class Importer:
     def _call_hook(
         self, hook_type: Literal["startup", "shutdown"], module_name: str
     ) -> None:
-        """Call a lifecycle hook for a module with its registered objects."""
+        """
+        Call a lifecycle hook for a module with its registered objects.
+
+        A generic (exact-name) hook overrides pattern hooks per hook type:
+        pattern hooks still fire for a hook type the generic entry does not
+        define.
+        """
         instance = self._module_components(module_name)
 
         hook = self.module_hooks.generic.get(module_name)
@@ -329,7 +325,7 @@ class Importer:
             fn = hook.get(hook_type)
             if callable(fn):
                 fn(instance)
-            return
+                return
 
         for current in self.module_hooks.pattern.values():
             hp = current.get(hook_type)
@@ -451,7 +447,8 @@ class Importer:
         """
         Pre-register custom initialization and teardown functions for modules.
 
-        Hooks are instance state: two importers never share them.
+        Hooks are instance state: two importers never share them. Each hook
+        is called with the set of the module's registered component objects.
 
         Args:
             pattern: The fully-qualified name of the module or a pattern with wildcards.
@@ -474,7 +471,7 @@ class Importer:
                     pattern=regex_pattern, method=on_shutdown
                 )
         else:
-            self.module_hooks.generic[pattern] = {"startup": {}, "shutdown": {}}
+            self.module_hooks.generic[pattern] = {"startup": None, "shutdown": None}
             if on_startup is not None:
                 self.module_hooks.generic[pattern]["startup"] = on_startup
 

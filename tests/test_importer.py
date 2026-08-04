@@ -442,6 +442,27 @@ class TestImporter:
         assert startup_spy.called
         assert startup_spy.call_args[0][0] is mock_module
 
+    def test_generic_hook_does_not_suppress_pattern_hooks(self):
+        """A generic hook defining only one hook type must not block pattern
+        hooks for the other type."""
+        importer = Importer()
+        calls: list[str] = []
+
+        module_name = "json"
+        importer.register_hook(
+            pattern=module_name, on_shutdown=lambda objs: calls.append("generic-down")
+        )
+        importer.register_hook(
+            pattern="js*n", on_startup=lambda objs: calls.append("pattern-up")
+        )
+        importer.register(module_name)
+
+        importer._call_hook("startup", module_name)
+        assert calls == ["pattern-up"]
+
+        importer._call_hook("shutdown", module_name)
+        assert calls == ["pattern-up", "generic-down"]
+
     def test_simple_regex(self):
         """Test the simple_regex utility method."""
         # Test pattern conversion
