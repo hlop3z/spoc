@@ -10,9 +10,13 @@ else). `create_app` wires the same routes into FastAPI when it is installed
 Run:  uvicorn http_app:app  (from the examples/ directory, fastapi installed)
 """
 
+from pathlib import Path
 from typing import Any
 
 from framework.framework import framework
+
+if not framework.started:
+    framework.start(Path(__file__).resolve().parent)
 
 
 def build_routes(registry: Any) -> list[dict[str, Any]]:

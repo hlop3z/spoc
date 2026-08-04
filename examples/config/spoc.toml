@@ -1,15 +1,15 @@
-# Application Configuration
+# Application Configuration — the only file the kernel reads.
 [spoc]
 mode = "development" # options: development, staging, production
 debug = true
 
-# Installed Apps by Mode
+# Installed Apps by Mode (development cascades staging and production in)
 [spoc.apps]
 production = ["auth"]
 staging = ["another"]
-development = ["other"]
+development = ["demo", "other"]
 
 # Additional Components (Plugins and Hooks)
 [spoc.plugins]
-#middleware = ["demo.extras.middleware"]
-#hooks = ["demo.extras.hook"]
+middleware = ["demo.extras.middleware"]
+hooks = ["demo.extras.hook"]

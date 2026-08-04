@@ -1,18 +1,8 @@
 """
-Settings
+User-owned settings — SPOC never imports this module.
+
+Put your own constants (and any logic that needs if/else) here and import
+it yourself from your app code. The kernel reads only ``config/spoc.toml``.
 """
 
-# Standard Library
-from pathlib import Path
-
-BASE_DIR: Path = Path(__file__).resolve().parent.parent
-
-
-# Installed Apps
-INSTALLED_APPS: list = ["demo"]
-
-# Extra Methods
-PLUGINS: dict = {
-    "middleware": ["demo.extras.middleware"],
-    "hooks": ["demo.extras.hook"],
-}
+GREETING = "hello from user settings"
