@@ -252,7 +252,27 @@ def test_published_dependencies_stay_empty():
     pyproject = Path(__file__).parent.parent / "pyproject.toml"
     data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     assert data["project"]["dependencies"] == []
-    assert "optional-dependencies" not in data["project"]
+
+
+def test_the_scaffolder_needs_no_optional_dependency():
+    """Extras exist for the data surface; every scaffolder decision landed on stdlib,
+    so nothing under `spoc/scaffold/` may import anything outside it."""
+    import ast
+    import sys
+
+    for path in sorted(
+        (Path(__file__).parent.parent / "src/spoc/scaffold").rglob("*.py")
+    ):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    assert alias.name.split(".")[0] in sys.stdlib_module_names, (
+                        alias.name
+                    )
+            elif isinstance(node, ast.ImportFrom) and not node.level:
+                assert (node.module or "").split(".")[0] in sys.stdlib_module_names, (
+                    node.module
+                )
 
 
 # ── Template sets: shape is data ──────────────────────────────────────────

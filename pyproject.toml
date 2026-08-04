@@ -15,6 +15,19 @@ dependencies = []
 [project.scripts]
 spoc = "spoc.scaffold.cli:main"
 
+# `spoc.formats` is the second sidecar, on the same contract: the kernel imports
+# nothing from it, and everything it adopts is quarantined here so `dependencies`
+# above stays empty. JSON, CSV, and TOML *reading* are standard library and cost
+# nothing — installing spoc bare still reads all three.
+[project.optional-dependencies]
+yaml = ["ruamel.yaml>=0.19.1"] # YAML 1.2, a strict JSON superset (design.md D6)
+xml = ["xmltodict>=1.0.4"]     # force_list's callable form is what D3 needs
+toml = ["tomli-w>=1.0"]        # stdlib tomllib reads; nothing in it writes
+# python-jsonpath carries RFC 9535 + RFC 6901; iregexp-check is what makes the
+# RFC's own match()/search() functions available, so conformance is not partial.
+query = ["python-jsonpath>=2.2.1", "iregexp-check>=0.1.4"]
+full = ["spoc[yaml,xml,toml,query]"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

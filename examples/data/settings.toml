@@ -1,0 +1,6 @@
+[server]
+host = "localhost"
+port = 8080
+
+[limits]
+max_upload_mb = 25

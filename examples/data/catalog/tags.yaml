@@ -1,0 +1,4 @@
+- name: scifi
+  featured: true
+- name: classics
+  featured: false
