@@ -33,4 +33,4 @@
 ## 6. Validation and close-out
 
 - [x] 6.1 Run the full `.canon/checks.md` suite (format, lint, ty, pytest, doc links) and the example end-to-end (`python main.py`, route projection)
-- [ ] 6.2 Commit in intent batches on the change branch (Rule 3); then `/opsx:sync` and `/opsx:archive`
+- [x] 6.2 Commit in intent batches on the change branch (Rule 3); then `/opsx:sync` and `/opsx:archive`
