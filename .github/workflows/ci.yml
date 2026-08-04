@@ -1,0 +1,80 @@
+name: CI
+
+# Runs the canonical validation suite from .canon/checks.md.
+# Also callable from other workflows (release gates on this).
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python checks (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13", "3.14"]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Dependencies
+        run: uv sync --locked
+
+      - name: Formatter
+        run: uv run ruff format --check .
+
+      - name: Linter
+        run: uv run ruff check
+
+      - name: Type checker
+        run: uv run ty check
+
+      - name: Unit tests
+        run: uv run pytest
+
+  go:
+    name: Go workspace
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: scripts/go/go.mod
+          cache-dependency-path: scripts/go/go.sum
+
+      - name: Vet
+        working-directory: scripts/go
+        run: go vet ./...
+
+      - name: Build
+        working-directory: scripts/go
+        run: go build -o bin/ ./...
+
+  doc-links:
+    name: Doc links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Check Markdown links
+        working-directory: scripts/py
+        run: uv run mdlinks ../..

@@ -10,8 +10,13 @@ permissions:
   contents: write # Required to create releases
 
 jobs:
+  checks:
+    name: Validation suite
+    uses: ./.github/workflows/ci.yml
+
   pypi-publish:
     name: Publish to PyPI
+    needs: checks
     runs-on: ubuntu-latest
     permissions:
       contents: write # This permission is needed for creating releases and private repositories.
