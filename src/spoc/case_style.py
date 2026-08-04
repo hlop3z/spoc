@@ -92,17 +92,3 @@ def case_style(
         return converters[mode](s)
     except KeyError:
         raise ValueError(f"Invalid case style: {mode!r}") from None
-
-
-# —— Self-test block —— #
-if __name__ == "__main__":
-    examples: list[tuple[str, CaseStyle]] = [
-        ("TestString", "pascal"),
-        ("TestString", "camel"),
-        ("testString", "kebab"),
-        ("Test-String", "snake"),
-        ("Test--String", "snake"),
-        ("__Test__String__", "snake"),
-    ]
-    for text, mode in examples:
-        print(f"{text!r} → ({mode}) {case_style(text, mode)}")

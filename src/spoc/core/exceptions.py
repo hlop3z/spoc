@@ -63,20 +63,6 @@ class CircularDependencyError(SpocError):
         super().__init__(f"Circular dependency detected: {modules_str}")
 
 
-class LifecycleError(SpocError):
-    """Raised when an error occurs during module lifecycle operations."""
-
-    def __init__(self, message: str, module_name: str | None = None) -> None:
-        """
-        Initialize a new LifecycleError.
-
-        Args:
-            message: The error message.
-            module_name: Name of the module where the lifecycle error occurred.
-        """
-        super().__init__(f"Lifecycle error: {message}", module_name)
-
-
 class MalformedIdentifierError(SpocError):
     """Raised when a string does not parse as ``kind:namespace.object_name``."""
 

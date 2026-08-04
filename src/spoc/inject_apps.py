@@ -15,10 +15,7 @@ def ensure_directory(path: Path, *, exist_ok: bool = True) -> None:
     """
     Ensure that the given directory exists.
     """
-    try:
-        path.mkdir(parents=True, exist_ok=exist_ok)
-    except Exception as e:
-        raise e
+    path.mkdir(parents=True, exist_ok=exist_ok)
 
 
 def add_to_python_path(path: Path, position: int = 0) -> None:

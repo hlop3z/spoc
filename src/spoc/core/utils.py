@@ -8,7 +8,7 @@ resolution and graph algorithms used in module lifecycle management.
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import Dict, Generic, List, Optional, Set, TypeVar
+from typing import Generic, TypeVar
 
 from .exceptions import CircularDependencyError
 
@@ -29,8 +29,8 @@ class DependencyGraph(Generic[T]):
 
     def __init__(self) -> None:
         """Initialize an empty dependency graph."""
-        self.graph: Dict[T, List[T]] = defaultdict(list)
-        self.nodes: Set[T] = set()
+        self.graph: dict[T, list[T]] = defaultdict(list)
+        self.nodes: set[T] = set()
 
     def add_node(self, node: T) -> None:
         """
@@ -53,7 +53,7 @@ class DependencyGraph(Generic[T]):
         self.add_node(to_node)
         self.graph[from_node].append(to_node)
 
-    def topological_sort(self) -> List[T]:
+    def topological_sort(self) -> list[T]:
         """
         Perform topological sort on the graph.
 
@@ -64,7 +64,7 @@ class DependencyGraph(Generic[T]):
             CircularDependencyError: If a cycle is detected in the graph.
         """
         # Initialize in-degree counts
-        in_degree: Dict[T, int] = {node: 0 for node in self.nodes}
+        in_degree: dict[T, int] = {node: 0 for node in self.nodes}
 
         # Calculate in-degrees
         for node in self.nodes:
@@ -78,7 +78,7 @@ class DependencyGraph(Generic[T]):
                 queue.append(node)
 
         # Process the graph
-        result: List[T] = []
+        result: list[T] = []
         while queue:
             current = queue.popleft()
             result.append(current)
@@ -91,10 +91,10 @@ class DependencyGraph(Generic[T]):
         # Check for cycles
         if len(result) != len(self.nodes):
             # Find the cycle for better error reporting
-            visited: Set[T] = set()
-            path: List[T] = []
+            visited: set[T] = set()
+            path: list[T] = []
 
-            def find_cycle(node: T) -> Optional[List[T]]:
+            def find_cycle(node: T) -> list[T] | None:
                 if node in path:
                     cycle_start = path.index(node)
                     return path[cycle_start:] + [node]
@@ -150,26 +150,3 @@ class DependencyGraph(Generic[T]):
                 reversed_graph.add_edge(to_node, from_node)
 
         return reversed_graph
-
-
-def get_attribute(obj: object, attr_path: str) -> object:
-    """
-    Get an attribute from an object using a dot-separated path.
-
-    Args:
-        obj: The object to get the attribute from.
-        attr_path: Dot-separated path to the attribute (e.g., "config.debug").
-
-    Returns:
-        The attribute value.
-
-    Raises:
-        AttributeError: If any part of the path doesn't exist.
-    """
-    parts = attr_path.split(".")
-    result = obj
-
-    for part in parts:
-        result = getattr(result, part)
-
-    return result

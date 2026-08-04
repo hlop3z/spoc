@@ -37,13 +37,6 @@ Identifier and registry errors are documented on the
       show_root_heading: true
       show_source: false
 
-### LifecycleError
-
-::: spoc.core.exceptions.LifecycleError
-    options:
-      show_root_heading: true
-      show_source: false
-
 ### ConfigurationError
 
 ::: spoc.core.exceptions.ConfigurationError
@@ -64,13 +57,6 @@ Identifier and registry errors are documented on the
         - add_edge
         - topological_sort
         - reversed
-
-### Utility Functions
-
-::: spoc.core.utils.get_attribute
-    options:
-      show_root_heading: true
-      show_source: false
 
 ## Case Style Conversion
 
