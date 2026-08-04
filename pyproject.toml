@@ -87,6 +87,12 @@ dev = [
     "pytest>=9.0.2",
     "ruff>=0.14.13",
     "ty>=0.0.12",
+    # tests/test_formats.py exercises the real codecs and simulates a *missing* extra
+    # with a stub factory — so the extras must be present for the suite to mean
+    # anything. Declared here rather than as a CI flag: `uv sync` installs the dev
+    # group by default, so a plain sync gives CI and a laptop the same environment.
+    # This never reaches an installer of `spoc` — `dependencies` above stays empty.
+    "spoc[full]",
 ]
 examples = [
     # HTTP surface for the registry-projection example (never a kernel dependency)

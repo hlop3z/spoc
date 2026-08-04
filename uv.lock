@@ -751,6 +751,7 @@ yaml = [
 dev = [
     { name = "pytest" },
     { name = "ruff" },
+    { name = "spoc", extra = ["full"] },
     { name = "ty" },
 ]
 docs = [
@@ -783,6 +784,7 @@ provides-extras = ["full", "query", "toml", "xml", "yaml"]
 dev = [
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "ruff", specifier = ">=0.14.13" },
+    { name = "spoc", extras = ["full"] },
     { name = "ty", specifier = ">=0.0.12" },
 ]
 docs = [
