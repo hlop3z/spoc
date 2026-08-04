@@ -1,0 +1,19 @@
+[project]
+name = "workshop"
+version = "0.0.0"
+description = "Python workspace for utility CLIs"
+requires-python = ">=3.12"
+dependencies = []
+
+# The workspace root is a member but is never built or installed — it exists to
+# hold the shared lockfile and the member globs.
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["tools/*"]
+# lab/ holds single-file PEP 723 scripts that carry their own inline
+# dependencies. They are deliberately NOT workspace members: a member must have
+# a pyproject.toml and enters the shared lockfile, which is the opposite of
+# disposable.
+exclude = ["lab"]

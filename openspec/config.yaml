@@ -1,0 +1,91 @@
+schema: spec-driven
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Project philosophy — injected once into every artifact's instructions.
+#
+# BRIDGE FILE. The content is ours; the location and schema belong to the OpenSpec
+# CLI. The canon in .canon/ is the source of truth — this is a condensed projection
+# of it, kept here only because the CLI reads this path. If an OpenSpec reinstall
+# overwrites this file, re-derive it from .canon/ — never edit .canon/ to match it.
+# Full reference: .canon/guidelines.md and .canon/rules/
+# ─────────────────────────────────────────────────────────────────────────────
+
+context: |
+  Abstraction layers — keep them separate, never let one leak into another:
+    - WHAT  = specs (observable behavior, language-agnostic)
+    - HOW   = design (structure, dependency direction, tool choices)
+    - DO    = tasks + code (the pinned implementation)
+  One canonical design per change. Decide; do not leave competing variants in artifacts.
+
+  Composable core, thin surfaces: behavior lives once, in the core, as small units
+  that snap together. Every entry point (CLI, GUI, API) is a thin adapter that only
+  translates input and renders output — no business logic, branching, or state of its own.
+
+  Data is not code: content with its own format (SQL/migrations, YAML/TOML/JSON config,
+  HTML/templates, schemas, prompts) lives in a file of that format with its native
+  extension and is loaded via an adapter — never embedded as a string literal in code.
+  See .canon/guidelines.md.
+
+  Single source of truth: every value is defined once and referenced, never duplicated as
+  a magic literal. Constants live next to the concept that owns them (no god-module);
+  tunable config is centralized in one external file behind a config adapter. Secrets are
+  not config — injected at runtime, referenced by key, never committed. See .canon/guidelines.md.
+
+  Adopt before build: for any critical concern (correctness-, security-, or
+  reliability-sensitive), prefer the hierarchy Rent infra > Adopt OSS > Extend > Fork >
+  Build. Self-writing a critical concern is a defect unless no mature option exists.
+  Some concerns are never hand-rolled — security/authz/crypto and observability/telemetry
+  always adopt a mature standard (e.g. OpenTelemetry); domain models stay tool-agnostic.
+  For metrics / time-series storage, default to the VictoriaMetrics family unless there is a
+  very good, recorded reason not to. Record each such choice with /ai:decide. See .canon/guidelines.md.
+
+  Standards-first data: adopt the recognized standard for every contract and identifier —
+  JSON Schema / OpenAPI / AsyncAPI for schemas and APIs; Wikidata, DOI, ORCID, LEI for
+  external identity plus UUID internally; Schema.org / RDF / ISO for vocabularies. An
+  invented scheme where a global one applies is a defect. See .canon/rules/09-standards.md.
+
+  System shape: modular monolith on a kernel/runtime core by default — one deployable, one
+  workspace package per DDD bounded context, events between contexts, query/mutation
+  separation always, full CQRS or event sourcing only where the domain warrants it.
+  Microservices only when explicitly requested. See .canon/rules/10-system-shape.md.
+
+  Object identity: every system object is named kind:namespace.object_name in lowercase
+  snake_case (scalar:core.int64, model:blog.post, event:commerce.order_created — events are
+  noun_verb past tense) and lives in the kernel's single registry, from which schemas, APIs,
+  validation, permissions, and docs are all projected. Scalars map 1:1 to JSON Schema /
+  OpenAPI types. See .canon/rules/11-object-registry.md.
+
+  Document naming: map every doc to a canonical type (RFC, ADR, ADD, TDD, Runbook…).
+  Don't invent categories when one exists. RFC lifecycle is draft -> approved only.
+
+rules:
+  # WHY + scope. Stays abstract; flags decisions, never makes them.
+  proposal:
+    - Focus on WHY and scope — observable outcomes, not mechanisms or tools.
+    - In Capabilities, name each critical (correctness/security/reliability) concern whose
+      realization is a build-vs-adopt decision. Defer the concrete tool to /ai:decide;
+      do NOT pick libraries, frameworks, or vendors here.
+
+  # WHAT — the abstract RFC layer (one file per capability under specs/).
+  specs:
+    - Describe observable black-box behavior only. One canonical design — no alternatives.
+    - Language-, framework-, and vendor-agnostic — no tech names. The WHAT must hold for any stack.
+    - Use MUST / SHOULD / MAY. Every requirement is checkable via WHEN/THEN scenarios.
+    - Each capability is self-contained, composable, and invocable identically from any surface.
+
+  # HOW — structure and the concrete decisions. Tech names are allowed here (only here).
+  design:
+    - Define core vs adapters, the inward-only dependency direction, and where composition wiring lives.
+    - For every critical concern flagged in the proposal, reference its build-vs-adopt decision
+      (from /ai:decide) with a one-line recommendation. Isolate all external systems behind adapters.
+    - Entry points carry no business logic. Concrete tools enter the system only through adapters.
+    - Native-format content (SQL/migrations, config, templates, schemas) stays in external files
+      of that format, loaded through an adapter — never inlined as string literals. See .canon/guidelines.md.
+
+  # DO — implementation steps.
+  tasks:
+    - Implement each behavior once in the core; keep entry points as thin translators.
+    - No business logic, branching, or state outside the core.
+    - Keep templates/migrations/config/schemas in external native-format files; load, don't inline.
+    - Define each value once: constants beside their owning concept, tunable config centralized
+        behind a config adapter. No magic literals, no duplicated values. See .canon/guidelines.md.

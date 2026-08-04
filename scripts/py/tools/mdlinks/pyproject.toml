@@ -1,0 +1,13 @@
+[project]
+name = "mdlinks"
+version = "0.1.0"
+description = "Find broken relative links in Markdown files"
+requires-python = ">=3.12"
+dependencies = ["cyclopts>=4.0"]
+
+[project.scripts]
+mdlinks = "mdlinks.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
