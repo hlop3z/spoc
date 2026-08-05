@@ -3,10 +3,11 @@
 mode = "development" # options: development, staging, production
 debug = true
 
-# Installed apps by mode. Development cascades staging and production in, so an
-# app listed under production is loaded in every mode.
+# Installed apps by mode, each a dotted module path imported exactly as
+# written. Development cascades staging and production in, so an app listed
+# under production is loaded in every mode.
 [spoc.apps]
-production = ["$app_name"]
+production = ["apps.$app_name"]
 staging = []
 development = []
 

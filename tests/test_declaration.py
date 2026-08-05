@@ -247,23 +247,25 @@ class TestRegistrarHandle:
 
 
 class TestDiscovery:
-    def test_top_level_module_has_no_derivable_namespace(self, tmp_path):
+    def test_namespace_is_the_callers_statement_not_parsed(self):
+        """Discovery registers under the namespace it is told, wherever the
+        module name came from — nothing is parsed back out of it."""
         from types import ModuleType
 
-        from spoc.core.exceptions import SpocError
         from spoc.core.registry import Registry
 
-        module = ModuleType("toplevel")
-        register = registrar(KindSpec("models"))
+        module = ModuleType("some.deep.pkg.models")
 
-        @register
+        @component(kind="models")
         class Post: ...
 
+        Post.__module__ = "some.deep.pkg.models"
         setattr(module, "Post", Post)  # noqa: B010
-        Post.__module__ = "toplevel"
 
-        with pytest.raises(SpocError, match="Cannot derive a namespace"):
-            discover(Registry(("models",)), module, "toplevel")
+        registry = Registry(("models",))
+        discover(registry, module, "some.deep.pkg.models", "pkg")
+
+        assert [c.identifier for c in registry] == ["models:pkg.post"]
 
     def test_instance_of_a_decorated_class_is_not_a_declaration(self):
         """An instance inherits ``__spoc__`` from its class; only the class declares."""
@@ -281,7 +283,7 @@ class TestDiscovery:
         setattr(module, "default_post", Post())  # noqa: B010
 
         registry = Registry(("models",))
-        discover(registry, module, "blog.models")
+        discover(registry, module, "blog.models", "blog")
 
         assert [c.identifier for c in registry] == ["models:blog.post"]
 
@@ -303,7 +305,7 @@ class TestDiscovery:
             setattr(module, cls.__name__, cls)
 
         registry = Registry(("models",))
-        discover(registry, module, "blog.models")
+        discover(registry, module, "blog.models", "blog")
 
         assert [c.identifier for c in registry] == ["models:blog.post"]
 
@@ -323,7 +325,7 @@ class TestDiscovery:
         setattr(shop, "repo", repo)  # noqa: B010
 
         registry = Registry(("models",))
-        discover(registry, blog, "blog.models")
-        discover(registry, shop, "shop.models")
+        discover(registry, blog, "blog.models", "blog")
+        discover(registry, shop, "shop.models", "shop")
 
         assert [c.identifier for c in registry] == ["models:blog.repo"]

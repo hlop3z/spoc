@@ -20,6 +20,10 @@ source = "framework.py.tmpl"
 target = "framework.py"
 
 [[files]]
+source = "apps_init.py.tmpl"
+target = "apps/__init__.py"
+
+[[files]]
 source = "app/__init__.py.tmpl"
 target = "apps/$app_name/__init__.py"
 

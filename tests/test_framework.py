@@ -42,7 +42,13 @@ def make_project(
     extra_toml: str = "",
     extra_modules: dict[str, str] | None = None,
 ) -> Path:
-    """Build a minimal SPOC project with one app on disk. No settings.py."""
+    """Build a minimal SPOC project with one app on disk. No settings.py.
+
+    The app is a top-level package under the project root, declared by its
+    dotted path (here a single segment). The test environment — not the
+    kernel — makes the root importable, exactly as a real entry point's
+    script directory would be.
+    """
     base = tmp_path / f"proj_{app}"
     (base / "config").mkdir(parents=True)
     (base / "config" / "spoc.toml").write_text(
@@ -58,12 +64,13 @@ def make_project(
         )
         + extra_toml
     )
-    app_dir = base / "apps" / app
+    app_dir = base / app
     app_dir.mkdir(parents=True)
     (app_dir / "__init__.py").write_text("")
     (app_dir / "models.py").write_text(textwrap.dedent(models_body))
     for name, body in (extra_modules or {}).items():
         (app_dir / f"{name}.py").write_text(textwrap.dedent(body))
+    sys.path.insert(0, str(base))
     return base
 
 
@@ -204,7 +211,6 @@ def test_shutdown_resets_to_a_clean_boot(tmp_path):
     fw.start(base_a)
     assert fw.resolve("models:alpha.post")
     fw.shutdown()
-    assert str(base_a / "apps") not in sys.path
 
     fw.start(base_b)
     assert fw.resolve("models:beta.post")
@@ -212,33 +218,89 @@ def test_shutdown_resets_to_a_clean_boot(tmp_path):
         fw.resolve("models:alpha.post")
 
 
-def test_shutdown_keeps_an_import_path_it_did_not_add(tmp_path):
-    """Ejecting is ownership-gated: the entry belongs to whoever inserted it."""
-    base = make_project(tmp_path, "alpha")
-    entry = str(base / "apps")
-    sys.path.insert(0, entry)  # somebody else owns this one
+def test_lifecycle_never_mutates_sys_path(tmp_path):
+    """Boot acquires no process-global state: the import path is untouched."""
+    base = make_project(tmp_path, "pathless")
+    path_before = list(sys.path)
 
-    fw = Framework("models")
-    fw.start(base)
+    fw = Framework("models").start(base)
+    assert sys.path == path_before
     fw.shutdown()
+    assert sys.path == path_before
 
-    assert sys.path.count(entry) == 1
+
+def test_start_creates_nothing_on_disk(tmp_path):
+    """A typo'd or bare project root must not sprout directories."""
+    base = tmp_path / "bare"
+    (base / "config").mkdir(parents=True)
+    (base / "config" / "spoc.toml").write_text('[spoc]\nmode = "development"\n')
+    entries_before = set(base.rglob("*"))
+
+    Framework("models").start(base)
+    assert set(base.rglob("*")) == entries_before
 
 
-def test_shutdown_does_not_strip_a_second_framework_still_running(tmp_path):
-    """Two frameworks on one project: the first to leave must not break the other."""
-    base = make_project(tmp_path, "alpha")
-    entry = str(base / "apps")
+def test_dotted_app_path_namespaces_from_final_segment(tmp_path):
+    """`apps.blog` registers under namespace `blog` — no path surgery involved."""
+    base = tmp_path / "proj_dotted"
+    (base / "config").mkdir(parents=True)
+    (base / "config" / "spoc.toml").write_text(
+        '[spoc]\nmode = "development"\n\n[spoc.apps]\ndevelopment = ["apps.blog"]\n'
+    )
+    pkg = base / "apps" / "blog"
+    pkg.mkdir(parents=True)
+    (base / "apps" / "__init__.py").write_text("")
+    (pkg / "__init__.py").write_text("")
+    (pkg / "models.py").write_text(textwrap.dedent(MODELS_BODY))
+    sys.path.insert(0, str(base))
 
-    first = Framework("models").start(base)
-    second = Framework("models").start(base)  # finds the entry already present
+    fw = Framework("models").start(base)
+    assert [c.identifier for c in fw.registry] == ["models:blog.post"]
 
-    second.shutdown()
-    assert entry in sys.path  # first still needs it
-    assert first.resolve("models:alpha.post")
 
-    first.shutdown()
-    assert entry not in sys.path
+def test_app_named_like_stdlib_cannot_shadow_it(tmp_path):
+    """A nested app whose final segment collides with the stdlib stays nested."""
+    base = tmp_path / "proj_shadow"
+    (base / "config").mkdir(parents=True)
+    (base / "config" / "spoc.toml").write_text(
+        '[spoc]\nmode = "development"\n\n'
+        '[spoc.apps]\ndevelopment = ["shadowpkg.logging"]\n'
+    )
+    pkg = base / "shadowpkg" / "logging"
+    pkg.mkdir(parents=True)
+    (base / "shadowpkg" / "__init__.py").write_text("")
+    (pkg / "__init__.py").write_text("")
+    (pkg / "models.py").write_text(textwrap.dedent(MODELS_BODY))
+    sys.path.insert(0, str(base))
+
+    fw = Framework("models").start(base)
+    assert fw.resolve("models:logging.post")
+
+    import logging
+
+    assert hasattr(logging, "getLogger")  # the stdlib module, not the app
+
+
+def test_unimportable_app_path_fails_naming_it(tmp_path):
+    base = tmp_path / "proj_ghostapp"
+    (base / "config").mkdir(parents=True)
+    (base / "config" / "spoc.toml").write_text(
+        '[spoc]\nmode = "development"\n\n[spoc.apps]\ndevelopment = ["no.such.app"]\n'
+    )
+    fw = Framework("models")
+    with pytest.raises(AppNotFoundError, match=r"no\.such\.app"):
+        fw.start(base)
+    assert fw.started is False
+
+
+def test_app_final_segment_must_satisfy_the_grammar(tmp_path):
+    base = tmp_path / "proj_badseg"
+    (base / "config").mkdir(parents=True)
+    (base / "config" / "spoc.toml").write_text(
+        '[spoc]\nmode = "development"\n\n[spoc.apps]\ndevelopment = ["apps.BadName"]\n'
+    )
+    with pytest.raises(InvalidSegmentError, match="BadName"):
+        Framework("models").start(base)
 
 
 def test_failed_start_leaves_the_framework_inert_and_retryable(tmp_path):
@@ -252,9 +314,8 @@ def test_failed_start_leaves_the_framework_inert_and_retryable(tmp_path):
     assert fw.started is False
     assert fw.base_dir is None
     assert len(fw.registry) == 0
-    assert str(base / "apps") not in sys.path
 
-    (base / "apps" / "alpha" / "views.py").write_text("")
+    (base / "alpha" / "views.py").write_text("")
     fw.start(base)
     assert fw.resolve("models:alpha.post")
 
@@ -278,17 +339,18 @@ def test_failed_startup_rolls_back_initialized_modules(tmp_path):
         "bad": "def initialize():\n    raise RuntimeError('boom')\n",
     }
     for app, body in modules.items():
-        app_dir = base / "apps" / app
+        app_dir = base / app
         app_dir.mkdir(parents=True)
         (app_dir / "__init__.py").write_text("")
         (app_dir / "models.py").write_text(body)
+    sys.path.insert(0, str(base))
 
     fw = Framework("models")
     with pytest.raises(SpocError, match="boom"):
         fw.start(base)
 
-    assert (base / "apps" / "good" / "up.txt").exists()
-    assert (base / "apps" / "good" / "down.txt").exists()
+    assert (base / "good" / "up.txt").exists()
+    assert (base / "good" / "down.txt").exists()
     assert fw.started is False
 
 
@@ -338,12 +400,11 @@ def test_handles_taken_before_start(tmp_path):
             ...
         """,
     )
-    (base / "apps" / "fwdef.py").write_text(
+    (base / "fwdef.py").write_text(
         "import spoc\n"
         'framework = spoc.Framework("models")\n'
         'model = framework.kind("models")\n'
     )
-    sys.path.insert(0, str(base / "apps"))
     import fwdef
 
     fwdef.framework.start(base)
@@ -368,8 +429,7 @@ def test_kind_dependency_order_across_modules(tmp_path):
             )
         },
     )
-    (base / "apps" / "fwtrace.py").write_text("events = []\n")
-    sys.path.insert(0, str(base / "apps"))
+    (base / "fwtrace.py").write_text("events = []\n")
     import fwtrace
 
     Framework("models", KindSpec("views", depends_on=("models",))).start(base)
@@ -400,7 +460,7 @@ def test_missing_optional_module_is_skipped(tmp_path):
 def test_optionality_does_not_leak_between_kinds(tmp_path):
     """One optional kind must not weaken the guarantee for a required one."""
     base = make_project(tmp_path, "mixedapp", models_body="")
-    (base / "apps" / "mixedapp" / "models.py").unlink()
+    (base / "mixedapp" / "models.py").unlink()
     fw = Framework(KindSpec("views", required=False), "models")
     with pytest.raises(MissingModuleError) as exc:
         fw.start(base)
@@ -515,8 +575,7 @@ def test_on_ready_runs_before_module_initialization(tmp_path):
         fwprobe.events.append("initialize")
     """,
     )
-    (base / "apps" / "fwprobe.py").write_text("events = []\n")
-    sys.path.insert(0, str(base / "apps"))
+    (base / "fwprobe.py").write_text("events = []\n")
     import fwprobe
 
     fw = Framework("models")
@@ -619,9 +678,7 @@ def test_declared_plugin_registers_in_the_registry(tmp_path):
         "plugok",
         extra_toml='\n[spoc.plugins]\nhooks = ["plugok.extras.hook"]\n',
     )
-    (base / "apps" / "plugok" / "extras.py").write_text(
-        "def hook():\n    return 'loaded'\n"
-    )
+    (base / "plugok" / "extras.py").write_text("def hook():\n    return 'loaded'\n")
     fw = Framework("models", KindSpec("hooks", required=False)).start(base)
     record = fw.resolve("hooks:plugok.hook")
     assert record.object() == "loaded"
@@ -648,7 +705,7 @@ def test_plugin_name_derives_from_the_attribute(tmp_path):
         "plugcase",
         extra_toml='\n[spoc.plugins]\nhooks = ["plugcase.extras.AuditHook"]\n',
     )
-    (base / "apps" / "plugcase" / "extras.py").write_text("class AuditHook:\n    ...\n")
+    (base / "plugcase" / "extras.py").write_text("class AuditHook:\n    ...\n")
     fw = Framework("models", KindSpec("hooks", required=False)).start(base)
     assert fw.resolve("hooks:plugcase.audit_hook").name == "audit_hook"
 

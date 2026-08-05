@@ -78,7 +78,7 @@ def test_generated_project_starts_unedited(tmp_path):
     try:
         identifiers = {c.identifier for c in framework.registry}
         assert identifiers == {"models:core.example", "views:core.example"}
-        assert framework.installed_apps == ["core"]
+        assert framework.installed_apps == ["apps.core"]
     finally:
         framework.shutdown()
 
@@ -89,7 +89,8 @@ def test_generated_names_agree_across_files(tmp_path):
 
     config = tomllib.loads((destination / "config" / "spoc.toml").read_text())
     listed = [app for apps in config["spoc"]["apps"].values() for app in apps]
-    assert listed == ["billing"]
+    assert listed == ["apps.billing"]
+    assert (destination / "apps" / "__init__.py").is_file()
     assert (destination / "apps" / "billing").is_dir()
 
     declaration = (destination / "framework.py").read_text()

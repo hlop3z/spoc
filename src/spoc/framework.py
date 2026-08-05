@@ -29,6 +29,7 @@ to the surfaces built on top.
 
 from __future__ import annotations
 
+import importlib
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
@@ -44,9 +45,8 @@ from .core.declaration import (
     registrar,
 )
 from .core.exceptions import ConfigurationError, SpocError, UnknownKindError
-from .core.identity import to_snake_case
+from .core.identity import to_snake_case, validate_segment
 from .core.loader import KindHooks, LoadedModule, Loader
-from .core.paths import eject_apps, inject_apps
 from .core.registry import Component, Registry
 
 #: Which modes cascade into which, most specific first. Development sees everything.
@@ -93,7 +93,6 @@ class Framework:
         self.loader = Loader()
         self._ready_callbacks: list[Callable[[Registry], Any]] = []
         self._started = False
-        self._owns_apps_path = False
         self.base_dir: Path | None = None
         self.config: Config | None = None
         self.installed_apps: list[str] = []
@@ -147,14 +146,17 @@ class Framework:
 
         base_dir = Path(base_dir)
         try:
-            _, self._owns_apps_path = inject_apps(base_dir)
+            # A failed boot's contract is "fix the cause and start again" — the
+            # fix may be a file created since the last import attempt, which the
+            # import system's directory caches would otherwise still hide.
+            importlib.invalidate_caches()
             self.base_dir = base_dir
             self.config = _build_config(base_dir, self.echo)
             self._register_plugins(self.config.project)
             self._register_apps()
 
             for entry in self.loader.ordered():
-                discover(self.registry, entry.module, entry.name)
+                discover(self.registry, entry.module, entry.name, entry.namespace)
             for callback in self._ready_callbacks:
                 callback(self.registry)
             self.loader.initialize(self._hooks(), self._components_for)
@@ -163,7 +165,7 @@ class Framework:
             # reset to inert, then let the cause escape untouched.
             with suppress(Exception):
                 self.loader.shutdown(self._hooks(), self._components_for)
-            self._reset(base_dir)
+            self._reset()
             raise
 
         self._started = True
@@ -179,16 +181,12 @@ class Framework:
         if not self._started:
             return self
         self.loader.shutdown(self._hooks(), self._components_for)
-        if self.base_dir is not None:
-            self._reset(self.base_dir)
+        self._reset()
         self._started = False
         return self
 
-    def _reset(self, base_dir: Path) -> None:
+    def _reset(self) -> None:
         """Return every owned piece to its inert pre-start state."""
-        if self._owns_apps_path:
-            eject_apps(base_dir)
-            self._owns_apps_path = False
         self.registry = Registry(self.kinds)
         self.loader = Loader()
         self.installed_apps = []
@@ -204,11 +202,10 @@ class Framework:
         }
 
     def _components_for(self, entry: LoadedModule) -> set[Any]:
-        namespace = entry.name.partition(".")[0]
         return {
             c.object
             for c in self.registry.by_kind(entry.kind)
-            if c.namespace == namespace
+            if c.namespace == entry.namespace
         }
 
     def _register_plugins(self, project: dict[str, Any]) -> None:
@@ -261,11 +258,15 @@ class Framework:
             self.config.project.get("apps", {}),
         )
         for app in app_names:
+            # An app entry is a dotted module path imported exactly as written;
+            # its final segment is the namespace and must satisfy the grammar.
+            namespace = validate_segment("namespace", app.rpartition(".")[2])
             for spec in self._specs.values():
                 self.loader.register(
                     f"{app}.{spec.name}",
                     kind=spec.name,
                     app=app,
+                    namespace=namespace,
                     dependencies=tuple(f"{app}.{d}" for d in spec.depends_on),
                     required=spec.required,
                 )

@@ -47,6 +47,7 @@ class LoadedModule:
     name: str
     module: ModuleType
     kind: str
+    namespace: str = ""
     initialized: bool = False
 
 
@@ -63,10 +64,16 @@ class Loader:
         *,
         kind: str,
         app: str,
+        namespace: str = "",
         dependencies: tuple[str, ...] = (),
         required: bool = True,
     ) -> ModuleType | None:
-        """Import a module and record its dependencies. None if absent and optional."""
+        """Import a module and record its dependencies. None if absent and optional.
+
+        The module is imported exactly as named, through the normal import
+        system — the loader never alters the import environment to make a
+        name resolvable.
+        """
         if name in self._modules:
             return self._modules[name].module
 
@@ -82,13 +89,15 @@ class Loader:
                 # The app package itself is missing, not just this kind's module.
                 # A declared app that does not exist is always an error: `required`
                 # governs whether an existing app may omit a kind, nothing more.
-                raise AppNotFoundError(e.name) from e
+                raise AppNotFoundError(app) from e
             if required:
                 raise MissingModuleError(app, kind, name) from e
             logger.debug("Skipping absent optional module %s", name)
             return None
 
-        self._modules[name] = LoadedModule(name=name, module=module, kind=kind)
+        self._modules[name] = LoadedModule(
+            name=name, module=module, kind=kind, namespace=namespace
+        )
         self._graph.setdefault(name, set())
         # Edges are recorded even when the dependency is not loaded yet, or was an
         # absent optional module — ordered() filters unloaded names back out.

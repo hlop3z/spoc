@@ -30,7 +30,6 @@ from .exceptions import (
     ComponentKindMismatchError,
     MetadataContractError,
     MissingNameError,
-    SpocError,
 )
 from .identity import to_snake_case, validate_segment
 from .registry import Registry
@@ -160,20 +159,20 @@ def _declared_objects(
     return found
 
 
-def discover(registry: Registry, module: ModuleType, module_name: str) -> None:
-    """Register every component declared in `module` into `registry`."""
+def discover(
+    registry: Registry, module: ModuleType, module_name: str, namespace: str
+) -> None:
+    """Register every component declared in `module` into `registry`.
+
+    The namespace is the caller's statement — the final segment of the app's
+    declared module path — never parsed back out of the module name.
+    """
     declared = _declared_objects(module, module_name)
     if not declared:
         return
 
-    pkg, _, location_kind = module_name.rpartition(".")
-    if not pkg:
-        raise SpocError(
-            "Cannot derive a namespace: components must live in an app "
-            "package (<app>.<kind>), not a top-level module",
-            module_name,
-        )
-    namespace = validate_segment("namespace", pkg.split(".")[0])
+    location_kind = module_name.rpartition(".")[2]
+    namespace = validate_segment("namespace", namespace)
 
     for attr_name, obj, info in declared:
         if info.kind != location_kind:
