@@ -18,6 +18,7 @@ components came from.
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
@@ -45,13 +46,22 @@ class Component:
 
 
 class Registry:
-    """Flat store of component records with faceted, deterministic reads."""
+    """Flat store of component records with faceted, deterministic reads.
+
+    Concurrency contract: registrations are serialized — each ``add`` is
+    atomic, none is lost, and the duplicate and divergence guarantees hold
+    under any interleaving. Reads snapshot the store under the same lock, so
+    a read concurrent with writers observes only complete records. After
+    boot, when nothing writes, reads contend on nothing but an uncontested
+    lock acquisition.
+    """
 
     def __init__(self, kinds: tuple[str, ...] = ()) -> None:
         self._kinds: tuple[str, ...] = tuple(validate_segment("kind", k) for k in kinds)
         self._store: dict[str, Component] = {}
         # id() is stable here because _store holds a strong reference to every object.
         self._identifier_of: dict[int, str] = {}
+        self._lock = threading.Lock()
 
     @property
     def kinds(self) -> tuple[str, ...]:
@@ -77,53 +87,61 @@ class Registry:
         if kind not in self._kinds:
             raise UnknownKindError(kind, self._kinds)
         identifier = compose(kind, namespace, name)
-        prior = self._identifier_of.get(id(obj))
-        if prior is not None:
-            if prior != identifier:
-                raise IdentityDivergenceError(prior, identifier)
-            return self._store[prior]
-        if identifier in self._store:
-            raise DuplicateComponentError(identifier, self._store[identifier].object)
-        record = Component(
-            identifier=identifier,
-            kind=kind,
-            namespace=namespace,
-            name=name,
-            object=obj,
-            metadata=metadata,
-        )
-        self._store[identifier] = record
-        self._identifier_of[id(obj)] = identifier
-        return record
+        with self._lock:
+            prior = self._identifier_of.get(id(obj))
+            if prior is not None:
+                if prior != identifier:
+                    raise IdentityDivergenceError(prior, identifier)
+                return self._store[prior]
+            if identifier in self._store:
+                raise DuplicateComponentError(
+                    identifier, self._store[identifier].object
+                )
+            record = Component(
+                identifier=identifier,
+                kind=kind,
+                namespace=namespace,
+                name=name,
+                object=obj,
+                metadata=metadata,
+            )
+            self._store[identifier] = record
+            self._identifier_of[id(obj)] = identifier
+            return record
 
     def identifier_of(self, obj: Any) -> str | None:
         """The canonical identifier `obj` is registered under, or None."""
-        return self._identifier_of.get(id(obj))
+        with self._lock:
+            return self._identifier_of.get(id(obj))
 
     # ── Reads: one store, derived views, deterministic order ──────────────
 
+    def _snapshot(self) -> list[Component]:
+        with self._lock:
+            return list(self._store.values())
+
     def all(self) -> list[Component]:
         """Every record, ordered by identifier."""
-        return sorted(self._store.values(), key=lambda c: c.identifier)
+        return sorted(self._snapshot(), key=lambda c: c.identifier)
 
     def by_kind(self, kind: str) -> list[Component]:
         """Records of one kind, ordered by identifier."""
         return sorted(
-            (c for c in self._store.values() if c.kind == kind),
+            (c for c in self._snapshot() if c.kind == kind),
             key=lambda c: c.identifier,
         )
 
     def by_namespace(self, namespace: str) -> list[Component]:
         """Records of one namespace, ordered by identifier."""
         return sorted(
-            (c for c in self._store.values() if c.namespace == namespace),
+            (c for c in self._snapshot() if c.namespace == namespace),
             key=lambda c: c.identifier,
         )
 
     def namespaces(self, kind: str | None = None) -> tuple[str, ...]:
         """Namespaces present in the registry, optionally for one kind."""
         found = {
-            c.namespace for c in self._store.values() if kind is None or c.kind == kind
+            c.namespace for c in self._snapshot() if kind is None or c.kind == kind
         }
         return tuple(sorted(found))
 
@@ -131,10 +149,12 @@ class Registry:
         return iter(self.all())
 
     def __len__(self) -> int:
-        return len(self._store)
+        with self._lock:
+            return len(self._store)
 
     def __contains__(self, identifier: str) -> bool:
-        return identifier in self._store
+        with self._lock:
+            return identifier in self._store
 
     # ── Resolution: pure lookup, per-segment precise failure ──────────────
 
@@ -146,7 +166,8 @@ class Registry:
         """
         parsed = parse(identifier)
 
-        record = self._store.get(str(parsed))
+        with self._lock:
+            record = self._store.get(str(parsed))
         if record is not None:
             return record
 

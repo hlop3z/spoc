@@ -30,6 +30,7 @@ to the surfaces built on top.
 from __future__ import annotations
 
 import importlib
+import threading
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
@@ -76,7 +77,15 @@ def _build_config(base_dir: Path, echo: bool = False) -> Config:
 
 
 class Framework:
-    """The declaration point and composition root."""
+    """The declaration point and composition root.
+
+    Concurrency contract: taking registration handles and decorating objects
+    is thread-safe (a mark only sets an attribute on the target). Start and
+    shutdown are serialized against each other and against themselves — when
+    callers race to start, exactly one boot proceeds and the rest fail with
+    the already-started error. Reads after a completed start need no
+    coordination, because nothing writes to the registry after boot.
+    """
 
     def __init__(self, *kinds: str | KindSpec, echo: bool = False) -> None:
         self._specs: dict[str, KindSpec] = {}
@@ -93,6 +102,7 @@ class Framework:
         self.loader = Loader()
         self._ready_callbacks: list[Callable[[Registry], Any]] = []
         self._started = False
+        self._transition_lock = threading.Lock()
         self.base_dir: Path | None = None
         self.config: Config | None = None
         self.installed_apps: list[str] = []
@@ -141,35 +151,36 @@ class Framework:
         framework returns to its inert pre-start state, so the caller can fix
         the cause and start again cleanly.
         """
-        if self._started:
-            raise SpocError("Framework is already started")
+        with self._transition_lock:
+            if self._started:
+                raise SpocError("Framework is already started")
 
-        base_dir = Path(base_dir)
-        try:
-            # A failed boot's contract is "fix the cause and start again" — the
-            # fix may be a file created since the last import attempt, which the
-            # import system's directory caches would otherwise still hide.
-            importlib.invalidate_caches()
-            self.base_dir = base_dir
-            self.config = _build_config(base_dir, self.echo)
-            self._register_plugins(self.config.project)
-            self._register_apps()
+            base_dir = Path(base_dir)
+            try:
+                # A failed boot's contract is "fix the cause and start again" —
+                # the fix may be a file created since the last import attempt,
+                # which the import system's directory caches would still hide.
+                importlib.invalidate_caches()
+                self.base_dir = base_dir
+                self.config = _build_config(base_dir, self.echo)
+                self._register_plugins(self.config.project)
+                self._register_apps()
 
-            for entry in self.loader.ordered():
-                discover(self.registry, entry.module, entry.name, entry.namespace)
-            for callback in self._ready_callbacks:
-                callback(self.registry)
-            self.loader.initialize(self._hooks(), self._components_for)
-        except BaseException:
-            # Tear down what did come up (never-initialized modules are skipped),
-            # reset to inert, then let the cause escape untouched.
-            with suppress(Exception):
-                self.loader.shutdown(self._hooks(), self._components_for)
-            self._reset()
-            raise
+                for entry in self.loader.ordered():
+                    discover(self.registry, entry.module, entry.name, entry.namespace)
+                for callback in self._ready_callbacks:
+                    callback(self.registry)
+                self.loader.initialize(self._hooks(), self._components_for)
+            except BaseException:
+                # Tear down what did come up (never-initialized modules are
+                # skipped), reset to inert, then let the cause escape untouched.
+                with suppress(Exception):
+                    self.loader.shutdown(self._hooks(), self._components_for)
+                self._reset()
+                raise
 
-        self._started = True
-        return self
+            self._started = True
+            return self
 
     def shutdown(self) -> Framework:
         """Tear down modules in reverse dependency order, then reset to pre-start state.
@@ -178,12 +189,13 @@ class Framework:
         modules, no injected import path — so a subsequent ``start`` is a clean boot
         rather than one layered on stale state. No-op if never started.
         """
-        if not self._started:
+        with self._transition_lock:
+            if not self._started:
+                return self
+            self.loader.shutdown(self._hooks(), self._components_for)
+            self._reset()
+            self._started = False
             return self
-        self.loader.shutdown(self._hooks(), self._components_for)
-        self._reset()
-        self._started = False
-        return self
 
     def _reset(self) -> None:
         """Return every owned piece to its inert pre-start state."""
