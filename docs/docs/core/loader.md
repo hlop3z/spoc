@@ -60,11 +60,13 @@ Whether a missing module is an error is decided by the declaring kind's
 | --------- | ------ |
 | Module absent, kind is required | `MissingModuleError` naming the app, kind, and expected module |
 | Module absent, kind is optional | Skipped; the app contributes nothing of that kind |
-| Module present but raises on import | Always an error, whatever the optionality |
+| The app package itself does not exist | `AppNotFoundError`, whatever the optionality — `required` lets an existing app omit a kind, it cannot excuse a missing app |
+| Module present but raises on import | Always an error, whatever the optionality — the author's own exception propagates with its traceback |
 
 The distinction is made from which module the import system reports as missing:
-if it names the module being registered, the module is absent; if it names
-something else, the module exists and its own imports are broken.
+the module being registered is absent; a parent package of it means the app
+itself is absent; anything else means the module exists and its own imports are
+broken.
 
 ## Component discovery
 
@@ -78,8 +80,11 @@ registered:
 - the app package name becomes the `namespace` segment
 - the module file name is the `kind` — a declared kind that doesn't match raises
   `ComponentKindMismatchError` naming the object, both kinds, and the file
+- only the object the decorator was applied to declares: instances and
+  subclasses of a decorated class inherit the marker but are not components
 - classes and functions imported from elsewhere are skipped (they register where
-  they are defined)
+  they are defined), and an already-registered object seen again — a decorated
+  instance imported into a second app, say — keeps its first identifier
 - duplicates raise `DuplicateComponentError`
 
 Discovery runs for **all** modules before any module initializes, so registration
@@ -93,6 +98,11 @@ loader.load_from_uri("blog.extras.hook")   # load an attribute by dotted referen
 len(loader)                                # how many modules are loaded
 list(loader)                               # LoadedModule entries, in dependency order
 ```
+
+`load_from_uri` fails the same way registration does: an absent module raises
+`AppNotFoundError`, a malformed reference or a missing attribute raises
+`UnresolvedReferenceError`, and a module that exists but fails to import
+propagates its own exception.
 
 The module cache manipulation API (`has`, `get`, `clear`, `clear_all`,
 `unload_all`, `keys`) was removed — nothing outside its own tests used it.

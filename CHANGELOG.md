@@ -7,6 +7,40 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Discovery ownership.** An instance or subclass of a decorated class inherits the
+  `__spoc__` marker but is no longer treated as a declaration — a module-level
+  `default_post = Post()` used to crash boot with a spurious `DuplicateComponentError`.
+  The registry now also enforces one-object-one-identifier directly: a decorated instance
+  imported into a second app keeps its first identity instead of registering twice.
+- **Error taxonomy at the boundaries.** An app declared in `spoc.toml` whose package does
+  not exist raises `AppNotFoundError` instead of a raw `ModuleNotFoundError` (and
+  `required=False` no longer excuses it); a plugin module that exists but fails to import
+  propagates its own error instead of being misreported as absent; a malformed plugin
+  reference or missing attribute raises the new `UnresolvedReferenceError`; `[spoc.apps]`
+  and `[spoc.plugins]` groups must be lists of strings (a bare string used to boot one app
+  per character); an unknown `mode` — or an app list stranded under a misspelled one —
+  fails start with `ConfigurationError` instead of silently installing nothing.
+- **Lifecycle soundness.** A failed `start()` tears down the modules that did initialize
+  and returns the framework to its inert pre-start state; `shutdown()` performs the same
+  reset (fresh registry and loader, injected import path removed), so restarting on a
+  different project no longer resolves stale components or grows `sys.path`.
+- **Scaffolder.** `spoc init BadName` exits with code 1 and a message instead of an
+  unhandled traceback; committing into an existing empty directory is atomic (the
+  directory is swapped out, or the per-file fallback rolls back its files and created
+  directories on failure); a template using `$kind` outside a `per_kind` file is refused
+  at validation instead of crashing mid-render with a `KeyError`.
+- **CSV stays inside the JSON data model.** A row wider than the header is refused loudly
+  instead of decoding to a `None`-keyed dict that re-encoded as corrupted output; the
+  header is now the union of every row's keys (first appearance wins) instead of row 0's;
+  non-tabular values are refused with a message naming the shape.
+- **`collect()` failures stay in the `FormatError` family.** A file whose derived key
+  violates the identity grammar now raises `CollectionError` naming the file, so
+  `except FormatError` sees every way a collection can fail.
+- Error messages without a module name no longer carry a trailing space, and the
+  `spoc.formats.errors` docstring names `MissingDependencyError` correctly.
+
 ## [0.5.0] — 2026-08-04
 
 SPOC is rewritten around a single idea: **the kernel describes and never executes.** Every

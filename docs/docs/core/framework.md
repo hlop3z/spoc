@@ -73,15 +73,23 @@ framework.started             # True after a successful start
 framework.shutdown()          # reverse-order teardown; no-op if never started
 ```
 
+`shutdown()` returns the framework to its inert pre-start state — empty
+registry, no loaded modules, the injected import path removed — so a later
+`start()` on the same or a different project is a clean boot. A *failed*
+`start()` does the same on its way out: modules that came up are torn down
+and the framework stays inert, so the caller can fix the cause and retry.
+
 `start(base_dir)` runs, in order:
 
 1. `apps/` is put on the import path
 2. `config/spoc.toml` is loaded — the only file the kernel reads
 3. Plugins are loaded from `[spoc.plugins]` (a bad reference fails start)
 4. Apps are collected via the mode cascade and their modules registered. A
-   module absent for a required kind raises `MissingModuleError`; absent for
-   an optional one it is skipped. A module that exists but fails to import is
-   an error either way
+   mode (or `[spoc.apps]` key) that names no known mode raises
+   `ConfigurationError`. A module absent for a required kind raises
+   `MissingModuleError`; absent for an optional one it is skipped. An app
+   package that does not exist at all raises `AppNotFoundError`, whatever the
+   optionality. A module that exists but fails to import is an error either way
 5. **Components are discovered into the registry** — loudly: a declared
    component that cannot be registered (kind mismatch, invalid segment,
    duplicate identifier, metadata departing from its kind's contract) fails

@@ -81,12 +81,18 @@ def teardown():
 5. For each module in dependency order: startup hooks fire, then the
    module's `initialize()`
 6. On `shutdown()`: for each module in reverse order, shutdown hooks fire,
-   then the module's `teardown()`
+   then the module's `teardown()` — then the framework resets to its inert
+   pre-start state, so a later `start()` is a clean boot
 
 ## Errors
 
-Failures during start/shutdown surface as `SpocError` (or a more specific
+Failures the kernel itself produces surface as `SpocError` (or a more specific
 subclass — `CircularDependencyError`, `ComponentKindMismatchError`,
-`DuplicateComponentError`, `MissingModuleError`, `MetadataContractError`).
-Nothing is silently skipped, and a failed start leaves `framework.started`
-False.
+`DuplicateComponentError`, `MissingModuleError`, `ConfigurationError`,
+`MetadataContractError`). A module that raises while *importing* propagates its
+own exception — the author needs their traceback, not a wrapper around it.
+
+Nothing is silently skipped, and a failed start rolls itself back: modules
+that initialized are torn down in reverse, the framework returns to its inert
+pre-start state, and `framework.started` stays False — fix the cause and call
+`start()` again.
