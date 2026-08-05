@@ -31,15 +31,16 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .core.config import DEFAULT_MODE, load_environment, load_spoc_toml
 from .core.declaration import KindSpec, as_kind_spec, discover, registrar
-from .core.exceptions import SpocError, UnknownKindError
+from .core.exceptions import ConfigurationError, SpocError, UnknownKindError
 from .core.loader import KindHooks, LoadedModule, Loader
-from .core.paths import inject_apps
+from .core.paths import eject_apps, inject_apps
 from .core.registry import Component, Registry
 
 #: Which modes cascade into which, most specific first. Development sees everything.
@@ -144,16 +145,35 @@ class Framework:
             discover(self.registry, entry.module, entry.name)
         for callback in self._ready_callbacks:
             callback(self.registry)
-        self.loader.initialize(self._hooks(), self._components_for)
+        try:
+            self.loader.initialize(self._hooks(), self._components_for)
+        except BaseException:
+            # Roll back the modules that did come up, then let the cause escape.
+            with suppress(Exception):
+                self.loader.shutdown(self._hooks(), self._components_for)
+            raise
 
         self._started = True
         return self
 
     def shutdown(self) -> Framework:
-        """Tear down modules in reverse dependency order. No-op if never started."""
+        """Tear down modules in reverse dependency order, then reset to pre-start state.
+
+        After shutdown the framework is inert again — empty registry, no loaded
+        modules, no injected import path — so a subsequent ``start`` is a clean boot
+        rather than one layered on stale state. No-op if never started.
+        """
         if not self._started:
             return self
         self.loader.shutdown(self._hooks(), self._components_for)
+        assert self.base_dir is not None
+        eject_apps(self.base_dir)
+        self.registry = Registry(self.kinds)
+        self.loader = Loader()
+        self.plugins = {}
+        self.installed_apps = []
+        self.config = None
+        self.base_dir = None
         self._started = False
         return self
 
@@ -186,10 +206,22 @@ class Framework:
 
     @staticmethod
     def _collect_apps(mode: str, declared: dict[str, list[str]]) -> list[str]:
-        """Cascaded app list for a mode, order preserved, first wins."""
+        """Cascaded app list for a mode, order preserved, first wins.
+
+        Both the active mode and every ``[spoc.apps]`` key must name a known mode:
+        a typo would otherwise silently install nothing (or strand an app list).
+        """
+        valid = ", ".join(_MODE_CASCADE)
+        if mode not in _MODE_CASCADE:
+            raise ConfigurationError(f"Unknown mode {mode!r}. Valid modes: {valid}")
+        for group in declared:
+            if group not in _MODE_CASCADE:
+                raise ConfigurationError(
+                    f"Unknown mode {group!r} in [spoc.apps]. Valid modes: {valid}"
+                )
         installed: list[str] = []
         seen: set[str] = set()
-        for source in _MODE_CASCADE.get(mode, ()):
+        for source in _MODE_CASCADE[mode]:
             for app in declared.get(source, []):
                 if app not in seen:
                     seen.add(app)

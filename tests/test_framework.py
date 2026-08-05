@@ -17,6 +17,7 @@ from spoc.core.declaration import get_info
 from spoc.core.exceptions import (
     AppNotFoundError,
     ComponentKindMismatchError,
+    ConfigurationError,
     InvalidSegmentError,
     MetadataContractError,
     MissingModuleError,
@@ -191,6 +192,56 @@ def test_double_start_raises(tmp_path):
 def test_shutdown_without_start_is_noop():
     fw = Framework("models")
     assert fw.shutdown() is fw
+    assert fw.started is False
+
+
+def test_shutdown_resets_to_a_clean_boot(tmp_path):
+    """Restarting on a second project must not resolve the first project's parts."""
+    base_a = make_project(tmp_path, "alpha")
+    base_b = make_project(tmp_path, "beta")
+    fw = Framework("models")
+
+    fw.start(base_a)
+    assert fw.resolve("models:alpha.post")
+    fw.shutdown()
+    assert str(base_a / "apps") not in sys.path
+
+    fw.start(base_b)
+    assert fw.resolve("models:beta.post")
+    with pytest.raises(UnknownNamespaceError):
+        fw.resolve("models:alpha.post")
+
+
+def test_failed_startup_rolls_back_initialized_modules(tmp_path):
+    """A module that fails to initialize must not strand its predecessors' teardown."""
+    base = tmp_path / "proj_rollback"
+    (base / "config").mkdir(parents=True)
+    (base / "config" / "spoc.toml").write_text(
+        '[spoc]\nmode = "development"\n\n[spoc.apps]\ndevelopment = ["good", "bad"]\n'
+    )
+    modules = {
+        "good": (
+            "from pathlib import Path\n"
+            "_here = Path(__file__).parent\n"
+            "def initialize():\n"
+            "    (_here / 'up.txt').write_text('up')\n"
+            "def teardown():\n"
+            "    (_here / 'down.txt').write_text('down')\n"
+        ),
+        "bad": "def initialize():\n    raise RuntimeError('boom')\n",
+    }
+    for app, body in modules.items():
+        app_dir = base / "apps" / app
+        app_dir.mkdir(parents=True)
+        (app_dir / "__init__.py").write_text("")
+        (app_dir / "models.py").write_text(body)
+
+    fw = Framework("models")
+    with pytest.raises(SpocError, match="boom"):
+        fw.start(base)
+
+    assert (base / "apps" / "good" / "up.txt").exists()
+    assert (base / "apps" / "good" / "down.txt").exists()
     assert fw.started is False
 
 
@@ -472,6 +523,34 @@ def test_mode_cascade():
     assert Framework._collect_apps("development", apps) == ["demo", "admin", "auth"]
     assert Framework._collect_apps("staging", apps) == ["admin", "auth"]
     assert Framework._collect_apps("production", apps) == ["auth"]
+
+
+def test_unknown_mode_is_refused():
+    """A mode typo must not silently install zero apps."""
+    with pytest.raises(ConfigurationError, match="prod"):
+        Framework._collect_apps("prod", {"development": ["demo"]})
+
+
+def test_unknown_apps_group_is_refused():
+    """An app list stranded under a misspelled mode is a defect, not dead config."""
+    with pytest.raises(ConfigurationError, match="developmnet"):
+        Framework._collect_apps("development", {"developmnet": ["demo"]})
+
+
+def test_mode_typo_fails_start_instead_of_booting_empty(tmp_path):
+    base = tmp_path / "proj_modetypo"
+    (base / "config").mkdir(parents=True)
+    (base / "config" / "spoc.toml").write_text(
+        '[spoc]\nmode = "prod"\n\n[spoc.apps]\nproduction = ["demo"]\n'
+    )
+    with pytest.raises(ConfigurationError, match="prod"):
+        Framework("models").start(base)
+
+
+def test_error_message_carries_no_trailing_space():
+    assert str(SpocError("Framework is already started")) == (
+        "Framework is already started"
+    )
 
 
 def test_unresolvable_plugin_fails_start(tmp_path):

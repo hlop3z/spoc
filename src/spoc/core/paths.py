@@ -11,6 +11,7 @@ explicitly, from ``start``.
 from __future__ import annotations
 
 import sys
+from contextlib import suppress
 from pathlib import Path
 
 
@@ -23,3 +24,9 @@ def inject_apps(
     if str(apps_path) not in sys.path:
         sys.path.insert(position, str(apps_path))
     return apps_path
+
+
+def eject_apps(base_dir: Path, apps_dir_name: str = "apps") -> None:
+    """Undo :func:`inject_apps`: drop ``<base_dir>/apps`` from the import path."""
+    with suppress(ValueError):
+        sys.path.remove(str(base_dir / apps_dir_name))
