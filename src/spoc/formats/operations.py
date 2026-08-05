@@ -103,10 +103,14 @@ def collect(
     *,
     options: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Collection:
-    """Read every supported file under `root` into one mapping, eagerly."""
+    """Read every supported file under `root` into one mapping, eagerly.
+
+    An empty directory is a valid (empty) collection; an absent one is a typo
+    and fails loudly, like every other way a collection can go wrong.
+    """
     base = Path(root)
     if not base.is_dir():
-        return Collection()
+        raise CollectionError(str(base), "not a directory")
 
     per_format = options or {}
     entries: dict[str, Any] = {}

@@ -79,6 +79,9 @@ data["blog.posts"]        # already parsed
 data.skipped              # files whose extension matched no format
 ```
 
+An existing empty directory collects to an empty mapping; a root that does not exist fails
+with `CollectionError` — a typo'd path is a defect, not an empty result.
+
 Three things this deliberately will **not** do:
 
 - **It is not lazy.** Everything is parsed before `collect()` returns, so a malformed file

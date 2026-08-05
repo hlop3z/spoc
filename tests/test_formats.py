@@ -293,10 +293,15 @@ def test_nested_directories_are_included(tree: Path):
     assert "blog.posts" in formats.collect(tree)
 
 
-def test_empty_or_absent_directory_is_not_an_error(tmp_path: Path):
+def test_empty_directory_is_an_empty_collection(tmp_path: Path):
     (tmp_path / "empty").mkdir()
     assert dict(formats.collect(tmp_path / "empty")) == {}
-    assert dict(formats.collect(tmp_path / "never-created")) == {}
+
+
+def test_absent_root_fails_loudly(tmp_path: Path):
+    """A typo'd root is a failure, not an empty result — collection is eager and loud."""
+    with pytest.raises(CollectionError, match="not a directory"):
+        formats.collect(tmp_path / "never-created")
 
 
 def test_keys_derive_from_relative_location(tmp_path: Path):

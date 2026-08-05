@@ -17,7 +17,10 @@ unchanged.
 A single collection operation MUST resolve a directory tree containing files of differing
 supported formats into one mapping, so that a project reads many sources without invoking a
 loader per file. Files whose extension maps to no supported format MUST be skipped rather than
-failing the collection, and the set skipped MUST be reportable.
+failing the collection, and the set skipped MUST be reportable. An existing empty
+directory is a valid, empty collection; a root that does not exist or is not a
+directory MUST fail the collection naming the path, so a typo surfaces at the call
+rather than as a silently empty result.
 
 #### Scenario: Mixed formats collect together
 
@@ -36,10 +39,15 @@ failing the collection, and the set skipped MUST be reportable.
 - **WHEN** a directory containing subdirectories of supported files is collected
 - **THEN** entries from the nested files are present in the same single mapping
 
-#### Scenario: An empty or absent directory is not an error by default
+#### Scenario: An empty directory is not an error
 
-- **WHEN** a collection targets a directory that is empty
+- **WHEN** a collection targets an existing directory that is empty
 - **THEN** the result is an empty mapping rather than a failure
+
+#### Scenario: An absent root fails loudly
+
+- **WHEN** a collection targets a path that does not exist or is not a directory
+- **THEN** the collection fails naming that path, and returns no mapping
 
 ### Requirement: Entry keys derive from location and never collide silently
 

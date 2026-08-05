@@ -25,6 +25,7 @@ keeps the lexer intact while making every extension unreachable.
 
 from __future__ import annotations
 
+from functools import cache
 from typing import Any, Final
 
 from .errors import MissingDependencyError, PointerResolutionError
@@ -47,9 +48,6 @@ _EXTENSION_TOKENS: Final[tuple[str, ...]] = (
 #: Distinguishes "resolved to null" from "did not resolve" — a contract of the spec.
 _MISSING: Final[object] = object()
 
-_env: Any = None
-_pointer_type: Any = None
-
 
 def _import() -> Any:
     try:
@@ -59,25 +57,21 @@ def _import() -> Any:
     return jsonpath
 
 
+@cache
 def _strict_env() -> Any:
     """The RFC 9535 environment, built once: conformant syntax only, extensions off."""
-    global _env
-    if _env is None:
-        jsonpath = _import()
-        strict = type(
-            "Rfc9535Environment",
-            (jsonpath.JSONPathEnvironment,),
-            dict.fromkeys(_EXTENSION_TOKENS, _SENTINEL),
-        )
-        _env = strict()
-    return _env
+    jsonpath = _import()
+    strict = type(
+        "Rfc9535Environment",
+        (jsonpath.JSONPathEnvironment,),
+        dict.fromkeys(_EXTENSION_TOKENS, _SENTINEL),
+    )
+    return strict()
 
 
+@cache
 def _pointer_class() -> Any:
-    global _pointer_type
-    if _pointer_type is None:
-        _pointer_type = _import().JSONPointer
-    return _pointer_type
+    return _import().JSONPointer
 
 
 def pointer(value: Any, reference: str) -> Any:
