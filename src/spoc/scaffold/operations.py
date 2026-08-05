@@ -7,9 +7,13 @@ a downstream framework's own entry point without going through argv. Concrete
 adapters are wired in :mod:`spoc.scaffold.cli`.
 """
 
+from collections.abc import Callable
+from dataclasses import dataclass, replace
+from string import Template
+
 from .core import build_plan, detect_conflicts, validate_name
-from .errors import TargetNotEmptyError
-from .plan import GenerationPlan, ProjectSink, TemplateSource
+from .errors import IncompleteTemplateSetError, TargetNotEmptyError
+from .plan import GenerationPlan, PlannedFile, ProjectSink, TemplateSource
 
 #: What a project gets when the caller does not say otherwise. Two kinds, so the
 #: generated project shows a registry with more than one facet in it. No
@@ -77,3 +81,103 @@ def init_project(
 
     sink.commit(plan)
     return plan
+
+
+#: Marks the templates that shape an app: any file whose destination is
+#: parameterized by the app's name. The manifest already draws this line —
+#: no second declaration is invented for it.
+APP_MARKER = "$app_name"
+
+
+@dataclass(frozen=True)
+class AddedApp:
+    """What `add_app` did: the files written (paths relative to `app_dir`),
+    where the app landed, and the dotted reference that installs it."""
+
+    plan: GenerationPlan
+    app_dir: str
+    config_reference: str
+
+
+def add_app(
+    *,
+    source: TemplateSource,
+    sink_factory: Callable[[str], ProjectSink],
+    app_name: str,
+    kinds: tuple[str, ...],
+    template_set: str = "default",
+) -> AddedApp:
+    """
+    Generate one additional app into an existing project.
+
+    The selected template set's app-shaped files (those whose targets carry
+    ``$app_name``) are rendered exactly as project generation renders them,
+    then committed under the app's own directory — so the never-overwrite
+    guarantee falls out of the sink's existing contract: an app that already
+    exists is refused with nothing written.
+
+    The project's configuration is never edited. The returned
+    ``config_reference`` is the dotted path the author adds to a mode list
+    under ``[spoc.apps]`` — stating it is the caller's (CLI's) job.
+
+    Raises:
+        InvalidSegmentError: A supplied name is not legal.
+        TemplateSetNotFoundError / IncompleteTemplateSetError: Bad template
+            set, or one with no app-shaped files.
+        TargetNotEmptyError: The app already exists.
+    """
+    validate_name("app_name", app_name)
+    if not kinds:
+        raise ValueError("An app must be generated for at least one kind")
+    for kind in kinds:
+        validate_name("kind", kind)
+
+    loaded = source.load(template_set)
+    app_files = tuple(f for f in loaded.files if APP_MARKER in f.target)
+    if not app_files:
+        raise IncompleteTemplateSetError(
+            f"app templates (targets containing {APP_MARKER!r}) in set {loaded.name!r}"
+        )
+
+    # The subset re-declares only what its own files use, so the set-level
+    # invariant (declared ⇔ supplied) keeps holding for the narrowed set.
+    used = {
+        name
+        for file in app_files
+        for text in (file.content, file.target)
+        for name in Template(text).get_identifiers()
+    }
+    subset = replace(loaded, files=app_files, values=tuple(sorted(used)))
+    plan = build_plan(subset, {"app_name": app_name}, kinds)
+
+    # The app directory is the deepest path prefix every rendered file shares;
+    # rebasing the plan onto it scopes the commit — and its refusals — to the
+    # one directory this operation may create.
+    split_paths = [planned.path.split("/") for planned in plan.files]
+    depth = min(len(parts) - 1 for parts in split_paths)
+    common: list[str] = []
+    for level in range(depth):
+        names = {parts[level] for parts in split_paths}
+        if len(names) != 1:
+            break
+        common.append(names.pop())
+    if not common:
+        raise IncompleteTemplateSetError(
+            f"a common app directory in set {loaded.name!r}'s app templates"
+        )
+
+    app_dir = "/".join(common)
+    rebased = GenerationPlan(
+        tuple(
+            PlannedFile(path="/".join(parts[len(common) :]), content=planned.content)
+            for parts, planned in zip(split_paths, plan.files, strict=True)
+        )
+    )
+
+    sink = sink_factory(app_dir)
+    sink.commit(rebased)  # refuses a non-empty destination itself
+    return AddedApp(
+        plan=rebased,
+        app_dir=app_dir,
+        config_reference=app_dir.replace("/", "."),
+    )

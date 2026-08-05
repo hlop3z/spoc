@@ -125,6 +125,13 @@ class InstalledTemplateSources:
         if name == BUILTIN_SET:
             return load_from_traversable(_builtin_traversable())
 
+        # A reference spelled as a path (it contains a separator, e.g.
+        # `./mytemplates`) designates a directory on disk. The separator is
+        # the discriminator on purpose: a bare name never silently resolves
+        # to a same-named local directory over an installed set.
+        if "/" in name or "\\" in name:
+            return load_from_directory(Path(name))
+
         entry = _entry_points().get(name)
         if entry is None:
             raise TemplateSetNotFoundError(name, self.available())

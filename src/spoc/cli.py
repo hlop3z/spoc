@@ -14,13 +14,30 @@ console script runs.
 
 import argparse
 import sys
+from pathlib import Path
 
 from .core.exceptions import SpocError
 from .diagnostics import cli as diagnostics_cli
-from .diagnostics.locate import LocateError
+from .diagnostics.locate import LocateError, locate_framework
 from .scaffold import cli as scaffold_cli
+from .testing import import_state
 
 __all__ = ["main"]
+
+
+def _derive_kinds(project_root: Path) -> tuple[str, ...]:
+    """Kinds from the project's own declaration — `spoc app` never makes the
+    author restate what framework.py already states. Wired here because only
+    the composition root may join the scaffold and diagnostics surfaces."""
+    try:
+        with import_state():
+            sys.path.insert(0, str(project_root))
+            return locate_framework().kinds
+    except LocateError as exc:
+        raise ValueError(
+            f"Could not derive the kinds: {exc} — or state them explicitly "
+            "with --kinds models,views"
+        ) from exc
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -28,12 +45,12 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="spoc",
         description=(
             "Scaffold, validate, and inspect spoc projects: init generates a "
-            "runnable project; check dry-boots and reports problems before "
-            "runtime; list and explain read the registry."
+            "runnable project, app adds one to it; check dry-boots and reports "
+            "problems before runtime; list and explain read the registry."
         ),
     )
     subcommands = parser.add_subparsers(dest="command", required=True)
-    scaffold_cli.register(subcommands)
+    scaffold_cli.register(subcommands, derive_kinds=_derive_kinds)
     diagnostics_cli.register(subcommands)
     return parser
 

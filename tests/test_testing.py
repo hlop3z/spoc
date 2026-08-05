@@ -31,13 +31,18 @@ MODELS_BODY = """
 def test_no_kernel_module_imports_the_test_harness():
     """Same contract as formats/scaffold: the boundary holds in source.
 
-    `spoc.diagnostics` is the one allowed importer — a diagnostic run is an
-    isolated dry boot, and it composes the harness's scopes rather than
-    duplicating them (design ADR). It is a surface, not kernel.
+    Allowed importers are surfaces, never kernel: `spoc.diagnostics` (a
+    diagnostic run is an isolated dry boot composing the harness's scopes —
+    design ADR) and `spoc.cli` (the composition root, deriving kinds for
+    `spoc app` the same way).
     """
     root = Path(__file__).parent.parent / "src/spoc"
     for path in sorted(root.rglob("*.py")):
-        if (root / "testing") in path.parents or (root / "diagnostics") in path.parents:
+        if (
+            (root / "testing") in path.parents
+            or (root / "diagnostics") in path.parents
+            or path == root / "cli.py"
+        ):
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
