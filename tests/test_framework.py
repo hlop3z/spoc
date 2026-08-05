@@ -177,7 +177,7 @@ def test_start_discovers_and_resolve_works(tmp_path):
     record = fw.resolve("models:blog.post")
     assert record.kind == "models"
     assert record.namespace == "blog"
-    assert record.name == "post"
+    assert record.object_name == "post"
 
 
 def test_lookup_is_never_converted(tmp_path):
@@ -185,7 +185,7 @@ def test_lookup_is_never_converted(tmp_path):
     base = make_project(tmp_path, "exact")
     fw = Framework("models").start(base)
 
-    assert fw.resolve("models:exact.post").name == "post"
+    assert fw.resolve("models:exact.post").object_name == "post"
     with pytest.raises(InvalidSegmentError):
         fw.resolve("models:exact.Post")
 
@@ -820,7 +820,7 @@ def test_plugin_name_derives_from_the_attribute(tmp_path):
     )
     (base / "plugcase" / "extras.py").write_text("class AuditHook:\n    ...\n")
     fw = Framework("models", KindSpec("hooks", required=False)).start(base)
-    assert fw.resolve("hooks:plugcase.audit_hook").name == "audit_hook"
+    assert fw.resolve("hooks:plugcase.audit_hook").object_name == "audit_hook"
 
 
 def test_plugin_inside_dotted_app_path_takes_the_apps_namespace(tmp_path):
@@ -935,3 +935,260 @@ def test_framework_wide_strict_loose_switch_is_gone():
     with pytest.raises(TypeError):
         Framework("models", mode="loose")  # ty: ignore[unknown-argument]
     assert not hasattr(Framework("models"), "mode")
+
+
+# ── Config: the exported record, and the echo flag ────────────────────────
+
+
+def test_config_is_populated_from_the_project(tmp_path):
+    """`Config` is public API — the project table and environment reach it."""
+    base = make_project(tmp_path, "cfgapp")
+    (base / "config" / ".env").mkdir()
+    (base / "config" / ".env" / "development.toml").write_text(
+        '[env]\nDATABASE_URL = "postgres://local"\n'
+    )
+
+    fw = Framework("models").start(base)
+
+    assert fw.config is not None
+    assert fw.config.project["mode"] == "development"
+    assert fw.config.project["apps"] == {"development": ["cfgapp"]}
+    assert fw.config.environment == {"DATABASE_URL": "postgres://local"}
+
+
+def test_config_environment_falls_back_to_default_regardless_of_echo(tmp_path):
+    """The fallback is behavior, not logging — echo must not gate it."""
+    for echo in (False, True):
+        base = make_project(tmp_path, f"envapp{int(echo)}")
+        (base / "config" / ".env").mkdir()
+        (base / "config" / ".env" / "default.toml").write_text(
+            '[env]\nKEY = "shared"\n'
+        )
+
+        fw = Framework("models", echo=echo).start(base)
+
+        assert fw.config is not None
+        assert fw.config.environment == {"KEY": "shared"}
+
+
+def test_config_is_cleared_on_shutdown(tmp_path):
+    base = make_project(tmp_path, "clearapp")
+    fw = Framework("models").start(base)
+    assert fw.config is not None
+    fw.shutdown()
+    assert fw.config is None
+    assert fw.base_dir is None
+
+
+def test_missing_spoc_toml_warning_obeys_echo(tmp_path, caplog):
+    """One verbosity control for every configuration warning."""
+    quiet = tmp_path / "quiet"
+    quiet.mkdir()
+    with caplog.at_level("WARNING"):
+        Framework("models", echo=False).start(quiet)
+    assert "No spoc.toml" not in caplog.text
+
+    caplog.clear()
+    loud = tmp_path / "loud"
+    loud.mkdir()
+    with caplog.at_level("WARNING"):
+        Framework("models", echo=True).start(loud)
+    assert "No spoc.toml" in caplog.text
+
+
+def test_project_defaults_are_isolated_between_frameworks(tmp_path):
+    """Mutating one framework's config never reaches the next one's defaults."""
+    first_root = tmp_path / "first"
+    first_root.mkdir()
+    first = Framework("models").start(first_root)
+    assert first.config is not None
+    first.config.project["modes"]["development"].append("poisoned")
+    first.config.project["apps"]["development"] = ["ghost"]
+
+    second_root = tmp_path / "second"
+    second_root.mkdir()
+    second = Framework("models").start(second_root)
+
+    assert second.config is not None
+    assert second.config.project["modes"] == DEFAULT_MODES
+    assert second.config.project["apps"] == {}
+
+
+# ── Closed configuration key set ──────────────────────────────────────────
+
+
+def test_unknown_spoc_key_fails_start_naming_the_valid_set(tmp_path):
+    """A typo boots nothing rather than booting silently on defaults."""
+    base = tmp_path / "typoproj"
+    (base / "config").mkdir(parents=True)
+    (base / "config" / "spoc.toml").write_text(
+        '[spoc]\nmode = "development"\naps = { development = [] }\n'
+    )
+
+    with pytest.raises(ConfigurationError) as exc:
+        Framework("models").start(base)
+    message = str(exc.value)
+    assert "spoc.aps" in message
+    assert "apps" in message  # the valid set is named, so the typo is obvious
+
+
+def test_unreadable_config_is_a_configuration_error(tmp_path, monkeypatch):
+    """A filesystem failure never escapes the kernel's error family."""
+    base = make_project(tmp_path, "permapp")
+    real_open = open
+
+    def deny(file, *args, **kwargs):
+        if str(file).endswith("spoc.toml"):
+            raise PermissionError(13, "Permission denied")
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.open", deny)
+    with pytest.raises(ConfigurationError) as exc:
+        Framework("models").start(base)
+    assert "Cannot read" in str(exc.value)
+
+
+# ── Declaration: duplicates and unmarkable objects ────────────────────────
+
+
+def test_duplicate_kind_declaration_is_refused():
+    """Last-wins would silently discard the first declaration's attributes."""
+    with pytest.raises(ConfigurationError) as exc:
+        Framework("models", KindSpec("models", required=False))
+    assert "models" in str(exc.value)
+    assert "more than once" in str(exc.value)
+
+
+def test_marking_an_unmarkable_object_names_the_constraint():
+    """A slotted instance cannot carry the mark — say so, not AttributeError."""
+    fw = Framework("models")
+    model = fw.kind("models")
+
+    class Slotted:
+        __slots__ = ()
+
+    with pytest.raises(spoc.UnmarkableObjectError) as exc:
+        model(Slotted(), name="slotted")
+    assert "__spoc__" in str(exc.value)
+
+
+def test_derived_name_failure_names_the_derivation():
+    """Remediation must describe the path taken, not the one not taken."""
+    fw = Framework("models")
+    model = fw.kind("models")
+
+    with pytest.raises(InvalidSegmentError) as exc:
+
+        @model
+        class _9Lives: ...
+
+    message = str(exc.value)
+    assert "derived from" in message
+    assert "_9Lives" in message
+    assert "used verbatim" not in message
+
+
+# ── Lifecycle: reentrancy and hook pairing ────────────────────────────────
+
+
+def test_reentrant_shutdown_from_a_ready_callback_fails_loudly(tmp_path):
+    """This deadlocked before: the transition lock is not reentrant."""
+    base = make_project(tmp_path, "reentrant")
+    fw = Framework("models")
+
+    @fw.on_ready
+    def finalize(registry):
+        fw.shutdown()
+
+    with pytest.raises(SpocError) as exc:
+        fw.start(base)
+    assert "inside a lifecycle transition" in str(exc.value)
+    assert not fw.started
+
+
+def test_reentrant_start_from_a_startup_hook_fails_loudly(tmp_path):
+    base = make_project(tmp_path, "reentrantstart")
+    holder: dict[str, Framework] = {}
+
+    def on_startup(components):
+        holder["fw"].start(base)
+
+    fw = Framework(KindSpec("models", on_startup=on_startup))
+    holder["fw"] = fw
+    with pytest.raises(SpocError) as exc:
+        fw.start(base)
+    assert "inside a lifecycle transition" in str(exc.value)
+
+
+def test_shutdown_hook_fires_when_module_initialize_raises(tmp_path):
+    """A fired startup hook is always paired, even on a failed boot."""
+    fired: list[str] = []
+    base = make_project(
+        tmp_path,
+        "pairing",
+        models_body="""
+            from spoc.core.declaration import component
+
+            @component(kind="models")
+            class Post: ...
+
+            def initialize():
+                raise RuntimeError("initialize boom")
+        """,
+    )
+
+    fw = Framework(
+        KindSpec(
+            "models",
+            on_startup=lambda c: fired.append("up"),
+            on_shutdown=lambda c: fired.append("down"),
+        )
+    )
+    with pytest.raises(RuntimeError, match="initialize boom"):
+        fw.start(base)
+
+    assert fired == ["up", "down"], "a fired startup hook was left unpaired"
+
+
+def test_a_kind_with_only_a_shutdown_hook_still_fires_it(tmp_path):
+    """Pairing must not depend on a startup hook existing."""
+    fired: list[str] = []
+    base = make_project(tmp_path, "downonly")
+    fw = Framework(
+        KindSpec("models", on_shutdown=lambda c: fired.append("down"))
+    ).start(base)
+    fw.shutdown()
+    assert fired == ["down"]
+
+
+def test_kind_declared_with_an_undeclared_dependency_is_refused():
+    """The dependency graph is checked at declaration, through the public API."""
+    with pytest.raises(UnknownKindError) as exc:
+        Framework(KindSpec("views", depends_on=("models",)))
+    assert "models" in str(exc.value)
+
+
+# ── Plugins: metadata contracts ───────────────────────────────────────────
+
+
+def test_plugin_group_on_a_metadata_kind_says_why(tmp_path):
+    """A configured reference has nowhere to carry metadata — say that."""
+
+    @dataclass(frozen=True)
+    class HookMeta:
+        label: str
+
+    base = make_project(
+        tmp_path,
+        "metaplug",
+        extra_toml='\n[spoc.plugins]\nhooks = ["metaplug.extras.AuditHook"]\n',
+        extra_modules={"extras": "class AuditHook: ...\n"},
+    )
+    fw = Framework("models", KindSpec("hooks", required=False, metadata=HookMeta))
+
+    with pytest.raises(ConfigurationError) as exc:
+        fw.start(base)
+    message = str(exc.value)
+    assert "hooks" in message
+    assert "HookMeta" in message
+    assert "[spoc.plugins]" in message

@@ -49,7 +49,7 @@ class TestStore:
     def test_records_carry_projection_metadata(self, registry):
         record = registry.resolve("models:blog.post")
         assert record.identifier == "models:blog.post"
-        assert (record.kind, record.namespace, record.name) == (
+        assert (record.kind, record.namespace, record.object_name) == (
             "models",
             "blog",
             "post",
@@ -125,7 +125,7 @@ class TestStore:
     def test_records_are_frozen(self, registry):
         record = registry.resolve("models:blog.post")
         with pytest.raises(AttributeError):
-            record.name = "other"
+            record.object_name = "other"
 
     def test_component_is_the_record_type(self, registry):
         assert all(isinstance(c, Component) for c in registry)
@@ -177,3 +177,50 @@ class TestResolution:
         r = Registry(("models",))
         with pytest.raises(UnknownKindError):
             r.resolve("nope:nowhere.nothing")
+
+
+class TestSharedValueIdentity:
+    """Divergence is a claim about objects, not about equal values.
+
+    The divergence map is keyed by `id()`, which the runtime is free to share
+    for small integers, interned strings, and `()`. Two registrations holding
+    equal values are two registrations — never one object claiming two names.
+    """
+
+    @pytest.mark.parametrize("value", [7, "shared", b"bytes", (), 2.5, None, True])
+    def test_equal_values_register_under_distinct_identifiers(self, value):
+        registry = Registry(("models",))
+        registry.add("models", "first", "one", value)
+        registry.add("models", "second", "two", value)
+
+        assert registry.resolve("models:first.one").object == value
+        assert registry.resolve("models:second.two").object == value
+        assert len(registry) == 2
+
+    def test_a_shared_value_is_still_idempotent_under_one_identifier(self):
+        registry = Registry(("models",))
+        first = registry.add("models", "blog", "answer", 42)
+        second = registry.add("models", "blog", "answer", 42)
+        assert first is second
+        assert len(registry) == 1
+
+    def test_a_different_object_under_a_taken_identifier_still_collides(self):
+        registry = Registry(("models",))
+        registry.add("models", "blog", "answer", 42)
+        with pytest.raises(DuplicateComponentError):
+            registry.add("models", "blog", "answer", "not the same value")
+
+    def test_identifier_of_is_none_for_shared_values(self):
+        """`id()` says nothing about which registration a shared value came from."""
+        registry = Registry(("models",))
+        registry.add("models", "blog", "answer", 42)
+        assert registry.identifier_of(42) is None
+
+    def test_real_objects_still_diverge_loudly(self):
+        class Post: ...
+
+        obj = Post()
+        registry = Registry(("models",))
+        registry.add("models", "blog", "post", obj)
+        with pytest.raises(IdentityDivergenceError):
+            registry.add("models", "shop", "post", obj)

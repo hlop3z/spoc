@@ -85,8 +85,12 @@ class TestSnakeCaseDerivation:
 class TestParse:
     def test_well_formed(self):
         parsed = parse("models:blog.post")
-        assert parsed == Identifier(kind="models", namespace="blog", name="post")
+        assert parsed == Identifier(kind="models", namespace="blog", object_name="post")
         assert str(parsed) == "models:blog.post"
+
+    def test_segments_carry_the_grammars_own_names(self):
+        """One vocabulary: the grammar, the record, and the errors all agree."""
+        assert parse("models:blog.post")._fields == ("kind", "namespace", "object_name")
 
     @pytest.mark.parametrize(
         "identifier,fragment",
