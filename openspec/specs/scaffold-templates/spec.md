@@ -63,6 +63,14 @@ the scaffolder works however the distribution itself is installed.
   installed in a form that is not a plain directory on disk
 - **THEN** the template set still resolves and the scaffolding operation succeeds
 
+#### Scenario: A directory path is a valid template set reference
+
+- **WHEN** a scaffolding operation names a template set by a filesystem path to a
+  directory containing a valid manifest
+- **THEN** the operation resolves that directory and generates against it, identically
+  to an installed set — and a path to a directory without a valid manifest fails naming
+  what was missing, writing nothing
+
 ### Requirement: Template sets are validated before use
 
 A template set MUST be checked for completeness before any content is written. A set that omits
