@@ -127,7 +127,7 @@ def build_routes(registry):
     return [
         {
             "method": "GET",
-            "path": f"/{record.namespace}/{record.name}",
+            "path": f"/{record.namespace}/{record.object_name}",
             "endpoint": record.object,
             "name": record.identifier,
         }

@@ -88,7 +88,7 @@ print(record.identifier, record.object)
 
 # Project a surface — routes from registry records, nothing else:
 routes = [
-    (f"/{c.namespace}/{c.name}", c.object)
+    (f"/{c.namespace}/{c.object_name}", c.object)
     for c in framework.registry.by_kind("models")
 ]
 ```

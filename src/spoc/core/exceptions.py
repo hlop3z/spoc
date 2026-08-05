@@ -74,15 +74,31 @@ class MalformedIdentifierError(SpocError):
 
 
 class InvalidSegmentError(SpocError):
-    """An identifier segment violates the grammar."""
+    """An identifier segment violates the grammar.
 
-    def __init__(self, segment: str, value: object) -> None:
+    The remediation describes the path the name actually took: `derived_from`
+    names the intrinsic name the value was converted from, and is None when the
+    caller stated the value outright.
+    """
+
+    def __init__(
+        self, segment: str, value: object, *, derived_from: str | None = None
+    ) -> None:
         self.segment, self.value = segment, value
+        self.derived_from = derived_from
+        if derived_from is None:
+            remedy = (
+                "A name passed explicitly is used verbatim — pass a conforming "
+                "one, or omit it to derive the name from the object"
+            )
+        else:
+            remedy = (
+                f"This name was derived from {derived_from!r} and still does not "
+                "conform — pass a conforming name explicitly, or rename the object"
+            )
         super().__init__(
             f"Invalid {segment} segment {value!r}: "
-            "must match ^[a-z][a-z0-9_]*$ (lowercase snake_case). "
-            "A name passed explicitly is used verbatim — pass a conforming "
-            "one, or omit it to derive the name from the object"
+            f"must match ^[a-z][a-z0-9_]*$ (lowercase snake_case). {remedy}"
         )
 
 
@@ -112,12 +128,12 @@ class UnknownObjectError(SpocError):
     """Resolution found no object of that name in kind:namespace."""
 
     def __init__(
-        self, name: str, kind: str, namespace: str, candidates: tuple[str, ...]
+        self, object_name: str, kind: str, namespace: str, candidates: tuple[str, ...]
     ) -> None:
-        self.name, self.kind, self.namespace = name, kind, namespace
+        self.object_name, self.kind, self.namespace = object_name, kind, namespace
         self.candidates = candidates
         super().__init__(
-            f"Unknown object_name {name!r} in {kind}:{namespace}. "
+            f"Unknown object_name {object_name!r} in {kind}:{namespace}. "
             f"Registered: {', '.join(candidates) or '(none)'}"
         )
 
@@ -170,6 +186,19 @@ class MissingNameError(SpocError):
             f"Cannot register {obj!r}: it has no __name__, so an explicit "
             "name is required — register(kind, obj, name='...'). "
             "Identity is never inferred from the execution environment"
+        )
+
+
+class UnmarkableObjectError(SpocError):
+    """An object cannot carry the declaration marker."""
+
+    def __init__(self, obj: object, reason: str) -> None:
+        self.obj, self.reason = obj, reason
+        super().__init__(
+            f"Cannot mark {obj!r} as a component: it does not accept the "
+            f"'__spoc__' attribute ({reason}). Objects restricting their "
+            "attributes — __slots__ without '__spoc__', or a built-in type — "
+            "cannot be marked; wrap the value or register it as a plugin"
         )
 
 

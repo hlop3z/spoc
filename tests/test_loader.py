@@ -207,6 +207,7 @@ class TestLifecycleHooks:
     def test_shutdown_hook_error_propagates_unwrapped(self, loader):
         entry = fake("blog.models", kind="models")
         entry.initialized = True
+        entry.started = True  # the state a completed startup phase leaves behind
         loader._modules["blog.models"] = entry
         loader._graph = {"blog.models": set()}
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Final
 
@@ -22,7 +23,9 @@ from .core import READ, WRITE, FormatRegistry
 from .errors import (
     CollectionError,
     DuplicateEntryError,
+    EncodeError,
     FormatError,
+    MissingDependencyError,
     UnknownFormatError,
 )
 
@@ -35,8 +38,20 @@ def loads(registry: FormatRegistry, text: str, format: str, **options: Any) -> A
 
 
 def dumps(registry: FormatRegistry, value: Any, format: str, **options: Any) -> str:
-    """Encode a representation value as text in the named format."""
-    return registry.function(format, WRITE)(value, **options)
+    """Encode a representation value as text in the named format.
+
+    A value the target format cannot express fails inside the ``FormatError``
+    family naming the format, rather than as whichever exception the underlying
+    serializer happens to raise — the caller writes one ``except``, not one per
+    adopted library.
+    """
+    encode = registry.function(format, WRITE)
+    try:
+        return encode(value, **options)
+    except FormatError:
+        raise
+    except Exception as exc:
+        raise EncodeError(format, f"{type(exc).__name__}: {exc}") from exc
 
 
 def read(
@@ -60,10 +75,17 @@ def write(
     format: str | None = None,
     **options: Any,
 ) -> Path:
-    """Write a representation value to a file, inferring the format from its extension."""
+    """Write a representation value to a file, inferring the format from its extension.
+
+    Parent directories are created as needed: the caller named where the file
+    goes, and failing on the directory above it would only make them write the
+    same two lines everywhere.
+    """
     target = Path(path)
     name = format or registry.for_extension(target.suffix).name
-    target.write_text(dumps(registry, value, name, **options), encoding="utf-8")
+    text = dumps(registry, value, name, **options)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
     return target
 
 
@@ -107,16 +129,32 @@ def derive_key(root: Path, source: Path) -> str:
     return ".".join(segments)
 
 
+def _is_ignored(relative: Path, ignore: tuple[str, ...]) -> bool:
+    """True if any segment of `relative` is hidden or matches an ignore pattern."""
+    return any(
+        segment.startswith(".") or any(fnmatch(segment, p) for p in ignore)
+        for segment in relative.parts
+    )
+
+
 def collect(
     registry: FormatRegistry,
     root: Path | str,
     *,
     options: Mapping[str, Mapping[str, Any]] | None = None,
+    ignore: tuple[str, ...] = (),
 ) -> Collection:
     """Read every supported file under `root` into one mapping, eagerly.
 
     An empty directory is a valid (empty) collection; an absent one is a typo
     and fails loudly, like every other way a collection can go wrong.
+
+    Hidden entries — any path segment starting with ``.`` — are skipped, as are
+    those matching an `ignore` glob. Skipping happens *before* a key is derived,
+    so a tool's own directory (``.cache``, ``.git``) can neither contribute
+    entries nor fail the collection on a key segment it was never going to use.
+    What is actually collected stays loud: a non-conforming key in a directory
+    that was not skipped still fails the whole call.
     """
     base = Path(root)
     if not base.is_dir():
@@ -128,6 +166,10 @@ def collect(
     skipped: list[str] = []
 
     for source in sorted(p for p in base.rglob("*") if p.is_file()):
+        if _is_ignored(source.relative_to(base), ignore):
+            skipped.append(str(source))
+            continue
+
         try:
             codec = registry.for_extension(source.suffix)
         except UnknownFormatError:
@@ -145,8 +187,12 @@ def collect(
             entries[key] = read(
                 registry, source, format=codec.name, **per_format.get(codec.name, {})
             )
-        except FormatError:
-            raise
+        except MissingDependencyError:
+            raise  # the actionable fact is the missing extra, not the path
+        except FormatError as exc:
+            # A decode failure names its format; the collection contract owes
+            # the caller the path it came from.
+            raise CollectionError(str(source), str(exc)) from exc
         except Exception as exc:
             raise CollectionError(str(source), f"{type(exc).__name__}: {exc}") from exc
 

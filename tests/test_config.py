@@ -161,9 +161,20 @@ class TestValidation:
         message = str(exc.value)
         assert "spoc.mode" in message and "spoc.debug" in message
 
-    def test_unknown_keys_are_ignored(self):
-        """The four keys are checked; anything else is the project's business."""
-        validate_spoc_config({"spoc": {"mode": "development", "custom": object()}})
+    def test_unknown_keys_are_refused(self):
+        """The key set is closed: an unknown key is a typo, not an extension point."""
+        with pytest.raises(ConfigurationError) as exc:
+            validate_spoc_config({"spoc": {"mode": "development", "aps": {}}})
+        message = str(exc.value)
+        assert "spoc.aps" in message
+        assert "apps" in message  # the valid set is named, so the typo is obvious
+
+    def test_every_unknown_key_is_reported_at_once(self):
+        """One run names them all, rather than one boot per typo."""
+        with pytest.raises(ConfigurationError) as exc:
+            validate_spoc_config({"spoc": {"aps": {}, "plugin": {}}})
+        assert "spoc.aps" in str(exc.value)
+        assert "spoc.plugin" in str(exc.value)
 
     @pytest.mark.parametrize("key", ["apps", "plugins"])
     @pytest.mark.parametrize("bad_group", ["blog", ["blog", 1], {"nested": True}, 3])

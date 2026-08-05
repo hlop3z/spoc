@@ -102,6 +102,11 @@ error naming the failing segment, its value, and the valid candidates.
       show_root_heading: true
       show_source: false
 
+::: spoc.core.exceptions.UnmarkableObjectError
+    options:
+      show_root_heading: true
+      show_source: false
+
 ::: spoc.core.exceptions.MetadataContractError
     options:
       show_root_heading: true

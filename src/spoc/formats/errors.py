@@ -72,6 +72,36 @@ class CollectionError(FormatError):
         super().__init__(f"Cannot collect {path}: {reason}")
 
 
+class MalformedAddressError(FormatError):
+    """An address or query is not valid syntax under the standard it follows."""
+
+    def __init__(self, address: str, standard: str, reason: str) -> None:
+        self.address, self.standard, self.reason = address, standard, reason
+        super().__init__(
+            f"Malformed {standard} address {address!r}: {reason}. "
+            "The address could not be parsed, so nothing was looked up"
+        )
+
+
+class DecodeError(FormatError):
+    """A source is not valid content for the format it was read as."""
+
+    def __init__(self, format_name: str, reason: str) -> None:
+        self.format_name, self.reason = format_name, reason
+        super().__init__(f"Cannot decode {format_name}: {reason}")
+
+
+class EncodeError(FormatError):
+    """A value cannot be expressed in the target format."""
+
+    def __init__(self, format_name: str, reason: str) -> None:
+        self.format_name, self.reason = format_name, reason
+        super().__init__(
+            f"Cannot encode as {format_name}: {reason}. The value is outside "
+            "what this format can express"
+        )
+
+
 class PointerResolutionError(FormatError):
     """An exact address named a location that does not exist."""
 

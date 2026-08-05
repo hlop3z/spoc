@@ -6,17 +6,20 @@ The configuration adapter: the only place the kernel reads a file.
 is never imported here. Absent keys fall back to :data:`SPOC_DEFAULTS`, and an absent file
 loads as all defaults with a warning naming where it was expected.
 
-Validation is four explicit checks, not a schema engine. The ``[spoc]`` table is a closed
-set of four keys written by the project owner, so a general-purpose recursive validator
-was more machinery than the contract it enforced; see the build-vs-adopt ADR in
-``DECISIONS.md``. Parsing stays with stdlib ``tomllib``, which is the adopted standard for
-the part that genuinely is standard-format parsing.
+Validation is a few explicit checks, not a schema engine. The ``[spoc]`` table is a
+closed set of the five keys in :data:`_SPOC_TYPES`, written by the project owner, so a
+general-purpose recursive validator was more machinery than the contract it enforced;
+see the build-vs-adopt ADR in ``DECISIONS.md``. Closed means enforced: a key outside
+that set is a typo, and a typo that merged silently would boot the project on defaults
+it never asked for. Parsing stays with stdlib ``tomllib``, which is the adopted standard
+for the part that genuinely is standard-format parsing.
 """
 
 from __future__ import annotations
 
 import logging
 import tomllib
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Final
 
@@ -55,7 +58,11 @@ _SPOC_TYPES: Final[dict[str, type]] = {
 
 
 def read_toml(path: Path) -> dict[str, Any]:
-    """Parse a TOML file, or return an empty mapping if it does not exist."""
+    """Parse a TOML file, or return an empty mapping if it does not exist.
+
+    A file that exists but cannot be read is a configuration failure like any
+    other — it never escapes as a bare filesystem error.
+    """
     try:
         with open(path, "rb") as handle:
             return tomllib.load(handle)
@@ -63,10 +70,12 @@ def read_toml(path: Path) -> dict[str, Any]:
         return {}
     except tomllib.TOMLDecodeError as e:
         raise ConfigurationError(f"Invalid TOML format in {path}: {e!s}") from e
+    except OSError as e:  # PermissionError, IsADirectoryError, and the rest
+        raise ConfigurationError(f"Cannot read {path}: {e!s}") from e
 
 
 def validate_spoc_config(config: dict[str, Any]) -> None:
-    """Check the ``[spoc]`` table's four keys, ignoring any that are absent."""
+    """Check the ``[spoc]`` table against its closed key set and value types."""
     if "spoc" not in config:
         return
     table = config["spoc"]
@@ -75,7 +84,13 @@ def validate_spoc_config(config: dict[str, Any]) -> None:
             "Invalid SPOC configuration: Expected dictionary for 'spoc', "
             f"got {type(table).__name__}"
         )
+    valid = ", ".join(_SPOC_TYPES)
     errors = [
+        f"Unknown key 'spoc.{key}'. Valid keys: {valid}"
+        for key in table
+        if key not in _SPOC_TYPES
+    ]
+    errors += [
         f"Invalid type for 'spoc.{key}': expected {expected.__name__}, "
         f"got {type(table[key]).__name__}"
         for key, expected in _SPOC_TYPES.items()
@@ -96,30 +111,37 @@ def validate_spoc_config(config: dict[str, Any]) -> None:
         raise ConfigurationError("Invalid SPOC configuration: " + "; ".join(errors))
 
 
-def load_spoc_toml(base_dir: Path) -> dict[str, Any]:
-    """Load and validate ``spoc.toml``, filling absent keys from the defaults."""
+def load_spoc_toml(base_dir: Path, echo: bool = False) -> dict[str, Any]:
+    """Load and validate ``spoc.toml``, filling absent keys from the defaults.
+
+    The defaults are deep-copied into every load. They are module-level
+    structures holding nested dicts and lists; handing them out by reference
+    would let one project's configuration be mutated into the next one's.
+    """
     search_paths = [base_dir / "config" / "spoc.toml", base_dir / "spoc.toml"]
 
     for path in search_paths:
         if path.exists():
             config = read_toml(path)
             validate_spoc_config(config)
-            merged = {**SPOC_DEFAULTS, **config.get("spoc", {})}
+            declared = config.get("spoc", {})
+            merged = {**deepcopy(SPOC_DEFAULTS), **deepcopy(declared)}
             # Declared modes extend the default set per mode rather than
             # replacing it, so adding `test` never forces restating the triple.
             merged["modes"] = {
-                **DEFAULT_MODES,
-                **config.get("spoc", {}).get("modes", {}),
+                **deepcopy(DEFAULT_MODES),
+                **deepcopy(declared.get("modes", {})),
             }
             return {"spoc": merged}
 
-    logger.warning(
-        "No spoc.toml found at %s or %s. Using default configuration "
-        "(development mode, no apps, no plugins).",
-        search_paths[0],
-        search_paths[1],
-    )
-    return {"spoc": dict(SPOC_DEFAULTS)}
+    if echo:
+        logger.warning(
+            "No spoc.toml found at %s or %s. Using default configuration "
+            "(development mode, no apps, no plugins).",
+            search_paths[0],
+            search_paths[1],
+        )
+    return {"spoc": deepcopy(SPOC_DEFAULTS)}
 
 
 def load_environment(

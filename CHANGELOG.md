@@ -5,9 +5,11 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — with the 0.x caveat that a
 **minor** bump is where breaking changes land until 1.0.0.
 
-## [Unreleased]
+## [0.5.0] — unreleased
 
-## [0.5.0] — 2026-08-04
+> Prepared, not yet tagged. `task version:release` commits this file alongside the
+> version bump and creates `v0.5.0` in the same commit, at which point the compare
+> link at the foot of this file resolves.
 
 SPOC is rewritten around a single idea: **the kernel describes and never executes.** Every
 object a project defines gets one canonical identifier, the kernel holds a registry of them,
@@ -64,9 +66,48 @@ more than they could possibly save. If you are on 0.3.x, read
   canonical validation suite and gates releases on it.
 - **`py.typed`** ships in the wheel, so downstream type checkers see the package's
   annotations, and **`spoc.__version__`** is exported from the package root.
+- **`collect(ignore=(...))`** — glob patterns extending the skip set, alongside the
+  hidden-entry skip that is now the default.
+- **`spoc.UnmarkableObjectError`**, and **`DecodeError` / `EncodeError` /
+  `MalformedAddressError`** in `spoc.formats` — the failures that previously escaped
+  their family as raw `AttributeError`, `ValueError`, or a third-party exception type.
 
 ### Changed
 
+- **BREAKING — the third identifier segment is `object_name` everywhere.**
+  `Identifier.name` and the registry record's `Component.name` are both now
+  `object_name`, matching the grammar (`kind:namespace.object_name`) and the error
+  vocabulary. A projection reads `c.object_name`, and there is no second word for the
+  same thing. `KindSpec.name`, the declaration marker's `name`, and the format codecs'
+  `name` are unrelated and unchanged.
+- **BREAKING — the `[spoc]` table's key set is enforced, not just documented.** An
+  unknown key fails start with a `ConfigurationError` naming it and listing the valid
+  set, instead of merging silently and booting the project on defaults it never asked
+  for. Every offending key is reported in one run.
+- **BREAKING — a re-exported marked *instance* is refused rather than silently
+  re-namespaced.** When two apps' locations for the *same* kind both hold one marked
+  instance, load order decided whose namespace it got. Discovery now raises
+  `IdentityDivergenceError` naming both identities. Importing a registered object into
+  a module of another kind (`from .models import repo` inside `views.py`) is a use,
+  not a claim, and stays silent — as does re-exporting a class or function, which
+  carries `__module__`.
+- **BREAKING — a `[spoc.plugins]` group naming a kind that declares a metadata contract
+  is refused at start**, with a message saying configured registrations cannot carry
+  metadata. It previously raised a generic contract violation the author had no way to
+  satisfy.
+- **BREAKING — declaring the same kind twice raises** instead of the second
+  declaration silently replacing the first's dependencies, optionality, and hooks.
+- **BREAKING — a short CSV row is refused like an overflowing one.** Padding with
+  `None` left the declared `list[dict[str, str]]` model and re-encoded as corrupted
+  output. Both directions now raise `DecodeError` naming the row.
+- **`collect()` skips hidden entries by default.** Any path segment starting with `.`
+  is skipped before its key is derived, so a stray `.cache/x.json` can neither
+  contribute entries nor fail the whole collection on a key grammar it was never going
+  to use. What *is* collected stays strict.
+- **`write()` creates missing parent directories** rather than failing on the directory
+  above the file the caller named.
+- **The missing-`spoc.toml` warning obeys `echo`**, like every other configuration
+  warning — one verbosity control, not one rule per message.
 - **BREAKING — apps are dotted module paths; the kernel never touches `sys.path`.**
   `[spoc.apps]` entries import through the normal import system exactly as written
   (`apps.blog`), the namespace is the path's final segment, and boot performs no
@@ -225,6 +266,40 @@ more than they could possibly save. If you are on 0.3.x, read
 - Acronym boundaries are split correctly when deriving snake_case names.
 - Hook contract and loose-mode edge cases in the core.
 - `default.toml` env fallback now loads regardless of the echo setting.
+- **A lifecycle call from inside a lifecycle transition no longer deadlocks.** A ready
+  callback, kind hook, or module initializer calling `start()` or `shutdown()` on the
+  framework currently booting it hung forever on the non-reentrant transition lock; it
+  now raises `SpocError` naming the reentrant call, on both the sync and async paths.
+- **A fired startup hook is always paired on a failed boot.** When a module's own
+  `initialize()` raised after its kind's startup hook had run, rollback skipped that
+  module and its shutdown hook never fired. The two halves are now tracked separately.
+- **Configuration defaults are isolated per load.** Loaded config aliased the
+  module-level default dicts and lists, so mutating `framework.config.project` corrupted
+  the defaults every later `Framework` in the process would see.
+- **Identity divergence no longer false-positives on shared values.** The divergence map
+  is keyed by `id()`, which the runtime shares for small integers, interned strings, and
+  `()` — two registrations holding equal values were reported as one object claiming two
+  identities. Such values are excluded from the map; real objects still diverge loudly.
+- **Malformed addresses and encoder failures stay inside `FormatError`.** An invalid
+  JSON Pointer or JSONPath raised `python-jsonpath`'s own exception type, and a value the
+  target format could not express raised whatever the serializer threw. `errors.py` had
+  always claimed otherwise; now it is true.
+- **A marked object that cannot carry the mark names the constraint.** Marking a slotted
+  instance or a built-in raised a bare `AttributeError`; it now raises
+  `UnmarkableObjectError` naming the object and why.
+- **An unreadable `spoc.toml` is a `ConfigurationError`**, not a raw `PermissionError`
+  or `OSError` escaping the kernel's error family.
+- **`InvalidSegmentError` remediation matches the path taken.** A failure over a
+  *derived* name told the author their explicitly-passed name was used verbatim — advice
+  for a path they had not taken. It now names the intrinsic name it was derived from.
+- **Template sets registered as importable packages resolve.** The entry-point group
+  documented "a directory path or an importable package", but a package target was
+  stringified into `Path("<module '…'>")` and reported as not found. Both the built-in
+  set and entry-point sets now resolve through `importlib.resources`, so a
+  non-directory installation works too.
+- **Path-escape rejection covers every form the platform resolves outward.** The pure
+  layer refused `/abs` and `../up` but not backslash traversal, UNC, or drive-qualified
+  targets — a gap that mattered because template sets are third-party content.
 
 ### Optional extras
 
@@ -238,5 +313,4 @@ Installing `spoc` bare reads JSON, CSV, and TOML — all standard library.
 | `query` | `python-jsonpath`, `iregexp-check`| RFC 9535 JSONPath + RFC 6901 JSON Pointer  |
 | `full`  | all of the above                  | everything                                 |
 
-[Unreleased]: https://github.com/hlop3z/spoc/compare/v0.5.0...HEAD
 [0.5.0]: https://github.com/hlop3z/spoc/compare/v0.3.9...v0.5.0

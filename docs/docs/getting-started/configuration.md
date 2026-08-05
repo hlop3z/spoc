@@ -39,8 +39,21 @@ Every key is optional. Absent keys fall back to defaults:
 | `modes` | the default triple (see [Declaring modes](#declaring-modes)) |
 | `plugins` | `{}` |
 
-A missing `spoc.toml` starts the framework with all defaults and logs a
-warning naming the expected locations.
+The `[spoc]` table is a **closed** key set. An unknown key is a typo, and a
+typo that merged silently would boot the project on defaults it never asked
+for — so it fails start with `ConfigurationError` naming the key and the
+valid set:
+
+```
+Invalid SPOC configuration: Unknown key 'spoc.aps'.
+Valid keys: mode, debug, apps, plugins, modes
+```
+
+A missing `spoc.toml` starts the framework with all defaults. Like every
+other configuration warning — an absent `.env` directory, a mode with no
+environment file — the warning naming the expected locations is logged only
+when the framework is constructed with `echo=True`; a quiet framework stays
+quiet.
 
 ## The mode cascade
 
@@ -90,8 +103,9 @@ registry as discovered components, under the same grammar — the segment
 before the module is the namespace, so `extras.hook` yields
 `hooks:extras.hook` and `apps.demo.extras.hook` yields `hooks:demo.hook`
 (see [Plugins](../advanced/plugins.md)). A reference
-that cannot be resolved — or a group that is not a declared kind — fails
-start, naming the offender:
+that cannot be resolved, a group that is not a declared kind, or a group
+naming a kind that declares a `metadata` contract — which a name in a file
+has no way to supply — fails start, naming the offender:
 
 ```python
 framework.start(BASE_DIR)

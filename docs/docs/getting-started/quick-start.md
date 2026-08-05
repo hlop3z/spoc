@@ -47,9 +47,10 @@ kind, which is quicker to copy than to scaffold.
 myproject/
 ├── apps/
 │   ├── __init__.py          # apps/ is a package
-│   └── blog/
+│   └── core/
 │       ├── __init__.py
-│       └── models.py        # objects here are kind "models"
+│       ├── models.py        # objects here are kind "models"
+│       └── views.py         # objects here are kind "views"
 ├── config/
 │   └── spoc.toml            # the only file the kernel reads
 ├── framework.py             # the whole framework definition
@@ -58,7 +59,7 @@ myproject/
 
 Layout **is** taxonomy: objects declared in `<app>/models.py` are components
 of kind `models`, and the final segment of the declared app path is the
-namespace — `apps.blog` declares under `blog`.
+namespace — `apps.core` declares under `core`.
 
 Apps are imported through Python's normal import system, exactly as declared.
 The kernel never mutates `sys.path` and never creates directories; running
@@ -72,9 +73,10 @@ needs.
 ```python
 import spoc
 
-framework = spoc.Framework("models")
+framework = spoc.Framework("models", "views")
 
 model = framework.kind("models")
+view = framework.kind("views")
 ```
 
 That's the entire framework definition. `framework.kind()` returns a
@@ -88,31 +90,36 @@ ready-made decorator; asking for an undeclared kind raises
 ```toml
 [spoc]
 mode = "development"
+debug = true
 
 [spoc.apps]
-development = ["apps.blog"]
+production = ["apps.core"]
 ```
 
 Each entry is a dotted module path, imported exactly as written. An app path
 that cannot be imported fails start with `AppNotFoundError` naming the
-declared path.
+declared path. Apps are declared per mode and `development` cascades
+`staging` and `production` in, so an app listed under `production` loads in
+every mode.
 
-Every key is optional — absent keys use defaults. No `settings.py` is
-needed; if you have one, it is yours and SPOC never reads it.
+Every key is optional — absent keys use defaults. The `[spoc]` table is a
+closed set, so a mistyped key fails start naming it rather than merging
+silently. No `settings.py` is needed; if you have one, it is yours and SPOC
+never reads it.
 
 ## 3. Declare components
 
-`apps/blog/models.py`:
+`apps/core/models.py`:
 
 ```python
 from framework import model
 
 @model
-class Post:                        # → models:blog.post
+class Post:                        # → models:core.post
     ...
 
 @model
-class CommentThread:               # → models:blog.comment_thread
+class CommentThread:               # → models:core.comment_thread
     ...
 ```
 
@@ -124,7 +131,7 @@ Pass `name=` only when you want an identifier that *differs* from the object's
 name. A name you state is used verbatim and validated, never converted:
 
 ```python
-@model(name="legacy_user")         # → models:blog.legacy_user
+@model(name="legacy_user")         # → models:core.legacy_user
 class UserAccount:
     ...
 
@@ -135,8 +142,8 @@ class Other:
 
 !!! note "Derivation converts; nothing else does"
     Conversion happens once, when deriving a name from the object. Lookups
-    are exact — `resolve("models:blog.Post")` fails, because
-    `models:blog.post` is the one canonical identifier.
+    are exact — `resolve("models:core.Post")` fails, because
+    `models:core.post` is the one canonical identifier.
 
 ## 4. Start and use the registry
 
@@ -149,12 +156,12 @@ from framework import framework
 framework.start(Path(__file__).resolve().parent)
 
 # Resolve one component by canonical identifier
-record = framework.resolve("models:blog.post")
-print(record.identifier)   # models:blog.post
+record = framework.resolve("models:core.post")
+print(record.identifier)   # models:core.post
 print(record.kind)         # models
-print(record.namespace)    # blog
-print(record.name)         # post
-print(record.object)       # <class 'blog.models.Post'>
+print(record.namespace)    # core
+print(record.object_name)  # post
+print(record.object)       # <class 'apps.core.models.Post'>
 
 # Enumerate everything (deterministic order)
 for component in framework.registry:
@@ -162,7 +169,7 @@ for component in framework.registry:
 
 # Facet views are derived from the same flat store
 framework.registry.by_kind("models")
-framework.registry.by_namespace("blog")
+framework.registry.by_namespace("core")
 
 framework.shutdown()
 ```
@@ -179,18 +186,18 @@ A typo never falls through to `None` — every failed resolution names the
 failing segment and the valid candidates:
 
 ```python
-framework.resolve("modle:blog.post")
-# UnknownKindError: Unknown kind 'modle'. Declared kinds: models
+framework.resolve("modle:core.post")
+# UnknownKindError: Unknown kind 'modle'. Declared kinds: models, views
 
-framework.resolve("models:blogg.post")
-# UnknownNamespaceError: Unknown namespace 'blogg' for kind 'models'.
-# Namespaces with 'models' components: blog
+framework.resolve("models:cor.post")
+# UnknownNamespaceError: Unknown namespace 'cor' for kind 'models'.
+# Namespaces with 'models' components: core
 
-framework.resolve("models:blog.pots")
-# UnknownObjectError: Unknown object_name 'pots' in models:blog.
+framework.resolve("models:core.pots")
+# UnknownObjectError: Unknown object_name 'pots' in models:core.
 # Registered: comment_thread, post
 
-framework.resolve("models:blog.post.create")
+framework.resolve("models:core.post.create")
 # MalformedIdentifierError: an operation suffix is not part of the grammar
 ```
 
@@ -202,7 +209,7 @@ touching kernel internals:
 ```python
 def build_routes(registry):
     return [
-        {"method": "GET", "path": f"/{c.namespace}/{c.name}", "endpoint": c.object}
+        {"method": "GET", "path": f"/{c.namespace}/{c.object_name}", "endpoint": c.object}
         for c in registry.by_kind("views")
     ]
 ```
@@ -258,10 +265,11 @@ conditionals. Content is never executed during generation, so a template that
 looks like runnable code is emitted verbatim. Repetition is declared by the
 manifest (`per_kind`), never expressed inside a template.
 
-Register the directory under the `spoc.scaffold_templates` entry-point group,
-then `spoc init myproject --template myframework`. Every placeholder a template
-uses must appear in `values`; both directions are checked before anything is
-written.
+Register it under the `spoc.scaffold_templates` entry-point group — the entry
+point may resolve to a directory path or to the importable package holding the
+files, so a zipped install works either way — then
+`spoc init myproject --template myframework`. Every placeholder a template uses
+must appear in `values`; both directions are checked before anything is written.
 
 ## Next steps
 

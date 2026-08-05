@@ -22,6 +22,14 @@ directory is a valid, empty collection; a root that does not exist or is not a
 directory MUST fail the collection naming the path, so a typo surfaces at the call
 rather than as a silently empty result.
 
+Entries whose name marks them as hidden by platform convention (a leading dot) MUST be
+skipped by default — files and directories alike — and the collection call MUST accept
+explicit ignore patterns that extend the skip set. Skipping happens before key
+derivation, so a skipped entry can neither violate the key grammar nor contribute
+entries, and the skipped set remains reportable. Loudness is unchanged for everything
+actually collected: a collected entry that would produce a non-conforming key still
+fails the whole collection.
+
 #### Scenario: Mixed formats collect together
 
 - **WHEN** a directory containing files of several different supported formats is collected
@@ -48,6 +56,25 @@ rather than as a silently empty result.
 
 - **WHEN** a collection targets a path that does not exist or is not a directory
 - **THEN** the collection fails naming that path, and returns no mapping
+
+#### Scenario: Hidden entries are skipped, not fatal
+
+- **WHEN** the collected tree contains a hidden directory (for example `.cache`)
+  holding files of supported formats
+- **THEN** the collection succeeds, nothing under that directory contributes an entry,
+  and the directory appears in the reportable skipped set
+
+#### Scenario: Explicit ignore patterns extend the skip set
+
+- **WHEN** a collection is invoked with an ignore pattern matching a subdirectory
+- **THEN** files under that subdirectory contribute no entries, appear in the skipped
+  set, and the rest of the tree collects normally
+
+#### Scenario: Collected entries stay loud
+
+- **WHEN** a directory that is neither hidden nor ignored would produce a key segment
+  violating the identity grammar
+- **THEN** the collection still fails naming the offending value and the grammar
 
 ### Requirement: Entry keys derive from location and never collide silently
 

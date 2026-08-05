@@ -116,6 +116,10 @@ testpaths = ["tests"]
 dev = [
     # Devs Tools
     "pytest>=9.0.2",
+    # `task test:cov` and `task dev:watch` are gates in .canon/checks.md's
+    # neighborhood, so their tools are declared rather than assumed present.
+    "pytest-cov>=6.0.0",
+    "pytest-watch>=4.2.0",
     "ruff>=0.14.13",
     "ty>=0.0.12",
     # The formats suite exercises the real codecs and simulates a *missing*

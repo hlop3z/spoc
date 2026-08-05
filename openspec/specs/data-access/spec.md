@@ -21,6 +21,10 @@ A failure MUST name the portion of the address that could not be resolved, rathe
 reporting a blanket absence. An address that resolves to no value MUST NOT be reported as an
 empty result, a null, or a default.
 
+An address that is not syntactically valid under the adopted standard MUST fail through
+the surface's own declared error family, naming the address — never as an error type
+belonging to an underlying implementation.
+
 #### Scenario: A valid address resolves to its value
 
 - **WHEN** an exact address naming an existing location is applied to a representation
@@ -44,6 +48,12 @@ empty result, a null, or a default.
 - **WHEN** an exact address names a position within an array
 - **THEN** that element is returned, and an out-of-range position fails naming the position
 
+#### Scenario: A malformed address fails within the declared error family
+
+- **WHEN** a syntactically invalid exact address is applied
+- **THEN** the operation fails with the surface's own error family naming the address,
+  and no underlying implementation's error type reaches the caller
+
 ### Requirement: Querying returns a possibly-empty result set
 
 Querying the intermediate representation MUST use the adopted query standard for JSON documents
@@ -52,6 +62,12 @@ empty result MUST NOT be an error.
 
 The implementation MUST conform to that standard specifically, verified against its published
 compliance test suite, rather than to any pre-standard dialect.
+
+A query that is not syntactically valid under the adopted standard MUST fail through the
+surface's own declared error family, naming the query — never as an error type belonging
+to an underlying implementation. Where the surface narrows an implementation to the
+standard by disabling non-standard syntax, that narrowing MUST be pinned by verification,
+so a change in the underlying implementation cannot silently widen the accepted syntax.
 
 #### Scenario: A matching query returns its matches
 
@@ -73,6 +89,19 @@ compliance test suite, rather than to any pre-standard dialect.
 - **WHEN** the query surface is validated
 - **THEN** it is checked against the published compliance test suite for the adopted standard,
   and any unsupported portion of the standard is stated explicitly
+
+#### Scenario: A malformed query fails within the declared error family
+
+- **WHEN** a syntactically invalid query is applied
+- **THEN** the operation fails with the surface's own error family naming the query, and
+  no underlying implementation's error type reaches the caller
+
+#### Scenario: Narrowing to the standard is drift-guarded
+
+- **WHEN** the underlying query implementation changes such that syntax outside the
+  adopted standard would become accepted
+- **THEN** verification fails, rather than the non-standard syntax becoming silently
+  available
 
 ### Requirement: The two addressing modes are distinguished by failure semantics
 

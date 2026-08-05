@@ -40,7 +40,7 @@ def test_parallel_registration_loses_nothing():
         list(pool.map(register, range(200)))
 
     assert len(registry) == 200
-    names = [c.name for c in registry.by_kind("models")]
+    names = [c.object_name for c in registry.by_kind("models")]
     assert names == sorted(f"component_{i}" for i in range(200))
 
 
@@ -76,7 +76,7 @@ def test_reads_concurrent_with_writes_see_only_complete_records():
     def read():
         for _ in range(300):
             for record in registry.all():
-                if record.identifier != f"models:app.{record.name}":
+                if record.identifier != f"models:app.{record.object_name}":
                     seen_bad.append(record)
 
     with ThreadPoolExecutor(max_workers=4) as pool:

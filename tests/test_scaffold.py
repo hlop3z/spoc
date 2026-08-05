@@ -27,6 +27,7 @@ from spoc.scaffold import (
     UnsatisfiedValueError,
     init_project,
 )
+from spoc.scaffold.cli import main as cli_main
 from spoc.scaffold.core import (
     build_plan,
     declared_identifiers,
@@ -34,7 +35,7 @@ from spoc.scaffold.core import (
     validate_template_set,
 )
 from spoc.scaffold.plan import TemplateFile, TemplateSet
-from spoc.scaffold.sources import load_from_directory
+from spoc.scaffold.sources import BUILTIN_SET, load_from_directory
 
 
 @pytest.fixture(autouse=True)
@@ -546,3 +547,198 @@ def test_plan_is_immutable():
 
 def test_default_kinds_are_the_documented_pair():
     assert DEFAULT_KINDS == ("models", "views")
+
+
+# ── The CLI adapter: argv in, exit code out ───────────────────────────────
+
+
+class TestCommandLine:
+    """The argv layer itself.
+
+    `init_project` is covered thoroughly elsewhere; what these pin is the glue —
+    that each flag reaches the operation it names, and that a refusal becomes an
+    exit code rather than a traceback.
+    """
+
+    def test_init_generates_a_project(self, tmp_path, capsys):
+        target = tmp_path / "generated"
+
+        code = cli_main(["init", "myproject", "--path", str(target)])
+
+        assert code == 0
+        assert (target / "main.py").is_file()
+        assert (target / "config" / "spoc.toml").is_file()
+        out = capsys.readouterr().out
+        assert str(target) in out
+        assert "python main.py" in out
+
+    def test_path_defaults_to_the_project_name_under_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+        assert cli_main(["init", "defaulted"]) == 0
+
+        assert (tmp_path / "defaulted" / "main.py").is_file()
+
+    def test_app_and_kinds_flags_reach_the_generated_project(self, tmp_path):
+        target = tmp_path / "flagged"
+
+        code = cli_main(
+            [
+                "init",
+                "flagproj",
+                "--path",
+                str(target),
+                "--app",
+                "shop",
+                "--kinds",
+                "models,views",
+            ]
+        )
+
+        assert code == 0
+        assert (target / "apps" / "shop" / "models.py").is_file()
+        assert (target / "apps" / "shop" / "views.py").is_file()
+        assert "shop" in (target / "config" / "spoc.toml").read_text()
+
+    def test_kinds_flag_tolerates_whitespace_and_empty_entries(self, tmp_path):
+        target = tmp_path / "spaced"
+
+        assert (
+            cli_main(
+                [
+                    "init",
+                    "spacedproj",
+                    "--path",
+                    str(target),
+                    "--kinds",
+                    " models , ,views ",
+                ]
+            )
+            == 0
+        )
+
+        assert (target / "apps" / "core" / "models.py").is_file()
+        assert (target / "apps" / "core" / "views.py").is_file()
+
+    def test_unknown_template_set_is_an_exit_code_not_a_traceback(
+        self, tmp_path, capsys
+    ):
+        code = cli_main(
+            ["init", "tmplproj", "--path", str(tmp_path / "out"), "--template", "nope"]
+        )
+
+        assert code == 1
+        assert "error:" in capsys.readouterr().err
+
+    def test_invalid_project_name_exits_one(self, tmp_path, capsys):
+        code = cli_main(["init", "Not-Valid", "--path", str(tmp_path / "out")])
+
+        assert code == 1
+        assert "error:" in capsys.readouterr().err
+
+    def test_a_non_empty_target_is_refused_without_writing(self, tmp_path, capsys):
+        target = tmp_path / "occupied"
+        target.mkdir()
+        (target / "main.py").write_text("# mine\n")
+
+        code = cli_main(["init", "occupiedproj", "--path", str(target)])
+
+        assert code == 1
+        assert "error:" in capsys.readouterr().err
+        assert (target / "main.py").read_text() == "# mine\n", (
+            "existing content changed"
+        )
+
+    def test_a_missing_subcommand_is_a_usage_error(self):
+        with pytest.raises(SystemExit) as exc:
+            cli_main([])
+        assert exc.value.code == 2
+
+
+# ── Path escapes: every form the platform would resolve outward ───────────
+
+
+class TestPathEscapeForms:
+    """A template set is third-party content, so this is a trust boundary.
+
+    Each of these is refused in the pure layer, before any filesystem call —
+    the sink's own resolve check stays as defense in depth, not as the only
+    line of defense.
+    """
+
+    @pytest.mark.parametrize(
+        "target",
+        [
+            "../escaped.py",
+            "..\\escaped.py",
+            "apps/../../escaped.py",
+            "apps\\..\\..\\escaped.py",
+            "/etc/passwd",
+            "\\\\server\\share\\x.py",
+            "C:/Windows/System32/evil.py",
+            "C:\\Windows\\System32\\evil.py",
+        ],
+    )
+    def test_escaping_targets_are_refused(self, target):
+        template_set = TemplateSet(
+            name="hostile",
+            values=(),
+            files=(TemplateFile(source="x.tmpl", target=target, content="x"),),
+        )
+        with pytest.raises(PathEscapeError):
+            build_plan(template_set, {}, kinds=())
+
+    @pytest.mark.parametrize(
+        "target", ["main.py", "apps/core/models.py", "config/spoc.toml"]
+    )
+    def test_ordinary_targets_are_accepted(self, target):
+        template_set = TemplateSet(
+            name="fine",
+            values=(),
+            files=(TemplateFile(source="x.tmpl", target=target, content="x"),),
+        )
+        assert build_plan(template_set, {}, kinds=()).paths == (target,)
+
+
+# ── Template sets from importable packages ────────────────────────────────
+
+
+def test_an_importable_package_is_a_valid_template_set(tmp_path, monkeypatch):
+    """The entry-point group's documented contract, honored.
+
+    `str(module)` is a repr, not a path — resolving a package target that way
+    produced a misleading "template set not found".
+    """
+    package_root = tmp_path / "vendor_templates"
+    package_root.mkdir()
+    (package_root / "__init__.py").write_text("")
+    (package_root / "manifest.toml").write_text(
+        '[template_set]\nname = "vendor"\nvalues = ["project_name"]\n\n'
+        '[[files]]\nsource = "main.py.tmpl"\ntarget = "main.py"\n'
+    )
+    (package_root / "main.py.tmpl").write_text("# ${project_name}\n")
+
+    monkeypatch.syspath_prepend(str(tmp_path))
+    import vendor_templates
+
+    class PackageEntry:
+        name = "vendor"
+
+        def load(self):
+            return vendor_templates
+
+    monkeypatch.setattr(
+        "spoc.scaffold.sources._entry_points", lambda: {"vendor": PackageEntry()}
+    )
+
+    loaded = InstalledTemplateSources().load("vendor")
+
+    assert loaded.name == "vendor"
+    assert [f.target for f in loaded.files] == ["main.py"]
+
+
+def test_the_builtin_set_resolves_through_importlib_resources():
+    """Works however the distribution is installed, including non-directory."""
+    loaded = InstalledTemplateSources().load(BUILTIN_SET)
+    assert loaded.name
+    assert loaded.files

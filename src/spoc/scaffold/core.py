@@ -147,8 +147,17 @@ def build_plan(
 
 
 def _reject_escape(path: str) -> None:
-    """Refuse a rendered destination that climbs out of the root."""
-    if path.startswith(("/", "\\")) or ".." in path.split("/"):
+    """Refuse a rendered destination that climbs out of the root.
+
+    Every form the host platform would resolve outward is refused here, in the
+    pure layer, before any filesystem call: traversal spelled with either
+    separator, an absolute or root-relative path, and a drive- or UNC-qualified
+    target. A template set is third-party content, so this is a trust boundary,
+    not a typo check — the sink's own resolve check stays as defense in depth.
+    """
+    segments = path.replace("\\", "/").split("/")
+    drive_qualified = len(path) >= 2 and path[1] == ":"
+    if path.startswith(("/", "\\")) or drive_qualified or ".." in segments:
         raise PathEscapeError(path)
 
 

@@ -190,12 +190,22 @@ def test_a_single_data_row_is_still_an_array():
 
 def test_a_ragged_row_is_refused_not_smuggled():
     """A row wider than the header would decode outside the JSON data model."""
-    with pytest.raises(ValueError, match="row 2"):
+    with pytest.raises(formats.DecodeError, match="row 2"):
         formats.loads("a,b\n1,2,3\n", "csv")
 
 
-def test_a_short_row_fills_with_null():
-    assert formats.loads("a,b\n1\n", "csv") == [{"a": "1", "b": None}]
+def test_a_short_row_is_refused_like_an_overflowing_one():
+    """Padding with nulls leaves the declared list[dict[str, str]] model."""
+    with pytest.raises(formats.DecodeError, match="row 2") as exc:
+        formats.loads("a,b\n1\n", "csv")
+    assert "'b'" in str(exc.value)
+
+
+def test_every_csv_failure_stays_in_the_format_family():
+    """One `except FormatError` covers the surface, per the family's own claim."""
+    for text in ("a,b\n1,2,3\n", "a,b\n1\n"):
+        with pytest.raises(formats.FormatError):
+            formats.loads(text, "csv")
 
 
 def test_heterogeneous_rows_share_a_union_header():
@@ -209,8 +219,15 @@ def test_heterogeneous_rows_share_a_union_header():
 )
 def test_non_tabular_values_are_refused_by_the_csv_writer(value):
     """Only an array of objects has tabular meaning — anything else is refused."""
-    with pytest.raises(ValueError, match="array of objects"):
+    with pytest.raises(formats.EncodeError, match="array of objects"):
         formats.dumps(value, "csv")
+
+
+def test_an_inexpressible_value_fails_inside_the_format_family():
+    """A serializer's own exception never reaches the caller."""
+    with pytest.raises(formats.EncodeError) as exc:
+        formats.dumps({"tags": {"a", "b"}}, "json")
+    assert "json" in str(exc.value)
 
 
 # ── format-codecs: hierarchical markup ────────────────────────────────────
@@ -451,10 +468,57 @@ def test_conformant_queries_behave_per_rfc_9535(expression: str, expected: list)
 @pytest.mark.parametrize("expression", NON_RFC)
 def test_non_rfc_extensions_are_rejected(expression: str):
     """The strict environment must reject the superset, not merely avoid using it."""
+    with pytest.raises(formats.MalformedAddressError) as exc:
+        formats.query(USERS, expression)
+    assert "RFC 9535" in str(exc.value)
+
+
+def test_a_malformed_query_stays_in_the_format_family():
+    """The engine's own exception type never reaches the caller."""
     import jsonpath
 
-    with pytest.raises(jsonpath.JSONPathError):
-        formats.query(USERS, expression)
+    with pytest.raises(formats.FormatError) as exc:
+        formats.query(USERS, "$.users[")
+    assert not isinstance(exc.value, jsonpath.JSONPathError)
+
+
+def test_a_malformed_pointer_stays_in_the_format_family():
+    with pytest.raises(formats.MalformedAddressError) as exc:
+        formats.pointer({"a": 1}, "no-leading-slash")
+    assert "RFC 6901" in str(exc.value)
+
+
+def test_the_suppressed_extension_set_matches_the_engine():
+    """Drift guard for the RFC 9535 narrowing.
+
+    The strict environment works by rebinding every ``python-jsonpath``
+    extension token to an unmatchable sentinel. That list is written here, not
+    derived — so an upgrade that renames a token or adds an extension would
+    silently widen the accepted syntax back to the superset. Compare the two
+    and fail the suite instead.
+    """
+    import jsonpath
+
+    from spoc.formats.access import _EXTENSION_TOKENS, _SENTINEL, _strict_env
+
+    base = jsonpath.JSONPathEnvironment
+    unknown = [name for name in _EXTENSION_TOKENS if not hasattr(base, name)]
+    assert not unknown, (
+        f"suppressed tokens no longer exist upstream: {unknown}. "
+        "The RFC 9535 narrowing is silently incomplete"
+    )
+
+    # Every token the engine declares as a non-standard extension must be one
+    # we suppress. Tokens are class attributes ending in `_token`; the standard
+    # ones stay reachable, so compare against what the strict env actually
+    # blanked rather than re-deriving the RFC's grammar here.
+    env = _strict_env()
+    suppressed = {
+        name
+        for name in dir(env)
+        if name.endswith("_token") and getattr(env, name, None) == _SENTINEL
+    }
+    assert suppressed == set(_EXTENSION_TOKENS)
 
 
 def test_the_rfc_regex_functions_are_available():
@@ -624,3 +688,84 @@ def test_collection_is_not_invoked_by_framework_startup(tmp_path: Path):
         [sys.executable, "-c", code], capture_output=True, text=True, check=True
     )
     assert result.stdout.strip().endswith("[]")
+
+
+# ── data-collection: hidden entries and ignore patterns ───────────────────
+
+
+def test_a_hidden_directory_is_skipped_not_fatal(tmp_path):
+    """One stray `.cache` must not take the whole collection down with it."""
+    (tmp_path / "ok.json").write_text('{"a": 1}')
+    cache = tmp_path / ".cache"
+    cache.mkdir()
+    (cache / "stale.json").write_text('{"b": 2}')
+
+    result = formats.collect(tmp_path)
+
+    assert dict(result) == {"ok": {"a": 1}}
+    assert any(".cache" in path for path in result.skipped)
+
+
+def test_a_hidden_file_is_skipped(tmp_path):
+    (tmp_path / "ok.json").write_text('{"a": 1}')
+    (tmp_path / ".secret.json").write_text('{"b": 2}')
+
+    result = formats.collect(tmp_path)
+
+    assert dict(result) == {"ok": {"a": 1}}
+    assert any(".secret" in path for path in result.skipped)
+
+
+def test_ignore_patterns_extend_the_skip_set(tmp_path):
+    (tmp_path / "keep.json").write_text('{"a": 1}')
+    vendor = tmp_path / "vendor"
+    vendor.mkdir()
+    (vendor / "dep.json").write_text('{"b": 2}')
+
+    result = formats.collect(tmp_path, ignore=("vendor",))
+
+    assert dict(result) == {"keep": {"a": 1}}
+    assert any("dep.json" in path for path in result.skipped)
+
+
+def test_skipping_happens_before_the_key_grammar_is_applied(tmp_path):
+    """A skipped directory can never fail the collection on a key it never used."""
+    (tmp_path / "ok.json").write_text('{"a": 1}')
+    bad = tmp_path / ".Not-A-Valid-Segment"
+    bad.mkdir()
+    (bad / "x.json").write_text("{}")
+
+    result = formats.collect(tmp_path)  # would raise CollectionError before
+
+    assert dict(result) == {"ok": {"a": 1}}
+
+
+def test_a_collected_directory_still_fails_loudly_on_the_grammar(tmp_path):
+    """Only *skipped* entries are exempt — what is collected stays strict."""
+    bad = tmp_path / "Not-A-Valid-Segment"
+    bad.mkdir()
+    (bad / "x.json").write_text("{}")
+
+    with pytest.raises(formats.CollectionError):
+        formats.collect(tmp_path)
+
+
+def test_a_malformed_collected_file_still_names_its_path(tmp_path):
+    """Decode failures reach the caller as a collection failure naming the file."""
+    (tmp_path / "broken.json").write_text("{not json")
+
+    with pytest.raises(formats.CollectionError) as exc:
+        formats.collect(tmp_path)
+    assert "broken.json" in str(exc.value)
+
+
+# ── format-codecs: writing creates the path it was given ──────────────────
+
+
+def test_write_creates_missing_parent_directories(tmp_path):
+    target = tmp_path / "generated" / "nested" / "out.json"
+
+    written = formats.write({"a": 1}, target)
+
+    assert written.is_file()
+    assert formats.read(written) == {"a": 1}

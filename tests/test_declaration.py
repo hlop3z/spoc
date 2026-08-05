@@ -21,6 +21,7 @@ from spoc.core.declaration import (
     registrar,
 )
 from spoc.core.exceptions import (
+    IdentityDivergenceError,
     InvalidSegmentError,
     MetadataContractError,
     MissingNameError,
@@ -309,8 +310,39 @@ class TestDiscovery:
 
         assert [c.identifier for c in registry] == ["models:blog.post"]
 
-    def test_imported_instance_keeps_its_first_identity(self):
-        """A decorated instance imported into another app is not re-namespaced."""
+    def test_a_registered_instance_may_be_imported_by_another_kinds_module(self):
+        """`from .models import repo` inside `views.py` is a use, not a claim.
+
+        Layout is taxonomy: a marked object appearing in a module of some other
+        kind was imported to be used. Only two modules of the *same* kind
+        holding it is an ambiguous claim.
+        """
+        from types import ModuleType
+
+        from spoc.core.registry import Registry
+
+        class Repository: ...
+
+        repo = component(Repository(), kind="models", name="repo")
+
+        models = ModuleType("blog.models")
+        setattr(models, "repo", repo)  # noqa: B010
+        views = ModuleType("blog.views")
+        setattr(views, "repo", repo)  # noqa: B010
+
+        registry = Registry(("models", "views"))
+        discover(registry, models, "blog.models", "blog")
+        discover(registry, views, "blog.views", "blog")
+
+        assert [c.identifier for c in registry] == ["models:blog.repo"]
+
+    def test_imported_instance_is_refused_not_silently_re_namespaced(self):
+        """A re-exported instance is a loud failure, not a load-order coin toss.
+
+        An instance carries no module of its own, so the second module claiming
+        it would register it under *that* app's namespace. Whichever app loaded
+        first would win, silently.
+        """
         from types import ModuleType
 
         from spoc.core.registry import Registry
@@ -326,6 +358,31 @@ class TestDiscovery:
 
         registry = Registry(("models",))
         discover(registry, blog, "blog.models", "blog")
-        discover(registry, shop, "shop.models", "shop")
+
+        with pytest.raises(IdentityDivergenceError) as exc:
+            discover(registry, shop, "shop.models", "shop")
+        message = str(exc.value)
+        assert "models:blog.repo" in message
+        assert "models:shop.repo" in message
+        assert [c.identifier for c in registry] == ["models:blog.repo"]
+
+    def test_re_exported_instance_under_the_same_identity_is_idempotent(self):
+        """The same claim twice is not a conflict — only a differing one is."""
+        from types import ModuleType
+
+        from spoc.core.registry import Registry
+
+        class Repository: ...
+
+        repo = component(Repository(), kind="models", name="repo")
+
+        first = ModuleType("blog.models")
+        setattr(first, "repo", repo)  # noqa: B010
+        second = ModuleType("blog.models")
+        setattr(second, "repo", repo)  # noqa: B010
+
+        registry = Registry(("models",))
+        discover(registry, first, "blog.models", "blog")
+        discover(registry, second, "blog.models", "blog")
 
         assert [c.identifier for c in registry] == ["models:blog.repo"]

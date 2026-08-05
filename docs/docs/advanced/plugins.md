@@ -36,6 +36,12 @@ then `demo`, the app's own segment, never the `apps` container). A group
 that is not a declared kind fails start with `UnknownKindError`:
 configuration populates the kind set, it never widens it.
 
+A kind that declares a `metadata` contract cannot be populated this way. A
+configured reference is a name in a file, with nowhere to carry metadata, so
+naming such a kind under `[spoc.plugins]` fails start with
+`ConfigurationError` — register those components from an app module, where
+metadata is passed at declaration.
+
 ## Identity
 
 A plugin's identifier follows the same grammar discovery uses. Discovery
@@ -66,3 +72,8 @@ framework.registry.by_kind("middleware")          # enumerate a whole group
 
 The kernel loads and registers the objects; it never calls them. What a
 "middleware" or "hook" *does* is defined by the surface you build on top.
+
+Plugins register, but they never trigger lifecycle hooks. A kind's
+`on_startup`/`on_shutdown` fire once per loaded *module* of that kind, and a
+configured reference is not a module — so a kind only plugins populate never
+fires its hooks (see [Lifecycle](lifecycle.md#per-kind-hooks)).

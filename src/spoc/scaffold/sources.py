@@ -13,7 +13,9 @@ below, which is why an `init` command can be had without reimplementing one.
 
 import tomllib
 from importlib import metadata, resources
+from importlib.resources.abc import Traversable
 from pathlib import Path
+from types import ModuleType
 
 from .errors import IncompleteTemplateSetError, TemplateSetNotFoundError
 from .plan import TemplateFile, TemplateSet
@@ -82,9 +84,21 @@ def load_from_directory(root: Path) -> TemplateSet:
     return _parse_manifest(manifest.read_text(encoding="utf-8"), root)
 
 
-def _builtin_root() -> Path:
-    """Directory holding the built-in template set, as installed."""
-    return Path(str(resources.files("spoc.scaffold"))) / "templates" / BUILTIN_SET
+def load_from_traversable(root: Traversable) -> TemplateSet:
+    """Load a template set from an importable location.
+
+    ``as_file`` is what makes this work when the distribution is not a plain
+    directory on disk — a zipped install materializes the tree for the duration
+    of the block. Everything a template set holds is read eagerly inside it, so
+    nothing survives the context needing a path that has gone away.
+    """
+    with resources.as_file(root) as path:
+        return load_from_directory(path)
+
+
+def _builtin_traversable() -> Traversable:
+    """The built-in template set's location, however this package is installed."""
+    return resources.files("spoc.scaffold") / "templates" / BUILTIN_SET
 
 
 def _entry_points() -> dict[str, metadata.EntryPoint]:
@@ -109,13 +123,19 @@ class InstalledTemplateSources:
 
     def load(self, name: str) -> TemplateSet:
         if name == BUILTIN_SET:
-            return load_from_directory(_builtin_root())
+            return load_from_traversable(_builtin_traversable())
 
         entry = _entry_points().get(name)
         if entry is None:
             raise TemplateSetNotFoundError(name, self.available())
 
         target = entry.load()
+        # The group's contract is "a directory path or an importable package".
+        # A package is resolved through importlib.resources rather than
+        # stringified — str(module) is its repr, which is not a path.
+        if isinstance(target, ModuleType):
+            return load_from_traversable(resources.files(target))
+
         root = target if isinstance(target, Path) else Path(str(target))
         if not root.is_dir():
             raise TemplateSetNotFoundError(name, self.available())

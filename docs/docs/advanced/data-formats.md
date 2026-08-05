@@ -25,6 +25,9 @@ settings = formats.read("config/app.yaml")     # format inferred from the extens
 formats.write(settings, "build/app.json")      # converted, no pairwise rule needed
 ```
 
+`write()` creates missing parent directories — you named where the file goes, and
+`build/` not existing yet is not a reason to refuse.
+
 ## What costs a dependency
 
 The bare `spoc` install acquires nothing. JSON, CSV, and TOML *reading* are standard
@@ -76,11 +79,24 @@ data/
 ```python
 data = formats.collect("data")
 data["blog.posts"]        # already parsed
-data.skipped              # files whose extension matched no format
+data.skipped              # paths passed over: hidden, ignored, or no matching format
 ```
 
 An existing empty directory collects to an empty mapping; a root that does not exist fails
 with `CollectionError` — a typo'd path is a defect, not an empty result.
+
+**Hidden entries are skipped**: any path with a segment starting with `.` — `.git/`,
+`.cache/`, `.env.json` — never becomes an entry. `ignore` extends that skip set with
+`fnmatch` globs, matched per path segment:
+
+```python
+formats.collect("data", ignore=("_*", "node_modules"))
+```
+
+Skipping happens **before** a key is derived, which is the point: a `.cache/` directory can
+neither contribute entries nor fail the whole collection on a key segment it was never going
+to use. What *is* collected stays as strict as ever — a non-conforming key in a directory
+that was not skipped still fails the call.
 
 Three things this deliberately will **not** do:
 
@@ -122,6 +138,10 @@ formats.query(users, "$[?@.nonesuch].email")         # []
 The split exists because a typo in a config path should be loud, while a filter matching zero
 rows is a legitimate answer. Neither can be relaxed into the other.
 
+Malformed *syntax* is a third failure, distinct from both: an address the standard cannot
+parse raises `MalformedAddressError` naming the standard it was read under. Nothing was
+looked up, so an empty result would be a lie.
+
 !!! note "One RFC 9535 subtlety"
     A bare relative query inside a filter is an **existence** test, not a truthiness test.
     `$.users[?@.active]` matches every user that *has* an `active` key, including
@@ -142,6 +162,14 @@ rows is a legitimate answer. Neither can be relaxed into the other.
 SPOC pins the engine to strict RFC 9535 — the underlying library's non-standard extensions
 (keys selector, unions, intersections, pseudo-root) are **rejected**, so a query that works
 here works on any conformant engine.
+
+## CSV: rows must be rectangular
+
+A row is refused in **both** directions of ragged: more cells than the header has columns,
+and fewer. Both raise `formats.DecodeError` naming the line number and the offending
+columns. Padding a short row with `None` would put a value in the representation that the
+file never contained — a header column with no cell is a malformed file, not an implicit
+null.
 
 ## XML: declare what repeats
 
@@ -171,6 +199,28 @@ exactly.
 
 Round-tripping is stable at the **value** level — read → write → read is equal — but not at the
 byte level, for the reasons above.
+
+## One error family
+
+Every failure this surface produces descends from `formats.FormatError`, and no underlying
+library's exception type reaches the caller — a malformed JSON Pointer, a JSONPath the
+engine cannot parse, a value a serializer chokes on, all arrive as one of these. Catch the
+base and you have caught them all; they are **not** kernel errors, so a project using both
+catches each family separately.
+
+| Error | Raised when |
+| ----- | ----------- |
+| `UnknownFormatError` | a format name or extension maps to no codec |
+| `MissingDependencyError` | the format is supported but its extra is not installed |
+| `UnsupportedDirectionError` | the format cannot be used in that direction at all |
+| `DecodeError` | a source is not valid content for the format it was read as |
+| `EncodeError` | a value is outside what the target format can express |
+| `MalformedAddressError` | a pointer or query is not valid syntax under its standard |
+| `PointerResolutionError` | a valid pointer named a location that does not exist |
+| `CollectionError` | one file in a collection could not be read |
+| `DuplicateEntryError` | two collected files derive the same key |
+
+All are exported from `spoc.formats`.
 
 ## Where it does not reach
 
