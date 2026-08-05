@@ -31,6 +31,7 @@ to the repository path if that ever changes.
 go build -o bin/ ./...   # -o bin/ keeps artifacts out of the source tree
 go vet ./...
 go run ./cmd/ensure tokei
+go run ./cmd/ensure doctor
 go mod tidy
 ```
 
@@ -40,3 +41,7 @@ they are easy to commit by accident.
 `cmd/ensure` is the reference shape for a new tool: a cobra adapter in `cmd/`, the actual work
 in `internal/ensure/`. It is also where an **adopted** third-party CLI gets registered, so that
 "not installed" never becomes a reason to reimplement something mature.
+
+Its `doctor` subcommand answers the same question one layer down — are the language toolchains
+themselves present? Those it only ever *reports* on, never installs: obtaining a single binary
+is a script's business, provisioning a compiler is the developer's.

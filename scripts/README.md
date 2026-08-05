@@ -42,10 +42,30 @@ uv run scripts/py/lab/<name>.py              # inline deps, ephemeral env, no lo
 
 ## What's here now
 
-| Tool                    | Language | Job                                                    |
-| ----------------------- | -------- | ------------------------------------------------------ |
-| `go/cmd/ensure`         | Go       | Install an adopted third-party CLI (currently `tokei`) |
-| `py/tools/mdlinks`      | Python   | Find broken relative links in Markdown                 |
+| Tool                    | Language | Job                                                     |
+| ----------------------- | -------- | ------------------------------------------------------- |
+| `go/cmd/ensure`         | Go       | Install an adopted third-party CLI (currently `tokei`)  |
+| `go/cmd/ensure doctor`  | Go       | Report which language toolchains are on PATH            |
+| `py/tools/mdlinks`      | Python   | Find broken relative links in Markdown                  |
+
+## Toolchains
+
+`task doctor` reports whether `uv`, `python`, `go`, `cargo`, and `rustc` are on PATH, with
+the version of each and the install command for whatever is missing:
+
+```bash
+task doctor                                  # or: cd scripts/go && go run ./cmd/ensure doctor
+task doctor -- --paths                       # also show where each one resolved
+task doctor -- --json                        # for another tool to consume
+```
+
+It **reports and never installs** — a compiler is the developer's environment, not something
+a script should reshape. `uv`, `python`, and `go` are required, and their absence exits
+non-zero because `task check` cannot pass without them; `cargo` and `rustc` are optional,
+needed only for the `cargo install` fallback in `ensure` and any future Rust work.
+
+`task dev` runs it first, so a missing toolchain surfaces as one clear line rather than as an
+opaque failure partway through a sync.
 
 ## Adopted tools
 

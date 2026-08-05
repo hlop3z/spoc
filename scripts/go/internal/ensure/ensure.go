@@ -1,8 +1,11 @@
-// Package ensure makes a mature third-party CLI available without rebuilding it.
+// Package ensure answers "is the thing I need actually on this machine?".
 //
 // The canon's rule is to adopt, never reinvent. Adopting has exactly one cost —
-// the tool has to actually be present — and this package pays it, using the
-// least invasive installer the platform already offers.
+// the tool has to actually be present — and this package pays it two ways.
+// [Ensure] obtains a third-party CLI using the least invasive installer the
+// platform offers. [Doctor] reports on the language toolchains the repository
+// builds with and installs nothing, because a compiler is the developer's
+// environment rather than a script's to reshape.
 package ensure
 
 import (
@@ -80,7 +83,7 @@ type Result struct {
 // possible answer to the question.
 func Ensure(t Tool, method Method, allowRustup bool, out io.Writer) (Result, error) {
 	if path, err := exec.LookPath(t.Name); err == nil {
-		return Result{Path: path, Strategy: "already installed", Version: version(path)}, nil
+		return Result{Path: path, Strategy: "already installed", Version: version(path, "--version")}, nil
 	}
 
 	var attempted []string
@@ -88,7 +91,7 @@ func Ensure(t Tool, method Method, allowRustup bool, out io.Writer) (Result, err
 	if method == MethodAuto || method == MethodPkg {
 		path, mgr, err := installViaPkg(t, out)
 		if err == nil {
-			return Result{Path: path, Strategy: mgr, Version: version(path)}, nil
+			return Result{Path: path, Strategy: mgr, Version: version(path, "--version")}, nil
 		}
 		attempted = append(attempted, "package manager: "+err.Error())
 	}
@@ -96,7 +99,7 @@ func Ensure(t Tool, method Method, allowRustup bool, out io.Writer) (Result, err
 	if method == MethodAuto || method == MethodCargo {
 		path, err := installViaCargo(t, allowRustup, out)
 		if err == nil {
-			return Result{Path: path, Strategy: "cargo install", Version: version(path)}, nil
+			return Result{Path: path, Strategy: "cargo install", Version: version(path, "--version")}, nil
 		}
 		attempted = append(attempted, "cargo: "+err.Error())
 	}
@@ -188,10 +191,14 @@ func run(argv []string, out io.Writer) error {
 	return cmd.Run()
 }
 
-func version(path string) string {
-	b, err := exec.Command(path, "--version").Output()
+// version asks a resolved binary what it is. Args vary — `go` answers to
+// `go version` and rejects the flag — and only the first line is kept, since
+// several toolchains follow theirs with build or host detail.
+func version(path string, args ...string) string {
+	b, err := exec.Command(path, args...).Output()
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(string(b))
+	line, _, _ := strings.Cut(string(b), "\n")
+	return strings.TrimSpace(line)
 }

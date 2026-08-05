@@ -197,9 +197,12 @@ tasks:
   # =============================================================================
   # Development Workflow
   # =============================================================================
+  # doctor runs first: a missing uv surfaces here as one clear line, instead of
+  # as an opaque failure three tasks deep in install:all.
   dev:
     desc: Setup development environment
     cmds:
+      - task: doctor
       - task: install:all
       - task: check
 
@@ -295,6 +298,20 @@ tasks:
     cmds:
       - cmd: tree -I '__pycache__|.git|.venv|*.egg-info|.pytest_cache|.ruff_cache|node_modules' -L 3
         ignore_error: true
+
+  # Reports, never installs: a compiler is the developer's environment, not
+  # something a task should reshape. Exits non-zero when a toolchain the rest of
+  # this file depends on is missing, so `task dev` stops here rather than in the
+  # middle of a sync. Not part of `task check` — CI provisions its own toolchains,
+  # and a check that always passes there is noise.
+  #
+  # Go is the one toolchain this cannot report on, since it is what runs the check.
+  # A "go: not found" from this task is itself the answer.
+  doctor:
+    desc: Report which language toolchains (uv, python, go, rust) are on PATH
+    dir: scripts/go
+    cmds:
+      - go run ./cmd/ensure doctor {{.CLI_ARGS}}
 
   # Judgement call, not a pass/fail gate — so it is not part of `task check`.
   # Thresholds live in .canon/guidelines.md. Missing tokei? `go run ./cmd/ensure tokei`
