@@ -108,6 +108,17 @@ class TestAbsentVersusBroken:
             )
         assert exc.value.name == "no_such_dependency"
 
+    def test_absent_app_package_is_a_named_refusal(self, loader, app_tree):
+        """A declared app that does not exist raises the kernel's error, not a raw one."""
+        with pytest.raises(AppNotFoundError) as exc:
+            loader.register("ghost.models", kind="models", app="ghost")
+        assert exc.value.module_name == "ghost"
+
+    def test_absent_app_package_fails_even_for_an_optional_kind(self, loader, app_tree):
+        """`required` lets an existing app omit a kind; it cannot excuse a missing app."""
+        with pytest.raises(AppNotFoundError):
+            loader.register("ghost.models", kind="models", app="ghost", required=False)
+
 
 class TestOrdering:
     def test_dependency_order_and_reverse_teardown(self, loader):
@@ -205,6 +216,13 @@ class TestLoadFromUri:
     def test_loads_functions_and_classes(self, loader):
         assert loader.load_from_uri("os.path.join") is os.path.join
         assert loader.load_from_uri("builtins.ValueError") is ValueError
+
+    def test_broken_module_is_not_reported_as_absent(self, loader, app_tree):
+        """A plugin module that exists but fails to import keeps its own error."""
+        with pytest.raises(ModuleNotFoundError) as exc:
+            loader.load_from_uri("broken.models.value")
+        assert exc.value.name == "no_such_dependency"
+        assert not isinstance(exc.value, AppNotFoundError)
 
     def test_loads_from_a_file_on_disk(self, loader):
         with tempfile.TemporaryDirectory() as temp_dir:

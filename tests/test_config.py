@@ -144,6 +144,20 @@ class TestValidation:
         """The four keys are checked; anything else is the project's business."""
         validate_spoc_config({"spoc": {"mode": "development", "custom": object()}})
 
+    @pytest.mark.parametrize("key", ["apps", "plugins"])
+    @pytest.mark.parametrize("bad_group", ["blog", ["blog", 1], {"nested": True}, 3])
+    def test_group_values_must_be_lists_of_strings(self, key, bad_group):
+        """A bare string iterates per character downstream — refused here instead."""
+        with pytest.raises(ConfigurationError) as exc:
+            validate_spoc_config({"spoc": {key: {"development": bad_group}}})
+        message = str(exc.value)
+        assert f"spoc.{key}.development" in message
+        assert "list of str" in message
+
+    @pytest.mark.parametrize("key", ["apps", "plugins"])
+    def test_group_lists_of_strings_pass(self, key):
+        validate_spoc_config({"spoc": {key: {"development": ["blog", "shop"]}}})
+
 
 class TestEnvironment:
     def test_mode_specific_file(self, config_files):

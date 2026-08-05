@@ -72,8 +72,16 @@ class Loader:
         try:
             module = importlib.import_module(name)
         except ModuleNotFoundError as e:
-            if e.name != name:
+            absent = e.name is not None and (
+                e.name == name or name.startswith(e.name + ".")
+            )
+            if not absent:
                 raise  # the module exists; something it imports does not
+            if e.name != name:
+                # The app package itself is missing, not just this kind's module.
+                # A declared app that does not exist is always an error: `required`
+                # governs whether an existing app may omit a kind, nothing more.
+                raise AppNotFoundError(e.name) from e
             if required:
                 raise MissingModuleError(app, kind, name) from e
             logger.debug("Skipping absent optional module %s", name)
@@ -95,8 +103,12 @@ class Loader:
             raise ValueError("URI must be in the form 'package.module.function'")
         try:
             module = importlib.import_module(module_path)
-        except ImportError as e:
-            raise AppNotFoundError(module_path) from e
+        except ModuleNotFoundError as e:
+            if e.name is not None and (
+                e.name == module_path or module_path.startswith(e.name + ".")
+            ):
+                raise AppNotFoundError(module_path) from e
+            raise  # the module exists; something it imports does not
         if not hasattr(module, attr):
             raise AttributeError(f"Module '{module_path}' has no attribute '{attr}'")
         return getattr(module, attr)
@@ -143,14 +155,20 @@ class Loader:
         hooks: dict[str, KindHooks],
         components_for: Callable[[LoadedModule], set[Any]],
     ) -> None:
-        """Fire each module's shutdown hook, then its own ``teardown()``, in reverse."""
+        """Fire each module's shutdown hook, then its own ``teardown()``, in reverse.
+
+        Modules that never finished initializing are skipped, so a partial startup
+        can be rolled back without tearing down what never came up.
+        """
         try:
             for entry in reversed(self.ordered()):
+                if not entry.initialized:
+                    continue
                 _, on_shutdown = hooks.get(entry.kind, (None, None))
                 if on_shutdown is not None:
                     on_shutdown(components_for(entry))
                 fn = getattr(entry.module, "teardown", None)
-                if callable(fn) and entry.initialized:
+                if callable(fn):
                     fn()
                 entry.initialized = False
         except (CircularDependencyError, SpocError):

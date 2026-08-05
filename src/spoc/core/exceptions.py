@@ -1,9 +1,11 @@
 """
 The kernel's error family.
 
-Every failure the kernel can produce is one of these, and each carries its facts as
+Every failure the kernel itself produces is one of these, and each carries its facts as
 attributes as well as in its message — so a caller can catch a specific class and read
-what failed without parsing text.
+what failed without parsing text. Failures authored by app code are not the kernel's: a
+module that raises while importing propagates its own exception, because the author
+needs their traceback, not a wrapper around it.
 
 Two properties are contractual, not stylistic. Resolution fails **per segment**, in the
 order kind → namespace → object_name, and each error names the failing segment, the value
@@ -20,7 +22,7 @@ class SpocError(Exception):
 
     def __init__(self, message: str, module_name: str | None = None) -> None:
         self.module_name = module_name
-        suffix = f" (module: {module_name})" if module_name else " "
+        suffix = f" (module: {module_name})" if module_name else ""
         super().__init__(f"{message}{suffix}")
 
 

@@ -70,6 +70,17 @@ def validate_spoc_config(config: dict[str, Any]) -> None:
         for key, expected in _SPOC_TYPES.items()
         if key in table and not isinstance(table[key], expected)
     ]
+    # One level deeper: apps and plugins group name lists. A bare string here is
+    # iterable too, and would boot as one app per character — refuse it loudly.
+    for key in ("apps", "plugins"):
+        if not isinstance(table.get(key), dict):
+            continue
+        errors.extend(
+            f"Invalid type for 'spoc.{key}.{group}': expected list of str, "
+            f"got {type(names).__name__}"
+            for group, names in table[key].items()
+            if not (isinstance(names, list) and all(isinstance(n, str) for n in names))
+        )
     if errors:
         raise ConfigurationError("Invalid SPOC configuration: " + "; ".join(errors))
 
