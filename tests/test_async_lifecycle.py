@@ -185,7 +185,9 @@ def test_failed_astart_rolls_back_and_stays_retryable(tmp_path):
     """,
     )
     fw = Framework("models")
-    with pytest.raises(SpocError, match="async boom"):
+    # The app's own error surfaces unwrapped — the doctrine holds on the
+    # async path too — and the failed boot still rolls back to inert.
+    with pytest.raises(RuntimeError, match="async boom"):
         asyncio.run(fw.astart(base))
     assert fw.started is False
     assert len(fw.registry) == 0

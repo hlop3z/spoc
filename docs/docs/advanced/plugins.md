@@ -32,20 +32,23 @@ A reference resolves through Python's normal import system and must be
 importable exactly as written — a top-level module of the project
 (`extras.middleware`), an installed package (`auth.extras.audit`), or a
 module inside an app (`apps.demo.extras.middleware` — whose namespace is
-then `apps`, the top-level package). A group that is not a declared kind
-fails start with `UnknownKindError`: configuration populates the kind set,
-it never widens it.
+then `demo`, the app's own segment, never the `apps` container). A group
+that is not a declared kind fails start with `UnknownKindError`:
+configuration populates the kind set, it never widens it.
 
 ## Identity
 
-A plugin's identifier follows the same grammar discovery uses: the group is
-the kind, the reference's top-level package is the namespace, and the
-attribute derives the object name (PEP 8 names become snake_case, exactly as
-class names do under a decorator):
+A plugin's identifier follows the same grammar discovery uses. Discovery
+reads `<app>/<kind>.py` and takes the app's final segment as the namespace;
+a plugin reference reads the same way — `<app_path>.<module>.<attribute>` —
+so the segment before the module is the namespace (a top-level module is its
+own namespace), and the attribute derives the object name (PEP 8 names
+become snake_case, exactly as class names do under a decorator):
 
 ```
-hooks = ["extras.hook"]             →  hooks:extras.hook
-middleware = ["auth.extras.Audit"]  →  middleware:auth.audit
+hooks = ["extras.hook"]                 →  hooks:extras.hook
+middleware = ["auth.extras.Audit"]      →  middleware:auth.audit
+hooks = ["apps.demo.extras.AuditHook"]  →  hooks:demo.audit_hook
 ```
 
 ## Loading

@@ -135,11 +135,11 @@ class TestOrdering:
         loader._graph["b"].add("a")
         loader._graph["c"].add("b")
 
-        loader.initialize({}, lambda entry: set())
+        loader.initialize({}, lambda entry: ())
         assert events == ["up:a", "up:b", "up:c"]
 
         events.clear()
-        loader.shutdown({}, lambda entry: set())
+        loader.shutdown({}, lambda entry: ())
         assert events == ["down:c", "down:b", "down:a"]
 
     def test_circular_dependency_detected(self, loader):
@@ -155,8 +155,8 @@ class TestOrdering:
     def test_modules_without_lifecycle_functions_are_fine(self, loader):
         loader._modules["plain"] = fake("plain")
         loader._graph["plain"] = set()
-        loader.initialize({}, lambda entry: set())
-        loader.shutdown({}, lambda entry: set())
+        loader.initialize({}, lambda entry: ())
+        loader.shutdown({}, lambda entry: ())
 
 
 class TestLifecycleHooks:
@@ -172,33 +172,50 @@ class TestLifecycleHooks:
                 lambda objs: seen.append(("down", "models")),
             )
         }
-        loader.initialize(hooks, lambda entry: set())
-        loader.shutdown(hooks, lambda entry: set())
+        loader.initialize(hooks, lambda entry: ())
+        loader.shutdown(hooks, lambda entry: ())
 
         # only the `models` kind has hooks; `views` is silently unhooked
         assert seen == [("up", "models"), ("down", "models")]
 
     def test_hook_receives_the_module_components(self, loader):
-        received: list[set] = []
+        received: list[tuple] = []
         loader._modules["blog.models"] = fake("blog.models", kind="models")
         loader._graph = {"blog.models": set()}
         marker = object()
 
         loader.initialize(
             {"models": (lambda objs: received.append(objs), None)},
-            lambda entry: {marker},
+            lambda entry: (marker,),
         )
-        assert received == [{marker}]
+        assert received == [(marker,)]
 
-    def test_startup_error_is_wrapped(self, loader):
+    def test_app_initialize_error_propagates_unwrapped(self, loader):
+        """The error doctrine: app-authored failures are never the kernel's to wrap."""
+
         def boom():
             raise RuntimeError("Initialization failed")
 
         loader._modules["bad"] = fake("bad", initialize=boom)
         loader._graph = {"bad": set()}
 
-        with pytest.raises(SpocError, match="Initialization failed"):
-            loader.initialize({}, lambda entry: set())
+        with pytest.raises(RuntimeError, match="Initialization failed") as excinfo:
+            loader.initialize({}, lambda entry: ())
+        assert type(excinfo.value) is RuntimeError
+        assert not isinstance(excinfo.value.__context__, SpocError)
+
+    def test_shutdown_hook_error_propagates_unwrapped(self, loader):
+        entry = fake("blog.models", kind="models")
+        entry.initialized = True
+        loader._modules["blog.models"] = entry
+        loader._graph = {"blog.models": set()}
+
+        def boom(objs):
+            raise KeyError("shutdown boom")
+
+        with pytest.raises(KeyError, match="shutdown boom") as excinfo:
+            loader.shutdown({"models": (None, boom)}, lambda entry: ())
+        assert type(excinfo.value) is KeyError
 
 
 class TestLoadFromUri:

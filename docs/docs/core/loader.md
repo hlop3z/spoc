@@ -57,6 +57,8 @@ without knowing the registry exists.
   module functions that are coroutine functions are awaited. The sync pair
   refuses a coroutine loudly with `SpocError` — it never skips or half-runs
   one
+- a failure raised by a hook or a module's own `initialize()`/`teardown()`
+  is the app author's, and propagates untouched — the kernel never wraps it
 
 ## Absent is not broken
 

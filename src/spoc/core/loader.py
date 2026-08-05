@@ -20,7 +20,7 @@ import graphlib
 import importlib
 import inspect
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from types import ModuleType
 from typing import Any
@@ -35,9 +35,10 @@ from .exceptions import (
 
 logger = logging.getLogger("spoc")
 
-#: A kind's lifecycle hooks, each called with the module's registered component objects.
+#: A kind's lifecycle hooks, each called with the module's registered component
+#: objects as an immutable sequence in registration order.
 type KindHooks = tuple[
-    Callable[[set[Any]], Any] | None, Callable[[set[Any]], Any] | None
+    Callable[[Sequence[Any]], Any] | None, Callable[[Sequence[Any]], Any] | None
 ]
 
 
@@ -151,7 +152,8 @@ class Loader:
     # callables loudly (it can neither run a loop of its own nor guess at
     # one), and an asynchronous form that awaits whatever a hook or module
     # function returns awaitable. Both walk the same order and share the
-    # same error contract.
+    # same error contract: a failure raised by a hook or a module's own
+    # lifecycle function is the app author's, and propagates untouched.
 
     @staticmethod
     def _refuse_coroutine(fn: Callable[..., Any], owner: str) -> None:
@@ -164,105 +166,85 @@ class Loader:
     def initialize(
         self,
         hooks: dict[str, KindHooks],
-        components_for: Callable[[LoadedModule], set[Any]],
+        components_for: Callable[[LoadedModule], Sequence[Any]],
     ) -> None:
         """Fire each module's startup hook, then its own ``initialize()``."""
-        try:
-            for entry in self.ordered():
-                logger.debug("Initializing module: %s", entry.name)
-                on_startup, _ = hooks.get(entry.kind, (None, None))
-                if on_startup is not None:
-                    self._refuse_coroutine(
-                        on_startup, f"startup hook for kind {entry.kind!r}"
-                    )
-                    on_startup(components_for(entry))
-                fn = getattr(entry.module, "initialize", None)
-                if callable(fn) and not entry.initialized:
-                    self._refuse_coroutine(fn, f"{entry.name}.initialize")
-                    fn()
-                entry.initialized = True
-        except (CircularDependencyError, SpocError):
-            raise
-        except Exception as e:
-            raise SpocError(f"Error during startup: {e}") from e
+        for entry in self.ordered():
+            logger.debug("Initializing module: %s", entry.name)
+            on_startup, _ = hooks.get(entry.kind, (None, None))
+            if on_startup is not None:
+                self._refuse_coroutine(
+                    on_startup, f"startup hook for kind {entry.kind!r}"
+                )
+                on_startup(components_for(entry))
+            fn = getattr(entry.module, "initialize", None)
+            if callable(fn) and not entry.initialized:
+                self._refuse_coroutine(fn, f"{entry.name}.initialize")
+                fn()
+            entry.initialized = True
 
     async def ainitialize(
         self,
         hooks: dict[str, KindHooks],
-        components_for: Callable[[LoadedModule], set[Any]],
+        components_for: Callable[[LoadedModule], Sequence[Any]],
     ) -> None:
         """Asynchronous :meth:`initialize`: awaits coroutine hooks and modules."""
-        try:
-            for entry in self.ordered():
-                logger.debug("Initializing module: %s", entry.name)
-                on_startup, _ = hooks.get(entry.kind, (None, None))
-                if on_startup is not None:
-                    result = on_startup(components_for(entry))
-                    if inspect.isawaitable(result):
-                        await result
-                fn = getattr(entry.module, "initialize", None)
-                if callable(fn) and not entry.initialized:
-                    result = fn()
-                    if inspect.isawaitable(result):
-                        await result
-                entry.initialized = True
-        except (CircularDependencyError, SpocError):
-            raise
-        except Exception as e:
-            raise SpocError(f"Error during startup: {e}") from e
+        for entry in self.ordered():
+            logger.debug("Initializing module: %s", entry.name)
+            on_startup, _ = hooks.get(entry.kind, (None, None))
+            if on_startup is not None:
+                result = on_startup(components_for(entry))
+                if inspect.isawaitable(result):
+                    await result
+            fn = getattr(entry.module, "initialize", None)
+            if callable(fn) and not entry.initialized:
+                result = fn()
+                if inspect.isawaitable(result):
+                    await result
+            entry.initialized = True
 
     def shutdown(
         self,
         hooks: dict[str, KindHooks],
-        components_for: Callable[[LoadedModule], set[Any]],
+        components_for: Callable[[LoadedModule], Sequence[Any]],
     ) -> None:
         """Fire each module's shutdown hook, then its own ``teardown()``, in reverse.
 
         Modules that never finished initializing are skipped, so a partial startup
         can be rolled back without tearing down what never came up.
         """
-        try:
-            for entry in reversed(self.ordered()):
-                if not entry.initialized:
-                    continue
-                _, on_shutdown = hooks.get(entry.kind, (None, None))
-                if on_shutdown is not None:
-                    self._refuse_coroutine(
-                        on_shutdown, f"shutdown hook for kind {entry.kind!r}"
-                    )
-                    on_shutdown(components_for(entry))
-                fn = getattr(entry.module, "teardown", None)
-                if callable(fn):
-                    self._refuse_coroutine(fn, f"{entry.name}.teardown")
-                    fn()
-                entry.initialized = False
-        except (CircularDependencyError, SpocError):
-            raise
-        except Exception as e:
-            raise SpocError(f"Error during shutdown: {e}") from e
+        for entry in reversed(self.ordered()):
+            if not entry.initialized:
+                continue
+            _, on_shutdown = hooks.get(entry.kind, (None, None))
+            if on_shutdown is not None:
+                self._refuse_coroutine(
+                    on_shutdown, f"shutdown hook for kind {entry.kind!r}"
+                )
+                on_shutdown(components_for(entry))
+            fn = getattr(entry.module, "teardown", None)
+            if callable(fn):
+                self._refuse_coroutine(fn, f"{entry.name}.teardown")
+                fn()
+            entry.initialized = False
 
     async def ashutdown(
         self,
         hooks: dict[str, KindHooks],
-        components_for: Callable[[LoadedModule], set[Any]],
+        components_for: Callable[[LoadedModule], Sequence[Any]],
     ) -> None:
         """Asynchronous :meth:`shutdown`: awaits coroutine hooks and modules."""
-        try:
-            for entry in reversed(self.ordered()):
-                if not entry.initialized:
-                    continue
-                _, on_shutdown = hooks.get(entry.kind, (None, None))
-                if on_shutdown is not None:
-                    result = on_shutdown(components_for(entry))
-                    if inspect.isawaitable(result):
-                        await result
-                fn = getattr(entry.module, "teardown", None)
-                if callable(fn):
-                    result = fn()
-                    if inspect.isawaitable(result):
-                        await result
-                entry.initialized = False
-        except (CircularDependencyError, SpocError):
-            raise
-        except Exception as e:
-            raise SpocError(f"Error during shutdown: {e}") from e
+        for entry in reversed(self.ordered()):
+            if not entry.initialized:
+                continue
+            _, on_shutdown = hooks.get(entry.kind, (None, None))
+            if on_shutdown is not None:
+                result = on_shutdown(components_for(entry))
+                if inspect.isawaitable(result):
+                    await result
+            fn = getattr(entry.module, "teardown", None)
+            if callable(fn):
+                result = fn()
+                if inspect.isawaitable(result):
+                    await result
+            entry.initialized = False

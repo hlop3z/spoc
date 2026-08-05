@@ -21,7 +21,7 @@ raises rather than being quietly skipped.
 from __future__ import annotations
 
 import inspect
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from types import ModuleType
 from typing import Any
@@ -46,9 +46,10 @@ class KindSpec:
     #: Hooks may be plain functions or coroutine functions on the same
     #: attribute; a coroutine hook is dispatched by the asynchronous
     #: lifecycle path (``astart``/``ashutdown``) and refused loudly by the
-    #: synchronous one.
-    on_startup: Callable[[set[Any]], Any] | None = None
-    on_shutdown: Callable[[set[Any]], Any] | None = None
+    #: synchronous one. Each receives its kind's components as an immutable
+    #: sequence in canonical-identifier order.
+    on_startup: Callable[[Sequence[Any]], Any] | None = None
+    on_shutdown: Callable[[Sequence[Any]], Any] | None = None
 
     def __post_init__(self) -> None:
         validate_segment("kind", self.name)

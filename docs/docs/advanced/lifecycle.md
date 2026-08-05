@@ -26,8 +26,9 @@ def build_derived_state(registry):
 
 Hooks are an attribute of a kind, so they are declared on its `KindSpec` —
 the same place its dependencies, optionality, and metadata contract live.
-They fire for every app's module of that kind, with the set of that module's
-registered component objects:
+They fire for every app's module of that kind, with that module's registered
+component objects as an immutable tuple, ordered by canonical identifier —
+the same order registry enumeration yields, identical on every start:
 
 ```python
 import spoc
@@ -125,8 +126,11 @@ coordination.
 Failures the kernel itself produces surface as `SpocError` (or a more specific
 subclass — `CircularDependencyError`, `ComponentKindMismatchError`,
 `DuplicateComponentError`, `MissingModuleError`, `ConfigurationError`,
-`MetadataContractError`). A module that raises while *importing* propagates its
-own exception — the author needs their traceback, not a wrapper around it.
+`MetadataContractError`). Failures authored by app code are not the kernel's,
+and propagate as themselves: a module that raises while *importing*, a lifecycle
+hook that raises, and a module `initialize()`/`teardown()` that raises all
+surface with their own type and traceback — the author needs their traceback,
+not a wrapper around it.
 
 Nothing is silently skipped, and a failed start rolls itself back: modules
 that initialized are torn down in reverse, the framework returns to its inert

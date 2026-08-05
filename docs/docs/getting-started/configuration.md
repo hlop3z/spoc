@@ -86,7 +86,10 @@ name a mode in the effective set; a violation fails start with
 `[spoc.plugins]` groups loadable references, each a dotted
 `module.attribute` path importable exactly as written. Each group names a
 **declared kind**, and every loaded object registers in the same flat
-registry as discovered components — here, `hooks:extras.hook`. A reference
+registry as discovered components, under the same grammar — the segment
+before the module is the namespace, so `extras.hook` yields
+`hooks:extras.hook` and `apps.demo.extras.hook` yields `hooks:demo.hook`
+(see [Plugins](../advanced/plugins.md)). A reference
 that cannot be resolved — or a group that is not a declared kind — fails
 start, naming the offender:
 

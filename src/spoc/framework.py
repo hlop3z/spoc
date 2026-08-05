@@ -260,31 +260,39 @@ class Framework:
             for name, spec in self._specs.items()
         }
 
-    def _components_for(self, entry: LoadedModule) -> set[Any]:
-        return {
+    def _components_for(self, entry: LoadedModule) -> tuple[Any, ...]:
+        # by_kind enumerates in canonical-identifier order; the tuple hands
+        # hooks that same deterministic, immutable view.
+        return tuple(
             c.object
             for c in self.registry.by_kind(entry.kind)
             if c.namespace == entry.namespace
-        }
+        )
 
     def _register_plugins(self, project: dict[str, Any]) -> None:
         """Register config-declared references into the one flat registry.
 
         A ``[spoc.plugins]`` group names a declared kind — configuration is a
         second way to populate the registry, never a second registry. Identity
-        follows the same grammar as discovery: the reference's top package is
-        the namespace, and the attribute derives the object_name. A kind only
-        plugins populate is declared ``required=False`` so apps need not
-        provide a module for it.
+        follows the same grammar as discovery: a reference reads
+        ``<app_path>.<module>.<attribute>``, so the segment before the module
+        (the app path's final segment) is the namespace — a top-level module
+        is its own namespace — and the attribute derives the object_name. A
+        kind only plugins populate is declared ``required=False`` so apps
+        need not provide a module for it.
         """
         for group, references in (project.get("plugins", {}) or {}).items():
             spec = self.spec(group)  # an undeclared group raises UnknownKindError
             for uri in references:
                 obj = self.loader.load_from_uri(uri)
                 module_path, _, attr = uri.rpartition(".")
+                segments = module_path.split(".")
+                namespace = validate_segment(
+                    "namespace", segments[-2] if len(segments) > 1 else segments[-1]
+                )
                 name = to_snake_case(attr)
                 check_metadata(spec, name, None)
-                self.registry.add(spec.name, module_path.split(".")[0], name, obj)
+                self.registry.add(spec.name, namespace, name, obj)
 
     @staticmethod
     def _collect_apps(

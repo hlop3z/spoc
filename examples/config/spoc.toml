@@ -11,8 +11,9 @@ staging = ["apps.another"]
 development = ["apps.demo", "apps.other"]
 
 # Additional components (plugins and hooks), each a resolvable reference.
-# The reference's top-level package is the namespace: extras.middleware
-# registers as middleware:extras.middleware.
+# The segment before the module is the namespace (a top-level module is its
+# own): extras.middleware registers as middleware:extras.middleware, and
+# apps.demo.extras.hook would register as hooks:demo.hook.
 [spoc.plugins]
 middleware = ["extras.middleware"]
 hooks = ["extras.hook"]

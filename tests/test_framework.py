@@ -377,7 +377,7 @@ def test_failed_startup_rolls_back_initialized_modules(tmp_path):
     sys.path.insert(0, str(base))
 
     fw = Framework("models")
-    with pytest.raises(SpocError, match="boom"):
+    with pytest.raises(RuntimeError, match="boom"):
         fw.start(base)
 
     assert (base / "good" / "up.txt").exists()
@@ -641,6 +641,56 @@ def test_hooks_receive_components_and_fire_in_order(tmp_path):
     assert fw.started is False
 
 
+def test_hook_payload_is_an_ordered_immutable_tuple(tmp_path):
+    """Hooks see the registry's canonical enumeration: identifier order, frozen."""
+    base = make_project(
+        tmp_path,
+        "hookorder",
+        """
+    from spoc.core.declaration import component
+
+    @component(kind="models")
+    class Zeta: ...
+
+    @component(kind="models")
+    class Alpha: ...
+    """,
+    )
+    payloads: list = []
+    fw = Framework(KindSpec("models", on_startup=payloads.append))
+    fw.start(base)
+    fw.shutdown()
+    fw.start(base)
+    fw.shutdown()
+
+    first, second = payloads
+    assert isinstance(first, tuple)
+    # Declared Zeta-first; identifier order puts alpha first, on every start.
+    assert [obj.__name__ for obj in first] == ["Alpha", "Zeta"]
+    assert [obj.__name__ for obj in second] == ["Alpha", "Zeta"]
+    with pytest.raises(TypeError):
+        first[0] = None
+
+
+def test_app_initialize_error_propagates_and_rolls_back(tmp_path):
+    """The error doctrine: an app's own failure surfaces unwrapped, after rollback."""
+    base = make_project(
+        tmp_path,
+        "docterr",
+        MODELS_BODY
+        + """
+    def initialize():
+        raise ValueError("app boom")
+    """,
+    )
+    fw = Framework("models")
+    with pytest.raises(ValueError, match="app boom") as excinfo:
+        fw.start(base)
+    assert type(excinfo.value) is ValueError
+    assert fw.started is False
+    assert len(fw.registry) == 0  # rolled back to inert
+
+
 def test_hooks_are_a_kind_attribute_not_a_second_surface():
     """Every per-kind attribute rides the KindSpec — there is no decorator form."""
     fw = Framework("models")
@@ -771,6 +821,49 @@ def test_plugin_name_derives_from_the_attribute(tmp_path):
     (base / "plugcase" / "extras.py").write_text("class AuditHook:\n    ...\n")
     fw = Framework("models", KindSpec("hooks", required=False)).start(base)
     assert fw.resolve("hooks:plugcase.audit_hook").name == "audit_hook"
+
+
+def test_plugin_inside_dotted_app_path_takes_the_apps_namespace(tmp_path):
+    """Discovery's grammar applied to the reference: the app segment, never the
+    container package."""
+    base = tmp_path / "proj_dotplug"
+    (base / "config").mkdir(parents=True)
+    (base / "config" / "spoc.toml").write_text(
+        textwrap.dedent(
+            """
+            [spoc]
+            mode = "development"
+
+            [spoc.apps]
+            development = ["apps.blog"]
+
+            [spoc.plugins]
+            hooks = ["apps.blog.extras.AuditHook"]
+            """
+        )
+    )
+    pkg = base / "apps" / "blog"
+    pkg.mkdir(parents=True)
+    (base / "apps" / "__init__.py").write_text("")
+    (pkg / "__init__.py").write_text("")
+    (pkg / "models.py").write_text(textwrap.dedent(MODELS_BODY))
+    (pkg / "extras.py").write_text("class AuditHook:\n    ...\n")
+    sys.path.insert(0, str(base))
+
+    fw = Framework("models", KindSpec("hooks", required=False)).start(base)
+    record = fw.resolve("hooks:blog.audit_hook")
+    assert record.namespace == "blog"
+
+
+def test_top_level_plugin_module_is_its_own_namespace(tmp_path):
+    base = make_project(
+        tmp_path,
+        "plugtop",
+        extra_toml='\n[spoc.plugins]\nhooks = ["plugmod.AuditHook"]\n',
+    )
+    (base / "plugmod.py").write_text("class AuditHook:\n    ...\n")
+    fw = Framework("models", KindSpec("hooks", required=False)).start(base)
+    assert fw.resolve("hooks:plugmod.audit_hook").namespace == "plugmod"
 
 
 # ── Independence and removed API ──────────────────────────────────────────

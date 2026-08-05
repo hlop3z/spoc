@@ -92,6 +92,20 @@ more than they could possibly save. If you are on 0.3.x, read
   like everything discovery finds. A group naming an undeclared kind fails start with
   `UnknownKindError`: configuration populates the kind set, it never widens it. A kind
   only plugins populate is declared `required=False`.
+- **BREAKING — app-authored lifecycle failures propagate unwrapped.** A startup or
+  shutdown hook, or a module `initialize`/`teardown`, that raises now surfaces its own
+  exception with its own traceback — the blanket `SpocError("Error during
+  startup/shutdown: ...")` wrapper is gone, making the documented error doctrine true.
+  Kernel-authored failures are still `SpocError` subclasses, and a failed start still
+  rolls back to inert.
+- **BREAKING — hooks receive an ordered, immutable tuple.** Kind lifecycle hooks get
+  their module's components as a `tuple` in canonical-identifier order — the registry's
+  own enumeration order, identical on every start — instead of an unordered `set`.
+- **BREAKING — a plugin's namespace follows discovery's grammar.** A reference reads
+  `<app_path>.<module>.<attribute>` and the segment before the module is the namespace
+  (a top-level module is its own), so `apps.demo.extras.hook` registers as
+  `hooks:demo.hook` — previously the top-level package (`apps`) was taken. Two-segment
+  references (`demo.extras.hook` → `hooks:demo.hook`) are unaffected.
 - **`resolve()` succeeds in one dict hit.** The per-segment scans that make failures
   precise now run only on the failure path; grouped reads (`by_kind`, `by_namespace`)
   sort their own selection instead of re-sorting the whole store.

@@ -140,8 +140,8 @@ discovery and before module initialization. A callback error fails start.
 Hooks are a kind attribute, so they ride the `KindSpec` like every other one:
 
 ```python
-def init_models(objects):        # the set of the module's registered objects
-    ...
+def init_models(objects):        # the module's registered objects: an
+    ...                          # identifier-ordered, immutable tuple
 
 def close_models(objects):
     ...
