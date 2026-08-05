@@ -77,7 +77,15 @@ class DirectorySink:
             # say) — move per file, undoing the moves if any one of them fails.
             self._move_files_with_rollback(staging)
         else:
-            os.replace(staging, self.destination)
+            try:
+                os.replace(staging, self.destination)
+            except BaseException:
+                # The destination was removed only to make room for the move. If
+                # the move did not happen, put the empty directory back — a failed
+                # commit leaves what it found, and it found a directory.
+                with suppress(OSError):
+                    self.destination.mkdir(parents=True, exist_ok=True)
+                raise
 
     def _move_files_with_rollback(self, staging: Path) -> None:
         moved: list[Path] = []

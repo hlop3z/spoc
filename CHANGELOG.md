@@ -35,8 +35,9 @@ All notable changes to this project are documented here. The format follows
   themselves, keeps it.
 - **Scaffolder.** `spoc init BadName` exits with code 1 and a message instead of an
   unhandled traceback; committing into an existing empty directory is atomic (the
-  directory is swapped out, or the per-file fallback rolls back its files and created
-  directories on failure); a template using `$kind` outside a `per_kind` file is refused
+  directory is swapped out — and put back if the swap itself fails — or the per-file
+  fallback rolls back its files and created directories on failure); a template using
+  `$kind` outside a `per_kind` file is refused
   at validation instead of crashing mid-render with a `KeyError`.
 - **CSV stays inside the JSON data model.** A row wider than the header is refused loudly
   instead of decoding to a `None`-keyed dict that re-encoded as corrupted output; the

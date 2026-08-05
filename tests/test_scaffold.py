@@ -225,6 +225,28 @@ def test_failure_in_an_existing_directory_leaves_it_empty(tmp_path, monkeypatch)
     assert list(destination.iterdir()) == []
 
 
+def test_failed_swap_puts_the_destination_back(tmp_path, monkeypatch):
+    """The destination is removed only to make room — a failed move restores it."""
+    import os
+
+    destination = tmp_path / "proj"
+    destination.mkdir()
+    sink = DirectorySink(destination)
+    plan = GenerationPlan(files=(PlannedFile(path="a.txt", content="a"),))
+
+    def failing_replace(src, dst):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("spoc.scaffold.sink.os.replace", failing_replace)
+
+    with pytest.raises(OSError, match="disk full"):
+        sink.commit(plan)
+
+    assert destination.is_dir()
+    assert list(destination.iterdir()) == []
+    assert os.path.exists(destination)
+
+
 def test_staging_directory_is_cleaned_up(tmp_path):
     destination = tmp_path / "proj"
     generate(destination)
