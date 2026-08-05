@@ -36,6 +36,12 @@ Changelog = "https://github.com/hlop3z/spoc/blob/main/CHANGELOG.md"
 [project.scripts]
 spoc = "spoc.scaffold.cli:main"
 
+# The pytest plugin is inert metadata until pytest itself runs: pytest is the
+# only importer of `spoc.testing.plugin`, so pytest never becomes a runtime
+# dependency and `dependencies` above stays empty.
+[project.entry-points.pytest11]
+spoc = "spoc.testing.plugin"
+
 # The bare install reads JSON, CSV, and TOML through the standard library and
 # costs nothing. Every non-stdlib codec lives behind an extra — these are the
 # feature flags; `dependencies` above stays empty.
@@ -109,8 +115,20 @@ include = ["examples/**", "tests/**", "scripts/**"]
 [tool.ty.overrides.rules]
 unresolved-import = "ignore"
 
+# The pytest plugin executes only inside pytester *subprocesses* (see
+# tests/test_testing.py), which the coverage tracer does not measure — its
+# behavior is asserted there, so 0% here would be noise, not signal.
+[tool.coverage.run]
+omit = ["*/spoc/testing/plugin.py"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Our own suite must not auto-load the shipped pytest plugin: entry-point
+# plugins import before pytest-cov starts measuring, so loading it here would
+# import all of `spoc` early and erase the coverage report. The plugin's
+# behavior is proven in-suite through pytester subprocesses, which use their
+# own rootdir and do auto-load it.
+addopts = "-p no:spoc"
 
 [dependency-groups]
 dev = [
