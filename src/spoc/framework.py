@@ -37,7 +37,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .core.config import DEFAULT_MODE, load_environment, load_spoc_toml
+from .core.config import (
+    DEFAULT_MODE,
+    DEFAULT_MODES,
+    load_environment,
+    load_spoc_toml,
+)
 from .core.declaration import (
     KindSpec,
     as_kind_spec,
@@ -49,13 +54,6 @@ from .core.exceptions import ConfigurationError, SpocError, UnknownKindError
 from .core.identity import to_snake_case, validate_segment
 from .core.loader import KindHooks, LoadedModule, Loader
 from .core.registry import Component, Registry
-
-#: Which modes cascade into which, most specific first. Development sees everything.
-_MODE_CASCADE: dict[str, tuple[str, ...]] = {
-    "production": ("production",),
-    "staging": ("staging", "production"),
-    "development": ("development", "staging", "production"),
-}
 
 
 @dataclass(frozen=True)
@@ -289,23 +287,36 @@ class Framework:
                 self.registry.add(spec.name, module_path.split(".")[0], name, obj)
 
     @staticmethod
-    def _collect_apps(mode: str, declared: dict[str, list[str]]) -> list[str]:
+    def _collect_apps(
+        mode: str,
+        declared: dict[str, list[str]],
+        modes: dict[str, list[str]],
+    ) -> list[str]:
         """Cascaded app list for a mode, order preserved, first wins.
 
-        Both the active mode and every ``[spoc.apps]`` key must name a known mode:
-        a typo would otherwise silently install nothing (or strand an app list).
+        The mode set itself is configuration (``[spoc.modes]``, merged over the
+        default triple). The active mode, every ``[spoc.apps]`` key, and every
+        cascade entry must name a mode in that effective set: a typo would
+        otherwise silently install nothing (or strand an app list).
         """
-        valid = ", ".join(_MODE_CASCADE)
-        if mode not in _MODE_CASCADE:
+        valid = ", ".join(modes)
+        if mode not in modes:
             raise ConfigurationError(f"Unknown mode {mode!r}. Valid modes: {valid}")
         for group in declared:
-            if group not in _MODE_CASCADE:
+            if group not in modes:
                 raise ConfigurationError(
                     f"Unknown mode {group!r} in [spoc.apps]. Valid modes: {valid}"
                 )
+        for name, cascade in modes.items():
+            for entry in cascade:
+                if entry not in modes:
+                    raise ConfigurationError(
+                        f"Unknown mode {entry!r} in the cascade of "
+                        f"[spoc.modes.{name}]. Valid modes: {valid}"
+                    )
         installed: list[str] = []
         seen: set[str] = set()
-        for source in _MODE_CASCADE[mode]:
+        for source in modes[mode]:
             for app in declared.get(source, []):
                 if app not in seen:
                     seen.add(app)
@@ -317,6 +328,7 @@ class Framework:
         app_names = self._collect_apps(
             self.config.project.get("mode", DEFAULT_MODE),
             self.config.project.get("apps", {}),
+            self.config.project.get("modes", DEFAULT_MODES),
         )
         for app in app_names:
             # An app entry is a dotted module path imported exactly as written;

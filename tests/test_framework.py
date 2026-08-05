@@ -13,6 +13,7 @@ import pytest
 
 import spoc
 from spoc import Framework, KindSpec
+from spoc.core.config import DEFAULT_MODES
 from spoc.core.declaration import get_info
 from spoc.core.exceptions import (
     AppNotFoundError,
@@ -656,21 +657,53 @@ def test_mode_cascade():
         "staging": ["admin"],
         "development": ["demo"],
     }
-    assert Framework._collect_apps("development", apps) == ["demo", "admin", "auth"]
-    assert Framework._collect_apps("staging", apps) == ["admin", "auth"]
-    assert Framework._collect_apps("production", apps) == ["auth"]
+    collect = Framework._collect_apps
+    assert collect("development", apps, DEFAULT_MODES) == ["demo", "admin", "auth"]
+    assert collect("staging", apps, DEFAULT_MODES) == ["admin", "auth"]
+    assert collect("production", apps, DEFAULT_MODES) == ["auth"]
 
 
 def test_unknown_mode_is_refused():
     """A mode typo must not silently install zero apps."""
     with pytest.raises(ConfigurationError, match="prod"):
-        Framework._collect_apps("prod", {"development": ["demo"]})
+        Framework._collect_apps("prod", {"development": ["demo"]}, DEFAULT_MODES)
 
 
 def test_unknown_apps_group_is_refused():
     """An app list stranded under a misspelled mode is a defect, not dead config."""
     with pytest.raises(ConfigurationError, match="developmnet"):
-        Framework._collect_apps("development", {"developmnet": ["demo"]})
+        Framework._collect_apps("development", {"developmnet": ["demo"]}, DEFAULT_MODES)
+
+
+def test_custom_mode_set_cascades_as_declared():
+    modes = {**DEFAULT_MODES, "test": ["test", "production"]}
+    apps = {"test": ["fixtures"], "production": ["auth"]}
+    assert Framework._collect_apps("test", apps, modes) == ["fixtures", "auth"]
+
+
+def test_cascade_entry_must_name_a_declared_mode():
+    modes = {**DEFAULT_MODES, "test": ["test", "prod"]}
+    with pytest.raises(ConfigurationError, match=r"spoc\.modes\.test"):
+        Framework._collect_apps("test", {}, modes)
+
+
+def test_declared_modes_merge_over_the_default_triple(tmp_path):
+    """Adding `test` in config never forces restating dev/staging/prod, and
+    an app declared under the custom mode boots through the whole stack."""
+    base = make_project(
+        tmp_path,
+        "modeapp",
+        extra_toml='\n[spoc.modes]\ntest = ["test", "development"]\n',
+    )
+    (base / "config" / "spoc.toml").write_text(
+        (base / "config" / "spoc.toml")
+        .read_text()
+        .replace('mode = "development"', 'mode = "test"')
+    )
+    fw = Framework("models").start(base)
+    # `test` cascades into development, whose app list holds the one app.
+    assert [c.identifier for c in fw.registry] == ["models:modeapp.post"]
+    fw.shutdown()
 
 
 def test_mode_typo_fails_start_instead_of_booting_empty(tmp_path):

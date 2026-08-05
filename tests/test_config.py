@@ -10,7 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from spoc.core.config import load_environment, load_spoc_toml, validate_spoc_config
+from spoc.core.config import (
+    DEFAULT_MODES,
+    load_environment,
+    load_spoc_toml,
+    validate_spoc_config,
+)
 from spoc.core.exceptions import ConfigurationError
 
 
@@ -33,6 +38,7 @@ def config_files():
                     "database": ["db.backends.sqlite3", "db.backends.mysql"],
                     "auth": ["auth.basic", "auth.oauth"],
                 },
+                "modes": DEFAULT_MODES,
             }
         }
         (base_dir / "spoc.toml").write_text(
@@ -83,8 +89,23 @@ class TestSpocToml:
                     "debug": False,
                     "apps": {},
                     "plugins": {},
+                    "modes": DEFAULT_MODES,
                 }
             }
+
+    def test_declared_modes_merge_over_the_defaults(self, tmp_path):
+        (tmp_path / "spoc.toml").write_text(
+            '[spoc]\nmode = "test"\n\n[spoc.modes]\ntest = ["test", "production"]\n'
+        )
+        modes = load_spoc_toml(tmp_path)["spoc"]["modes"]
+        assert modes["test"] == ["test", "production"]
+        for name, cascade in DEFAULT_MODES.items():
+            assert modes[name] == cascade  # the triple survives untouched
+
+    def test_modes_must_hold_lists_of_strings(self, tmp_path):
+        (tmp_path / "spoc.toml").write_text('[spoc.modes]\ntest = "test"\n')
+        with pytest.raises(ConfigurationError, match=r"spoc\.modes\.test"):
+            load_spoc_toml(tmp_path)
 
     def test_absent_keys_fall_back_to_defaults(self, tmp_path):
         (tmp_path / "spoc.toml").write_text('[spoc]\nmode = "production"\n')

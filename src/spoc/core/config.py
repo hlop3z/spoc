@@ -26,12 +26,22 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MODE: Final[str] = "development"
 
+#: The default mode set: each mode maps to its cascade, most specific first.
+#: Projects extend or override it per mode under ``[spoc.modes]`` — declared
+#: entries merge over these, so adding a mode never means restating the triple.
+DEFAULT_MODES: Final[dict[str, list[str]]] = {
+    "production": ["production"],
+    "staging": ["staging", "production"],
+    "development": ["development", "staging", "production"],
+}
+
 #: Defaults for the ``[spoc]`` table — any key absent from spoc.toml.
 SPOC_DEFAULTS: Final[dict[str, Any]] = {
     "mode": DEFAULT_MODE,
     "debug": False,
     "apps": {},
     "plugins": {},
+    "modes": DEFAULT_MODES,
 }
 
 #: The closed key set and the type each must hold when present.
@@ -40,6 +50,7 @@ _SPOC_TYPES: Final[dict[str, type]] = {
     "debug": bool,
     "apps": dict,
     "plugins": dict,
+    "modes": dict,
 }
 
 
@@ -70,9 +81,9 @@ def validate_spoc_config(config: dict[str, Any]) -> None:
         for key, expected in _SPOC_TYPES.items()
         if key in table and not isinstance(table[key], expected)
     ]
-    # One level deeper: apps and plugins group name lists. A bare string here is
-    # iterable too, and would boot as one app per character — refuse it loudly.
-    for key in ("apps", "plugins"):
+    # One level deeper: apps, plugins, and modes group name lists. A bare string
+    # here is iterable too, and would boot as one app per character — refuse it.
+    for key in ("apps", "plugins", "modes"):
         if not isinstance(table.get(key), dict):
             continue
         errors.extend(
@@ -93,7 +104,14 @@ def load_spoc_toml(base_dir: Path) -> dict[str, Any]:
         if path.exists():
             config = read_toml(path)
             validate_spoc_config(config)
-            return {"spoc": {**SPOC_DEFAULTS, **config.get("spoc", {})}}
+            merged = {**SPOC_DEFAULTS, **config.get("spoc", {})}
+            # Declared modes extend the default set per mode rather than
+            # replacing it, so adding `test` never forces restating the triple.
+            merged["modes"] = {
+                **DEFAULT_MODES,
+                **config.get("spoc", {}).get("modes", {}),
+            }
+            return {"spoc": merged}
 
     logger.warning(
         "No spoc.toml found at %s or %s. Using default configuration "
