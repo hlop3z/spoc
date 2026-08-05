@@ -218,6 +218,36 @@ def test_shutdown_resets_to_a_clean_boot(tmp_path):
         fw.resolve("models:alpha.post")
 
 
+def test_restart_rebuilds_registry_without_rerunning_module_code(tmp_path):
+    """The honest restart contract: kernel state resets, the module cache
+    persists — module-level code runs at most once per process."""
+    base = make_project(
+        tmp_path,
+        "counterapp",
+        """
+        from pathlib import Path
+        from spoc.core.declaration import component
+
+        _marker = Path(__file__).parent / "imports.txt"
+        _marker.write_text((_marker.read_text() + "x") if _marker.exists() else "x")
+
+        @component(kind="models")
+        class Post:
+            ...
+        """,
+    )
+    fw = Framework("models")
+
+    fw.start(base)
+    fw.shutdown()
+    assert len(fw.registry) == 0
+
+    fw.start(base)
+    assert fw.resolve("models:counterapp.post")
+    # One "x": the second boot re-ran discovery against the cached module.
+    assert (base / "counterapp" / "imports.txt").read_text() == "x"
+
+
 def test_lifecycle_never_mutates_sys_path(tmp_path):
     """Boot acquires no process-global state: the import path is untouched."""
     base = make_project(tmp_path, "pathless")
