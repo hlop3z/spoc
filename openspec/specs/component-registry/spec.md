@@ -157,6 +157,16 @@ complete records — never a partially constructed one.
 - **THEN** exactly one registration succeeds and the other fails with the
   duplicate-identifier error naming the identifier and the winning object
 
+#### Scenario: Invariants hold under any generated operation sequence
+
+- **WHEN** an arbitrary generated sequence of register, resolve, and enumerate
+  operations — including concurrent batches with deliberate duplicate and
+  divergence races — is executed against one registry
+- **THEN** every accepted registration is present exactly once, every refusal
+  is the stated typed error, resolution never observes a partial record, and
+  enumeration stays deterministic — for every generated sequence, not only
+  named examples
+
 ### Requirement: Enumeration is deterministic
 
 Enumerating the registry, or any facet of it, MUST yield each matching record exactly
