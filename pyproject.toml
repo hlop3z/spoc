@@ -1,13 +1,31 @@
 [project]
 name = "spoc"
 dynamic = ["version"]
-description = "Elastic Framework Builder"
+description = "Registry-first runtime kernel for modular monolithic Python applications"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com" },
 ]
 requires-python = ">=3.13"
+keywords = ["framework", "kernel", "registry", "modular-monolith", "plugins"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Typing :: Typed",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://hlop3z.github.io/spoc/"
+Documentation = "https://hlop3z.github.io/spoc/"
+Repository = "https://github.com/hlop3z/spoc"
+Changelog = "https://github.com/hlop3z/spoc/blob/main/CHANGELOG.md"
 
 # The scaffolder ships in this distribution and needs nothing: every one of its
 # build-vs-adopt decisions landed on the standard library, so `dependencies`
@@ -34,6 +52,12 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "src/spoc/__about__.py"
+
+# The sdist is the package, its tests, and its history — not the docs site, the
+# process artifacts, or the built distributions. README, LICENSE, and pyproject
+# are included by hatchling on its own.
+[tool.hatch.build.targets.sdist]
+only-include = ["src", "tests", "CHANGELOG.md"]
 
 # Ruff runs on an explicit rule selection, never its defaults: a toolchain bump must
 # not silently change what CI enforces (.canon/checks.md is the gate).

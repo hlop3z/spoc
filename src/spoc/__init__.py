@@ -13,6 +13,7 @@ the configuration adapter are reachable under ``spoc.core`` for anyone extending
 kernel, but they are not part of what a framework author needs.
 """
 
+from .__about__ import __version__
 from .core.declaration import KindSpec
 from .core.exceptions import (
     AppNotFoundError,
@@ -36,6 +37,8 @@ from .core.registry import Component, Registry
 from .framework import Config, Framework
 
 __all__ = [
+    # Package
+    "__version__",
     # Declaration
     "Framework",
     "KindSpec",
