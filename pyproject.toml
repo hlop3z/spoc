@@ -87,9 +87,14 @@ ignore = [
 [tool.ty.environment]
 root = ["./src"]
 
-# Note: unresolved-import ignored due to ty bug with Windows path case sensitivity
-# See: https://github.com/astral-sh/ty/issues - GitHub vs github in path
-[tool.ty.rules]
+# unresolved-import stays on for the published packages. It is ignored only where
+# imports genuinely cannot resolve statically: the example project imports its own
+# runtime-path package, tests import fixture modules they create in tmp_path, and
+# scripts/py tools carry their own uv environments.
+[[tool.ty.overrides]]
+include = ["examples/**", "tests/**", "packages/spoc-formats/tests/**", "scripts/**"]
+
+[tool.ty.overrides.rules]
 unresolved-import = "ignore"
 
 [tool.pytest.ini_options]
