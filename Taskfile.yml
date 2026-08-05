@@ -225,53 +225,49 @@ tasks:
     cmds:
       - uv run python -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('src/spoc/__about__.py').read()).group(1))"
 
-  version:bump:patch:
-    desc: Bump patch version (0.0.X)
+  # One implementation, three entry points. The only thing that differs between
+  # patch, minor, and major is which segment increments, so that is the only
+  # thing the callers pass.
+  version:bump:
+    internal: true
+    env:
+      PART: "{{.PART}}"
     cmds:
       - |
         uv run python -c "
-        import re
+        import os, re
         path = 'src/spoc/__about__.py'
         content = open(path).read()
         match = re.search(r'__version__ = \"(\d+)\.(\d+)\.(\d+)\"', content)
-        major, minor, patch = int(match.group(1)), int(match.group(2)), int(match.group(3))
-        new_version = f'{major}.{minor}.{patch + 1}'
+        major, minor, patch = (int(n) for n in match.groups())
+        segments = {
+            'major': (major + 1, 0, 0),
+            'minor': (major, minor + 1, 0),
+            'patch': (major, minor, patch + 1),
+        }[os.environ['PART']]
+        new_version = '.'.join(str(n) for n in segments)
         new_content = re.sub(r'__version__ = \"[^\"]+\"', f'__version__ = \"{new_version}\"', content)
         open(path, 'w').write(new_content)
         print(f'Bumped version to {new_version}')
         "
+
+  version:bump:patch:
+    desc: Bump patch version (0.0.X)
+    cmds:
+      - task: version:bump
+        vars: { PART: patch }
 
   version:bump:minor:
     desc: Bump minor version (0.X.0)
     cmds:
-      - |
-        uv run python -c "
-        import re
-        path = 'src/spoc/__about__.py'
-        content = open(path).read()
-        match = re.search(r'__version__ = \"(\d+)\.(\d+)\.(\d+)\"', content)
-        major, minor, patch = int(match.group(1)), int(match.group(2)), int(match.group(3))
-        new_version = f'{major}.{minor + 1}.0'
-        new_content = re.sub(r'__version__ = \"[^\"]+\"', f'__version__ = \"{new_version}\"', content)
-        open(path, 'w').write(new_content)
-        print(f'Bumped version to {new_version}')
-        "
+      - task: version:bump
+        vars: { PART: minor }
 
   version:bump:major:
     desc: Bump major version (X.0.0)
     cmds:
-      - |
-        uv run python -c "
-        import re
-        path = 'src/spoc/__about__.py'
-        content = open(path).read()
-        match = re.search(r'__version__ = \"(\d+)\.(\d+)\.(\d+)\"', content)
-        major, minor, patch = int(match.group(1)), int(match.group(2)), int(match.group(3))
-        new_version = f'{major + 1}.0.0'
-        new_content = re.sub(r'__version__ = \"[^\"]+\"', f'__version__ = \"{new_version}\"', content)
-        open(path, 'w').write(new_content)
-        print(f'Bumped version to {new_version}')
-        "
+      - task: version:bump
+        vars: { PART: major }
 
   # Gates on the full suite first: pushing the tag triggers the PyPI publish, and a
   # yanked release costs more than a slow one. CHANGELOG.md ships with the bump so
