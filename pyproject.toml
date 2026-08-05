@@ -8,12 +8,13 @@ license-files = ["LICENSE"]
 authors = [
     { name = "hlop3z", email = "23062270+hlop3z@users.noreply.github.com" },
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 keywords = ["framework", "kernel", "registry", "modular-monolith", "plugins"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
@@ -64,7 +65,7 @@ only-include = ["src", "tests", "CHANGELOG.md"]
 # `include` is ruff's default list minus `*.md` — 0.16 began formatting Python inside
 # Markdown, which reflows the aligned trailing comments the docs use as annotations.
 [tool.ruff]
-target-version = "py313"
+target-version = "py312"
 include = [
     "*.py",
     "*.pyi",
@@ -81,7 +82,7 @@ select = [
     "E9",  # pycodestyle: runtime errors
     "F",   # pyflakes
     "I",   # isort
-    "UP",  # pyupgrade — this project is >=3.13; legacy typing spellings are defects
+    "UP",  # pyupgrade — this project is >=3.12; legacy typing spellings are defects
     "B",   # flake8-bugbear
     "SIM", # flake8-simplify
     "DTZ", # flake8-datetimez — naive datetimes are a correctness trap
