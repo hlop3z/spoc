@@ -49,16 +49,29 @@ preserved and duplicates keep first position.
 - **WHEN** the same configuration runs in `production` mode
 - **THEN** the effective app list is exactly `auth`
 
-### Requirement: Plugins are configuration
+### Requirement: Plugins are configured registrations
 
-Plugin references MUST be declared in the same declarative file, grouped by purpose,
-each reference resolvable to a loadable object. A plugin reference that cannot be
-resolved MUST fail start, naming the reference.
+Plugin references MUST be declared in the same declarative file, grouped by kind.
+Each group MUST name a kind the framework declares — configuration is a second way
+to populate the registry, never a second registry or a way to widen the closed kind
+set. Each loaded object MUST be registered in the component registry under the
+canonical grammar: the group as the kind, the reference's top-level package as the
+namespace, and the object name derived from the reference's attribute the same way
+discovery derives names. A plugin reference that cannot be resolved MUST fail
+start, naming the reference; a group naming an undeclared kind MUST fail start,
+naming the kind and the valid candidates.
 
-#### Scenario: Declared plugin loads
+#### Scenario: Declared plugin registers in the registry
 
-- **WHEN** the configuration declares a plugin group with one resolvable reference
-- **THEN** after start the loaded plugin object is available under that group
+- **WHEN** the configuration declares a plugin group naming a declared kind, with one
+  resolvable reference
+- **THEN** after start the loaded object is resolvable from the registry under
+  `group:package.attribute_name`, and enumerating that kind includes its record
+
+#### Scenario: Plugin group must name a declared kind
+
+- **WHEN** the configuration declares a plugin group that is not a declared kind
+- **THEN** start fails with an error naming the group and the declared kinds
 
 #### Scenario: Unresolvable plugin
 

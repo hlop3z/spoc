@@ -54,12 +54,14 @@ with no `if mode == ...` branching anywhere.
 ## Plugins
 
 `[spoc.plugins]` groups loadable references, each in the form
-`package.module.attribute`. They are loaded during `start()`; a reference
-that cannot be resolved fails start, naming the reference:
+`package.module.attribute`. Each group names a **declared kind**, and every
+loaded object registers in the same flat registry as discovered components —
+here, `hooks:demo.hook`. A reference that cannot be resolved — or a group
+that is not a declared kind — fails start, naming the offender:
 
 ```python
 framework.start(BASE_DIR)
-framework.plugins["hooks"]["demo.extras.hook"]   # the loaded object
+framework.resolve("hooks:demo.hook").object   # the loaded object
 ```
 
 ## Per-mode environment values

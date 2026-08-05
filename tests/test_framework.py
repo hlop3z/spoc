@@ -606,13 +606,14 @@ def test_unresolvable_plugin_fails_start(tmp_path):
         "plugapp",
         extra_toml='\n[spoc.plugins]\nhooks = ["no_such_module.attr"]\n',
     )
-    fw = Framework("models")
+    fw = Framework("models", KindSpec("hooks", required=False))
     with pytest.raises(AppNotFoundError, match="no_such_module"):
         fw.start(base)
     assert fw.started is False
 
 
-def test_declared_plugin_loads(tmp_path):
+def test_declared_plugin_registers_in_the_registry(tmp_path):
+    """A plugin is a configured registration, not a second lookup surface."""
     base = make_project(
         tmp_path,
         "plugok",
@@ -621,8 +622,35 @@ def test_declared_plugin_loads(tmp_path):
     (base / "apps" / "plugok" / "extras.py").write_text(
         "def hook():\n    return 'loaded'\n"
     )
-    fw = Framework("models").start(base)
-    assert fw.plugins["hooks"]["plugok.extras.hook"]() == "loaded"
+    fw = Framework("models", KindSpec("hooks", required=False)).start(base)
+    record = fw.resolve("hooks:plugok.hook")
+    assert record.object() == "loaded"
+    assert [c.identifier for c in fw.registry.by_kind("hooks")] == ["hooks:plugok.hook"]
+
+
+def test_plugin_group_must_name_a_declared_kind(tmp_path):
+    """The kind set is closed; a config file cannot widen it."""
+    base = make_project(
+        tmp_path,
+        "plugbad",
+        extra_toml='\n[spoc.plugins]\nhooks = ["plugbad.extras.hook"]\n',
+    )
+    fw = Framework("models")
+    with pytest.raises(UnknownKindError, match="hooks"):
+        fw.start(base)
+    assert fw.started is False
+
+
+def test_plugin_name_derives_from_the_attribute(tmp_path):
+    """PEP 8 attribute names yield the conventional segment, as discovery does."""
+    base = make_project(
+        tmp_path,
+        "plugcase",
+        extra_toml='\n[spoc.plugins]\nhooks = ["plugcase.extras.AuditHook"]\n',
+    )
+    (base / "apps" / "plugcase" / "extras.py").write_text("class AuditHook:\n    ...\n")
+    fw = Framework("models", KindSpec("hooks", required=False)).start(base)
+    assert fw.resolve("hooks:plugcase.audit_hook").name == "audit_hook"
 
 
 # ── Independence and removed API ──────────────────────────────────────────

@@ -83,7 +83,8 @@ and the framework stays inert, so the caller can fix the cause and retry.
 
 1. `apps/` is put on the import path
 2. `config/spoc.toml` is loaded — the only file the kernel reads
-3. Plugins are loaded from `[spoc.plugins]` (a bad reference fails start)
+3. Plugins are loaded from `[spoc.plugins]` and registered into the registry —
+   each group must name a declared kind, and a bad reference fails start
 4. Apps are collected via the mode cascade and their modules registered. A
    mode (or `[spoc.apps]` key) that names no known mode raises
    `ConfigurationError`. A module absent for a required kind raises
@@ -140,7 +141,6 @@ Hooks fire for every app's module of that kind — see
 framework.resolve("models:blog.post")    # one record, precise per-segment failures
 framework.registry                       # the flat store — enumerate, by_kind, by_namespace
 framework.installed_apps                 # the cascaded app list, after start
-framework.plugins                        # loaded plugin groups, after start
 framework.config.project                 # the [spoc] table
 framework.config.environment             # the mode's environment values
 ```

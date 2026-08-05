@@ -29,7 +29,6 @@ to the surfaces built on top.
 
 from __future__ import annotations
 
-from collections import OrderedDict
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
@@ -37,8 +36,15 @@ from pathlib import Path
 from typing import Any
 
 from .core.config import DEFAULT_MODE, load_environment, load_spoc_toml
-from .core.declaration import KindSpec, as_kind_spec, discover, registrar
+from .core.declaration import (
+    KindSpec,
+    as_kind_spec,
+    check_metadata,
+    discover,
+    registrar,
+)
 from .core.exceptions import ConfigurationError, SpocError, UnknownKindError
+from .core.identity import to_snake_case
 from .core.loader import KindHooks, LoadedModule, Loader
 from .core.paths import eject_apps, inject_apps
 from .core.registry import Component, Registry
@@ -90,7 +96,6 @@ class Framework:
         self._owns_apps_path = False
         self.base_dir: Path | None = None
         self.config: Config | None = None
-        self.plugins: dict[str, OrderedDict[str, Any]] = {}
         self.installed_apps: list[str] = []
 
     # ── Declaration surface ───────────────────────────────────────────────
@@ -145,7 +150,7 @@ class Framework:
             _, self._owns_apps_path = inject_apps(base_dir)
             self.base_dir = base_dir
             self.config = _build_config(base_dir, self.echo)
-            self.plugins = self._collect_plugins()
+            self._register_plugins(self.config.project)
             self._register_apps()
 
             for entry in self.loader.ordered():
@@ -186,7 +191,6 @@ class Framework:
             self._owns_apps_path = False
         self.registry = Registry(self.kinds)
         self.loader = Loader()
-        self.plugins = {}
         self.installed_apps = []
         self.config = None
         self.base_dir = None
@@ -207,16 +211,24 @@ class Framework:
             if c.namespace == namespace
         }
 
-    def _collect_plugins(self) -> dict[str, OrderedDict[str, Any]]:
-        assert self.config is not None
-        plugins = self.config.project.get("plugins", {}) or {}
-        collected: dict[str, OrderedDict[str, Any]] = {}
-        for group, references in plugins.items():
-            collected[group] = OrderedDict()
+    def _register_plugins(self, project: dict[str, Any]) -> None:
+        """Register config-declared references into the one flat registry.
+
+        A ``[spoc.plugins]`` group names a declared kind — configuration is a
+        second way to populate the registry, never a second registry. Identity
+        follows the same grammar as discovery: the reference's top package is
+        the namespace, and the attribute derives the object_name. A kind only
+        plugins populate is declared ``required=False`` so apps need not
+        provide a module for it.
+        """
+        for group, references in (project.get("plugins", {}) or {}).items():
+            spec = self.spec(group)  # an undeclared group raises UnknownKindError
             for uri in references:
-                if uri not in collected[group]:
-                    collected[group][uri] = self.loader.load_from_uri(uri)
-        return collected
+                obj = self.loader.load_from_uri(uri)
+                module_path, _, attr = uri.rpartition(".")
+                name = to_snake_case(attr)
+                check_metadata(spec, name, None)
+                self.registry.add(spec.name, module_path.split(".")[0], name, obj)
 
     @staticmethod
     def _collect_apps(mode: str, declared: dict[str, list[str]]) -> list[str]:

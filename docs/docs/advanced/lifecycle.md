@@ -68,7 +68,8 @@ def teardown():
 
 ## Full start order
 
-1. Plugins load from `[spoc.plugins]`
+1. Plugins load from `[spoc.plugins]` and register into the registry
+   (each group must name a declared kind)
 2. App modules import in dependency order. A module absent for a kind
    declared `required=False` is skipped; absent for a required kind it raises
    `MissingModuleError`. A module that exists but raises while importing is
