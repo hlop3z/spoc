@@ -18,7 +18,6 @@ from pathlib import Path
 import pytest
 
 from spoc import formats
-from spoc.core.exceptions import InvalidSegmentError
 from spoc.formats.core import READ, WRITE, Codec, FormatRegistry
 from spoc.formats.errors import (
     CollectionError,
@@ -204,6 +203,15 @@ def test_heterogeneous_rows_share_a_union_header():
     assert text == "a,b\n1,\n2,3\n"
 
 
+@pytest.mark.parametrize(
+    "value", [{"a": "1"}, "text", [{"a": "1"}, ["not", "a", "row"]]]
+)
+def test_non_tabular_values_are_refused_by_the_csv_writer(value):
+    """Only an array of objects has tabular meaning — anything else is refused."""
+    with pytest.raises(ValueError, match="array of objects"):
+        formats.dumps(value, "csv")
+
+
 # ── format-codecs: hierarchical markup ────────────────────────────────────
 
 ONE_BOOK = "<catalog><book id='1'/></catalog>"
@@ -300,16 +308,18 @@ def test_keys_derive_from_relative_location(tmp_path: Path):
 
 
 def test_key_segment_violating_the_grammar_is_refused(tmp_path: Path):
+    """A bad key stays inside the FormatError family, naming file and segment."""
     (tmp_path / "Posts.json").write_text("[]", encoding="utf-8")
-    with pytest.raises(InvalidSegmentError) as exc:
+    with pytest.raises(CollectionError) as exc:
         formats.collect(tmp_path)
-    assert "Posts" in str(exc.value)
+    message = str(exc.value)
+    assert "Posts" in message and "Posts.json" in message
 
 
 def test_dotted_filename_is_refused_rather_than_reinterpreted(tmp_path: Path):
     """`my.data.json` must not quietly become the two-segment key `my.data`."""
     (tmp_path / "my.data.json").write_text("[]", encoding="utf-8")
-    with pytest.raises(InvalidSegmentError):
+    with pytest.raises(CollectionError):
         formats.collect(tmp_path)
 
 

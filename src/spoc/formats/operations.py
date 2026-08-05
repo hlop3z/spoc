@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ..core.exceptions import InvalidSegmentError
 from ..core.identity import validate_segment
 from .core import READ, WRITE, FormatRegistry
 from .errors import (
@@ -119,7 +120,12 @@ def collect(
             skipped.append(str(source))
             continue
 
-        key = derive_key(base, source)
+        # Kept inside the FormatError family: a caller watching `except FormatError`
+        # must see every way a collection can fail, key grammar included.
+        try:
+            key = derive_key(base, source)
+        except InvalidSegmentError as exc:
+            raise CollectionError(str(source), str(exc)) from exc
         if key in origins:
             raise DuplicateEntryError(key, str(origins[key]), str(source))
 

@@ -62,6 +62,18 @@ def _csv_reader() -> DecodeFn:
 
 def _csv_writer() -> EncodeFn:
     def encode(value: list[dict[str, Any]]) -> str:
+        # CSVW minimal mode is the whole contract: anything but an array of
+        # objects has no tabular meaning, so refuse it before csv mangles it.
+        if not isinstance(value, list):
+            raise ValueError(
+                f"CSV encodes an array of objects, got {type(value).__name__}"
+            )
+        for index, row in enumerate(value):
+            if not isinstance(row, dict):
+                raise ValueError(
+                    "CSV encodes an array of objects, "
+                    f"but item {index} is {type(row).__name__}"
+                )
         if not value:
             return ""
         # The header is the union of every row's keys, first appearance wins —
