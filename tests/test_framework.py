@@ -212,6 +212,35 @@ def test_shutdown_resets_to_a_clean_boot(tmp_path):
         fw.resolve("models:alpha.post")
 
 
+def test_shutdown_keeps_an_import_path_it_did_not_add(tmp_path):
+    """Ejecting is ownership-gated: the entry belongs to whoever inserted it."""
+    base = make_project(tmp_path, "alpha")
+    entry = str(base / "apps")
+    sys.path.insert(0, entry)  # somebody else owns this one
+
+    fw = Framework("models")
+    fw.start(base)
+    fw.shutdown()
+
+    assert sys.path.count(entry) == 1
+
+
+def test_shutdown_does_not_strip_a_second_framework_still_running(tmp_path):
+    """Two frameworks on one project: the first to leave must not break the other."""
+    base = make_project(tmp_path, "alpha")
+    entry = str(base / "apps")
+
+    first = Framework("models").start(base)
+    second = Framework("models").start(base)  # finds the entry already present
+
+    second.shutdown()
+    assert entry in sys.path  # first still needs it
+    assert first.resolve("models:alpha.post")
+
+    first.shutdown()
+    assert entry not in sys.path
+
+
 def test_failed_start_leaves_the_framework_inert_and_retryable(tmp_path):
     """A failed boot must not strand half-booted state — fix the cause, start again."""
     base = make_project(tmp_path, "alpha")

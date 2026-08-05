@@ -29,7 +29,10 @@ All notable changes to this project are documented here. The format follows
 - **Lifecycle soundness.** A failed `start()` tears down the modules that did initialize
   and returns the framework to its inert pre-start state; `shutdown()` performs the same
   reset (fresh registry and loader, injected import path removed), so restarting on a
-  different project no longer resolves stale components or grows `sys.path`.
+  different project no longer resolves stale components or grows `sys.path`. Ejecting is
+  ownership-gated: `inject_apps` reports whether *it* inserted the entry, and only then
+  does shutdown remove it — a second framework, or a caller who put the path there
+  themselves, keeps it.
 - **Scaffolder.** `spoc init BadName` exits with code 1 and a message instead of an
   unhandled traceback; committing into an existing empty directory is atomic (the
   directory is swapped out, or the per-file fallback rolls back its files and created

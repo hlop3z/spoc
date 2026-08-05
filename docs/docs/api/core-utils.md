@@ -77,3 +77,10 @@ to defaults; a missing file loads as all defaults with a warning.
     options:
       show_root_heading: true
       show_source: false
+
+### eject_apps Function
+
+::: spoc.core.paths.eject_apps
+    options:
+      show_root_heading: true
+      show_source: false

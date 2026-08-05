@@ -87,6 +87,7 @@ class Framework:
         self.loader = Loader()
         self._ready_callbacks: list[Callable[[Registry], Any]] = []
         self._started = False
+        self._owns_apps_path = False
         self.base_dir: Path | None = None
         self.config: Config | None = None
         self.plugins: dict[str, OrderedDict[str, Any]] = {}
@@ -141,7 +142,7 @@ class Framework:
 
         base_dir = Path(base_dir)
         try:
-            inject_apps(base_dir)
+            _, self._owns_apps_path = inject_apps(base_dir)
             self.base_dir = base_dir
             self.config = _build_config(base_dir, self.echo)
             self.plugins = self._collect_plugins()
@@ -173,14 +174,16 @@ class Framework:
         if not self._started:
             return self
         self.loader.shutdown(self._hooks(), self._components_for)
-        assert self.base_dir is not None
-        self._reset(self.base_dir)
+        if self.base_dir is not None:
+            self._reset(self.base_dir)
         self._started = False
         return self
 
     def _reset(self, base_dir: Path) -> None:
         """Return every owned piece to its inert pre-start state."""
-        eject_apps(base_dir)
+        if self._owns_apps_path:
+            eject_apps(base_dir)
+            self._owns_apps_path = False
         self.registry = Registry(self.kinds)
         self.loader = Loader()
         self.plugins = {}
