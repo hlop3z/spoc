@@ -18,6 +18,9 @@ contract its components carry. No other public surface SHALL accept a kind-set
 declaration or any per-kind attribute, so a second, conflicting declaration point
 cannot exist and no kind attribute can be stated away from the kind it describes.
 
+Declaring the same kind more than once within one declaration MUST fail, naming the
+duplicated kind. A later declaration never silently replaces an earlier one.
+
 #### Scenario: Kinds are stated once
 
 - **WHEN** a framework is declared with kinds `models` and `views`
@@ -36,6 +39,13 @@ cannot exist and no kind attribute can be stated away from the kind it describes
   carry a stated metadata contract
 - **THEN** both attributes are read from that one declaration, with no parallel
   structure keyed by kind name holding either of them
+
+#### Scenario: Duplicate kind declaration is refused
+
+- **WHEN** a framework is declared naming the kind `models` twice, whatever the form of
+  either declaration
+- **THEN** construction fails with an error naming `models`, and no framework object is
+  produced
 
 ### Requirement: Each kind states whether its modules are required
 
@@ -89,6 +99,10 @@ The framework object MUST hand out a registration handle for any declared kind.
 Requesting a handle for an undeclared kind MUST fail immediately, naming the unknown
 kind and the declared set.
 
+Marking an object that cannot carry the mark MUST fail with a kernel error naming the
+object and the constraint it violates — never a raw language-level attribute failure
+that leaves the author to infer the rule.
+
 #### Scenario: Handle for a declared kind
 
 - **WHEN** the author requests a registration handle for `models`
@@ -100,6 +114,13 @@ kind and the declared set.
 - **WHEN** the author requests a handle for `controllers` and the declared set is
   `models, views`
 - **THEN** the request fails naming `controllers` and listing `models, views`
+
+#### Scenario: Unmarkable object is refused with the constraint named
+
+- **WHEN** a handle is applied to an object that cannot carry the registration mark
+  (for example, an instance of a class that forbids new attributes)
+- **THEN** the operation fails with a kernel error naming the object and stating the
+  constraint, not a raw attribute error
 
 ### Requirement: Handles need no wrapper code
 
