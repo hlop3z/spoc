@@ -7,48 +7,6 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-### Fixed
-
-- **Discovery ownership.** An instance or subclass of a decorated class inherits the
-  `__spoc__` marker but is no longer treated as a declaration — a module-level
-  `default_post = Post()` used to crash boot with a spurious `DuplicateComponentError`.
-  The registry now also enforces one-object-one-identifier directly: a decorated instance
-  imported into a second app keeps its first identity instead of registering twice. That
-  short-circuit still validates the kind and segments it was handed, so identity reuse is
-  not a way past the identifier grammar.
-- **Error taxonomy at the boundaries.** An app declared in `spoc.toml` whose package does
-  not exist raises `AppNotFoundError` instead of a raw `ModuleNotFoundError` (and
-  `required=False` no longer excuses it); a plugin module that exists but fails to import
-  propagates its own error instead of being misreported as absent; a malformed plugin
-  reference or missing attribute raises the new `UnresolvedReferenceError` — including the
-  empty-segment forms (`.attr`, `pkg..mod.attr`, `pkg.mod.`) that `importlib` answers with
-  its own `ValueError` or `TypeError`; `[spoc.apps]`
-  and `[spoc.plugins]` groups must be lists of strings (a bare string used to boot one app
-  per character); an unknown `mode` — or an app list stranded under a misspelled one —
-  fails start with `ConfigurationError` instead of silently installing nothing.
-- **Lifecycle soundness.** A failed `start()` tears down the modules that did initialize
-  and returns the framework to its inert pre-start state; `shutdown()` performs the same
-  reset (fresh registry and loader, injected import path removed), so restarting on a
-  different project no longer resolves stale components or grows `sys.path`. Ejecting is
-  ownership-gated: `inject_apps` reports whether *it* inserted the entry, and only then
-  does shutdown remove it — a second framework, or a caller who put the path there
-  themselves, keeps it.
-- **Scaffolder.** `spoc init BadName` exits with code 1 and a message instead of an
-  unhandled traceback; committing into an existing empty directory is atomic (the
-  directory is swapped out — and put back if the swap itself fails — or the per-file
-  fallback rolls back its files and created directories on failure); a template using
-  `$kind` outside a `per_kind` file is refused
-  at validation instead of crashing mid-render with a `KeyError`.
-- **CSV stays inside the JSON data model.** A row wider than the header is refused loudly
-  instead of decoding to a `None`-keyed dict that re-encoded as corrupted output; the
-  header is now the union of every row's keys (first appearance wins) instead of row 0's;
-  non-tabular values are refused with a message naming the shape.
-- **`collect()` failures stay in the `FormatError` family.** A file whose derived key
-  violates the identity grammar now raises `CollectionError` naming the file, so
-  `except FormatError` sees every way a collection can fail.
-- Error messages without a module name no longer carry a trailing space, and the
-  `spoc.formats.errors` docstring names `MissingDependencyError` correctly.
-
 ## [0.5.0] — 2026-08-04
 
 SPOC is rewritten around a single idea: **the kernel describes and never executes.** Every
@@ -89,8 +47,29 @@ more than they could possibly save. If you are on 0.3.x, read
   anatomy, resolution flow, and the kernel invariants.
 - **`CONTRIBUTING.md`**, a project canon under `.canon/`, and a CI workflow that runs the
   canonical validation suite and gates releases on it.
+- **`py.typed`** ships in the wheel, so downstream type checkers see the package's
+  annotations, and **`spoc.__version__`** is exported from the package root.
 
 ### Changed
+
+- **BREAKING — plugins register in the one flat registry.** `framework.plugins` — a second
+  lookup surface keyed by dotted URI — is gone. A `[spoc.plugins]` group now names a
+  *declared kind*, and each loaded reference registers as a component under the canonical
+  grammar (`hooks = ["demo.extras.hook"]` → `hooks:demo.hook`), resolvable and enumerable
+  like everything discovery finds. A group naming an undeclared kind fails start with
+  `UnknownKindError`: configuration populates the kind set, it never widens it. A kind
+  only plugins populate is declared `required=False`.
+- **`resolve()` succeeds in one dict hit.** The per-segment scans that make failures
+  precise now run only on the failure path; grouped reads (`by_kind`, `by_namespace`)
+  sort their own selection instead of re-sorting the whole store.
+- **An absent collection root fails loudly.** `collect()` on a path that does not exist
+  or is not a directory raises `CollectionError` naming it, instead of returning a
+  silently empty mapping a typo could hide in. An existing empty directory still
+  collects to an empty mapping.
+- **The never-overwrite guarantee moved into the sink.** `DirectorySink.commit()` itself
+  refuses a non-empty destination with `TargetNotEmptyError`; the `ProjectSink` port
+  gains `location()`, so the operation no longer reaches past the port for an attribute
+  it never declared.
 
 - **BREAKING — one identifier grammar.** Every object is addressed as
   `kind:namespace.object_name`, with each segment validated against `^[a-z][a-z0-9_]*$` at
@@ -153,6 +132,48 @@ more than they could possibly save. If you are on 0.3.x, read
 
 ### Fixed
 
+- **Discovery ownership.** An instance or subclass of a decorated class inherits the
+  `__spoc__` marker but is no longer treated as a declaration — a module-level
+  `default_post = Post()` used to crash boot with a spurious `DuplicateComponentError`.
+  The registry now also enforces one-object-one-identifier directly: a decorated instance
+  imported into a second app keeps its first identity instead of registering twice. That
+  short-circuit still validates the kind and segments it was handed, so identity reuse is
+  not a way past the identifier grammar.
+- **Error taxonomy at the boundaries.** An app declared in `spoc.toml` whose package does
+  not exist raises `AppNotFoundError` instead of a raw `ModuleNotFoundError` (and
+  `required=False` no longer excuses it); a plugin module that exists but fails to import
+  propagates its own error instead of being misreported as absent; a malformed plugin
+  reference or missing attribute raises the new `UnresolvedReferenceError` — including the
+  empty-segment forms (`.attr`, `pkg..mod.attr`, `pkg.mod.`) that `importlib` answers with
+  its own `ValueError` or `TypeError`; `[spoc.apps]`
+  and `[spoc.plugins]` groups must be lists of strings (a bare string used to boot one app
+  per character); an unknown `mode` — or an app list stranded under a misspelled one —
+  fails start with `ConfigurationError` instead of silently installing nothing.
+- **Lifecycle soundness.** A failed `start()` tears down the modules that did initialize
+  and returns the framework to its inert pre-start state; `shutdown()` performs the same
+  reset (fresh registry and loader, injected import path removed), so restarting on a
+  different project no longer resolves stale components or grows `sys.path`. Ejecting is
+  ownership-gated: `inject_apps` reports whether *it* inserted the entry, and only then
+  does shutdown remove it — a second framework, or a caller who put the path there
+  themselves, keeps it.
+- **Scaffolder.** `spoc init BadName` exits with code 1 and a message instead of an
+  unhandled traceback; committing into an existing empty directory is atomic (the
+  directory is swapped out — and put back if the swap itself fails — or the per-file
+  fallback rolls back its files and created directories on failure); a template using
+  `$kind` outside a `per_kind` file is refused
+  at validation instead of crashing mid-render with a `KeyError`.
+- **CSV stays inside the JSON data model.** A row wider than the header is refused loudly
+  instead of decoding to a `None`-keyed dict that re-encoded as corrupted output; the
+  header is now the union of every row's keys (first appearance wins) instead of row 0's;
+  non-tabular values are refused with a message naming the shape.
+- **`collect()` failures stay in the `FormatError` family.** A file whose derived key
+  violates the identity grammar now raises `CollectionError` naming the file, so
+  `except FormatError` sees every way a collection can fail.
+- **Packaging tells the truth.** The license is MIT everywhere — `__about__.py` had
+  claimed BSD-3-Clause against the repository's MIT `LICENSE` — and `pyproject.toml`
+  carries the SPDX expression, PyPI description, classifiers, keywords, and project
+  URLs. The sdist contains the package, its tests, and this changelog instead of the
+  built docs site and process artifacts (7.4 MB → under 100 KB).
 - Acronym boundaries are split correctly when deriving snake_case names.
 - Hook contract and loose-mode edge cases in the core.
 - `default.toml` env fallback now loads regardless of the echo setting.
