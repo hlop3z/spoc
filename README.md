@@ -22,22 +22,34 @@ describes; it never executes.
 
 ## Features
 
-- **App discovery** — Django-style apps, selected per mode
-  (`development` → `staging` → `production` cascade) via `spoc.toml`
+- **App discovery** — Django-style apps declared by dotted module path and
+  imported through the normal import system; the kernel never touches
+  `sys.path` and never writes to disk
 - **Dependency-ordered loading** — modules initialize in topological order,
-  tear down in reverse
+  tear down in reverse; sync and async lifecycles (`start`/`astart`), with
+  coroutine hooks awaited and refused loudly by the sync path
+- **Declarable modes** — the `development` → `staging` → `production` cascade
+  is the default, and `[spoc.modes]` extends it (`test = ["test",
+  "production"]`) without restating the triple
 - **One flat registry** — typed records with `kind` / `namespace` / `name`
   facets; grouped views are derived, never stored
 - **Conventional identity** — PEP 8 class names derive their snake_case
   identifier automatically; stated names are verbatim and validated against
-  `^[a-z][a-z0-9_]*$`, and lookups are always exact
+  `^[a-z][a-z0-9_]*$`, lookups are always exact, and re-registering an object
+  under a different identity raises instead of substituting
+- **A stated concurrency contract** — registration is atomic, transitions are
+  serialized with one winner, post-boot reads need no coordination
 - **Precise resolution** — failures name the failing segment and the valid
   candidates; a typo never falls through to `None`
 - **Zero runtime dependencies** — `dependencies = []` is an invariant
 
+Structured-data loading lives in its own distribution,
+[`spoc-formats`](packages/spoc-formats) (`import spoc_formats`) — same
+repository, and neither package imports the other.
+
 ## Installation
 
-**Requires Python 3.13+**
+**Requires Python 3.12+**
 
 ```bash
 pip install spoc
@@ -68,6 +80,7 @@ class Post:                                # apps/blog/models.py → models:blog
     ...
 
 framework.start(Path(__file__).parent)     # construction is inert; start boots
+# async surfaces: await framework.astart(...) awaits coroutine hooks
 
 record = framework.resolve("models:blog.post")
 print(record.identifier, record.object)

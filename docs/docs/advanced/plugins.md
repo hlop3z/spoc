@@ -24,14 +24,17 @@ framework = spoc.Framework(
 ```toml
 # config/spoc.toml
 [spoc.plugins]
-middleware = ["demo.extras.middleware", "auth.extras.audit"]
-hooks      = ["demo.extras.hook"]
+middleware = ["extras.middleware", "auth.extras.audit"]
+hooks      = ["extras.hook"]
 ```
 
-References resolve against the import path — apps in `apps/` work, as does
-anything else importable. A group that is not a declared kind fails start
-with `UnknownKindError`: configuration populates the kind set, it never
-widens it.
+A reference resolves through Python's normal import system and must be
+importable exactly as written — a top-level module of the project
+(`extras.middleware`), an installed package (`auth.extras.audit`), or a
+module inside an app (`apps.demo.extras.middleware` — whose namespace is
+then `apps`, the top-level package). A group that is not a declared kind
+fails start with `UnknownKindError`: configuration populates the kind set,
+it never widens it.
 
 ## Identity
 
@@ -41,7 +44,7 @@ attribute derives the object name (PEP 8 names become snake_case, exactly as
 class names do under a decorator):
 
 ```
-hooks = ["demo.extras.hook"]        →  hooks:demo.hook
+hooks = ["extras.hook"]             →  hooks:extras.hook
 middleware = ["auth.extras.Audit"]  →  middleware:auth.audit
 ```
 
@@ -54,7 +57,7 @@ reference — never a silent skip:
 ```python
 framework.start(BASE_DIR)
 
-framework.resolve("hooks:demo.hook").object       # the loaded object, unexecuted
+framework.resolve("hooks:extras.hook").object     # the loaded object, unexecuted
 framework.registry.by_kind("middleware")          # enumerate a whole group
 ```
 

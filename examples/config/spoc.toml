@@ -1,15 +1,18 @@
 # Application Configuration — the only file the kernel reads.
 [spoc]
-mode = "development" # options: development, staging, production
+mode = "development" # the default mode set; extend it under [spoc.modes]
 debug = true
 
-# Installed Apps by Mode (development cascades staging and production in)
+# Installed apps by mode, each a dotted module path imported exactly as
+# written (development cascades staging and production in).
 [spoc.apps]
-production = ["auth"]
-staging = ["another"]
-development = ["demo", "other"]
+production = ["apps.auth"]
+staging = ["apps.another"]
+development = ["apps.demo", "apps.other"]
 
-# Additional Components (Plugins and Hooks)
+# Additional components (plugins and hooks), each a resolvable reference.
+# The reference's top-level package is the namespace: extras.middleware
+# registers as middleware:extras.middleware.
 [spoc.plugins]
-middleware = ["demo.extras.middleware"]
-hooks = ["demo.extras.hook"]
+middleware = ["extras.middleware"]
+hooks = ["extras.hook"]

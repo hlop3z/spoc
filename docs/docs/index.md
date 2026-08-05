@@ -17,8 +17,10 @@ lookup.
 
 ## What SPOC does
 
-- **App discovery** — Django-style apps in an `apps/` directory, selected per
-  mode (`development` → `staging` → `production` cascade) via `spoc.toml`
+- **App discovery** — apps declared as dotted module paths in `spoc.toml` and
+  imported through Python's normal import system, selected per mode (the
+  default `development` → `staging` → `production` cascade, extensible via
+  `[spoc.modes]`)
 - **Dependency-ordered loading** — modules load and initialize in topological
   order; teardown runs in reverse
 - **One flat registry** — every component is a typed record with `kind`,
@@ -29,7 +31,8 @@ lookup.
 - **Precise resolution** — `framework.resolve("models:blog.post")` fails per
   segment, naming what didn't resolve and the valid candidates
 - **Lifecycle phases** — `on_ready` finalize after discovery, per-kind
-  startup/shutdown hooks, module `initialize`/`teardown`
+  startup/shutdown hooks, module `initialize`/`teardown` — sync and async
+  entry points (`start`/`astart`, `shutdown`/`ashutdown`)
 - **One config file** — `spoc.toml` is the only file the kernel reads;
   your `settings.py` stays yours
 

@@ -4,17 +4,17 @@ This guide will walk you through installing SPOC on your system.
 
 ## Prerequisites
 
-SPOC requires **Python 3.13 or higher**. Before installing, ensure you have a compatible Python version:
+SPOC requires **Python 3.12 or higher**. Before installing, ensure you have a compatible Python version:
 
 <!-- termynal -->
 
 ```bash
 $ python --version
-Python 3.13.0
+Python 3.12.0
 ```
 
 !!! info "Python Version"
-    SPOC is built to leverage the latest Python features and requires Python >= 3.13. If you need to upgrade Python, visit [python.org](https://www.python.org/downloads/).
+    SPOC is built to leverage modern Python features and requires Python >= 3.12. If you need to upgrade Python, visit [python.org](https://www.python.org/downloads/).
 
 ## Installation Methods
 
@@ -60,9 +60,10 @@ $ uvx spoc init myproject
 Created /path/to/myproject
   config/spoc.toml
   framework.py
+  apps/__init__.py
   apps/core/__init__.py
-  main.py
   apps/core/models.py
+  main.py
 ```
 
 Nothing is added to your current environment and there is no virtual environment to
@@ -153,7 +154,7 @@ After installation, verify that SPOC is correctly installed by importing it in P
 
 ```python
 $ python
-Python 3.13.0 (main, Oct  7 2024, 10:00:00)
+Python 3.12.0 (main, Oct  7 2024, 10:00:00)
 >>> from spoc.__about__ import __version__
 >>> print(__version__)
 0.4.0
@@ -184,10 +185,10 @@ Now that you have SPOC installed, you can:
 If you encounter a version error:
 
 ```
-ERROR: Package 'spoc' requires a different Python: 3.12.0 not in '>=3.13'
+ERROR: Package 'spoc' requires a different Python: 3.11.0 not in '>=3.12'
 ```
 
-You need to upgrade to Python 3.13 or higher. Check your Python version with `python --version` and install the required version.
+You need to upgrade to Python 3.12 or higher. Check your Python version with `python --version` and install the required version.
 
 ### Import Errors
 
@@ -235,7 +236,7 @@ Successfully installed spoc
 
 ```bash
 $ uv venv
-Using Python 3.13.0
+Using Python 3.12.0
 Creating virtual environment at: .venv
 Activate with: source .venv/bin/activate
 $ source .venv/bin/activate  # On Windows: .venv\Scripts\activate

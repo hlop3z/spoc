@@ -71,34 +71,53 @@ canonical identifier.
 framework.start(BASE_DIR)     # boots the project — the only step with side effects
 framework.started             # True after a successful start
 framework.shutdown()          # reverse-order teardown; no-op if never started
+
+await framework.astart(BASE_DIR)   # the same boot, awaiting async hooks
+await framework.ashutdown()        # the same teardown, awaiting async hooks
 ```
 
-`shutdown()` returns the framework to its inert pre-start state — empty
-registry, no loaded modules, the injected import path removed — so a later
-`start()` on the same or a different project is a clean boot. A *failed*
-`start()` does the same on its way out: modules that came up are torn down
-and the framework stays inert, so the caller can fix the cause and retry.
+`shutdown()` resets everything the kernel owns — registry, loader
+bookkeeping, configuration. Python's module cache and module-level state
+persist: module-level code runs at most once per process, and a second
+`start()` re-runs discovery against the cached modules. A *failed* `start()`
+resets the same way on its way out: modules that came up are torn down and
+the framework stays inert, so the caller can fix the cause and retry.
 
 `start(base_dir)` runs, in order:
 
-1. `apps/` is put on the import path
-2. `config/spoc.toml` is loaded — the only file the kernel reads
-3. Plugins are loaded from `[spoc.plugins]` and registered into the registry —
+1. `config/spoc.toml` (or `spoc.toml`) is located under `base_dir` and
+   loaded — the only file the kernel reads. `base_dir` serves configuration
+   only: it also locates the `.env` directories, and nothing else. The kernel
+   never mutates `sys.path` and never creates directories
+2. Plugins are loaded from `[spoc.plugins]` and registered into the registry —
    each group must name a declared kind, and a bad reference fails start
-4. Apps are collected via the mode cascade and their modules registered. A
-   mode (or `[spoc.apps]` key) that names no known mode raises
-   `ConfigurationError`. A module absent for a required kind raises
-   `MissingModuleError`; absent for an optional one it is skipped. An app
-   package that does not exist at all raises `AppNotFoundError`, whatever the
-   optionality. A module that exists but fails to import is an error either way
-5. **Components are discovered into the registry** — loudly: a declared
+3. Apps are collected via the mode cascade and imported through Python's
+   normal import system, exactly as declared in `[spoc.apps]`. The active
+   mode, every `[spoc.apps]` key, and every cascade entry must name a mode in
+   the effective set (the default triple merged with `[spoc.modes]`) —
+   a violation raises `ConfigurationError` naming the valid modes. A module
+   absent for a required kind raises `MissingModuleError`; absent for an
+   optional one it is skipped. An app path that cannot be imported raises
+   `AppNotFoundError` naming the declared path, whatever the optionality. A
+   module that exists but fails to import is an error either way
+4. **Components are discovered into the registry** — loudly: a declared
    component that cannot be registered (kind mismatch, invalid segment,
    duplicate identifier, metadata departing from its kind's contract) fails
    start with a precise error
-6. **`on_ready` callbacks fire** with the completed registry
-7. Modules initialize in dependency order, firing per-kind startup hooks
+5. **`on_ready` callbacks fire** with the completed registry
+6. Modules initialize in dependency order, firing per-kind startup hooks
 
-Starting an already-started framework raises `SpocError`.
+`astart(base_dir)` and `ashutdown()` run the identical sequence and
+additionally **await** any coroutine hooks — `KindSpec` startup/shutdown
+hooks and module `initialize()`/`teardown()` may be coroutine functions. The
+sync path refuses a coroutine hook loudly with `SpocError` naming it and
+pointing at `astart()`/`ashutdown()` — it never skips or half-runs one.
+
+Starting an already-started framework raises `SpocError`. `start` and
+`shutdown` are serialized: racing starts produce exactly one winner, and the
+losers get the already-started error. Decorating and marking objects is
+thread-safe, registry registrations are atomic and lose nothing under
+concurrency, and reads after a completed start need no coordination.
 
 ## on_ready — the finalize phase
 
@@ -140,7 +159,7 @@ Hooks fire for every app's module of that kind — see
 ```python
 framework.resolve("models:blog.post")    # one record, precise per-segment failures
 framework.registry                       # the flat store — enumerate, by_kind, by_namespace
-framework.installed_apps                 # the cascaded app list, after start
+framework.installed_apps                 # the cascaded app paths, after start
 framework.config.project                 # the [spoc] table
 framework.config.environment             # the mode's environment values
 ```

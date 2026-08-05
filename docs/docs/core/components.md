@@ -13,7 +13,7 @@ kind:namespace.object_name
 | Segment | Comes from | Example |
 | --- | --- | --- |
 | `kind` | the module file the object lives in (`models.py` → `models`) | `models` |
-| `namespace` | the app package name | `blog` |
+| `namespace` | the final segment of the declared app path (`apps.blog` → `blog`) | `blog` |
 | `object_name` | the declared name | `post` |
 
 Every segment must match `^[a-z][a-z0-9_]*$` (lowercase snake_case). There
@@ -113,18 +113,22 @@ Discovery happens at framework startup: objects declared in
 error**, never a silent drop:
 
 ```python
-# in blog/models.py
+# in apps/blog/models.py
 @view                             # ComponentKindMismatchError at start:
 def list_posts():                 # declared 'views', discovered in 'models'
     ...
 ```
 
 Objects *imported* into a module register where they are **defined**, not
-where they are imported — `from blog.models import post` in another module
-does not re-register `post`.
+where they are imported — `from apps.blog.models import post` in another
+app does not re-register `post`: an import is not a second declaration, and
+the object keeps its first identity.
 
 Two objects under the same identifier raise `DuplicateComponentError` at
 startup, naming the identifier and the already-registered object.
+Registering an already-registered object under a *different* identity raises
+`IdentityDivergenceError` naming both identifiers; re-registering it under
+the *same* identity is idempotent.
 
 ## The registry record
 

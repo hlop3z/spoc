@@ -13,7 +13,7 @@ python main.py
 
 ```
 Ready: 2 components registered
-Installed apps: ['core']
+Installed apps: ['apps.core']
  - models:core.example
  - views:core.example
 ```
@@ -46,6 +46,7 @@ kind, which is quicker to copy than to scaffold.
 ```
 myproject/
 ├── apps/
+│   ├── __init__.py          # apps/ is a package
 │   └── blog/
 │       ├── __init__.py
 │       └── models.py        # objects here are kind "models"
@@ -56,7 +57,13 @@ myproject/
 ```
 
 Layout **is** taxonomy: objects declared in `<app>/models.py` are components
-of kind `models`, and the app directory name is the namespace.
+of kind `models`, and the final segment of the declared app path is the
+namespace — `apps.blog` declares under `blog`.
+
+Apps are imported through Python's normal import system, exactly as declared.
+The kernel never mutates `sys.path` and never creates directories; running
+`main.py` makes its directory importable, which is all the `apps/` package
+needs.
 
 ## 1. Declare the framework
 
@@ -83,8 +90,12 @@ ready-made decorator; asking for an undeclared kind raises
 mode = "development"
 
 [spoc.apps]
-development = ["blog"]
+development = ["apps.blog"]
 ```
+
+Each entry is a dotted module path, imported exactly as written. An app path
+that cannot be imported fails start with `AppNotFoundError` naming the
+declared path.
 
 Every key is optional — absent keys use defaults. No `settings.py` is
 needed; if you have one, it is yours and SPOC never reads it.
@@ -156,8 +167,11 @@ framework.registry.by_namespace("blog")
 framework.shutdown()
 ```
 
-Construction is inert — nothing happens until `start(base_dir)`. Starting
-twice raises; `shutdown()` before `start()` is a harmless no-op.
+Construction is inert — nothing happens until `start(base_dir)`. `base_dir`
+locates configuration only: `config/spoc.toml` (or `spoc.toml`) and the
+`.env` directories. Starting twice raises; `shutdown()` before `start()` is a
+harmless no-op. In an async application, `astart(base_dir)` and `ashutdown()`
+mirror the pair.
 
 ## Precise failures
 
@@ -209,7 +223,7 @@ Then register it in `config/spoc.toml`:
 
 ```toml
 [spoc.apps]
-production = ["core", "billing"]
+production = ["apps.core", "apps.billing"]
 ```
 
 That is the whole operation. Anything a generator could do here you can do in

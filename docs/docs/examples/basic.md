@@ -9,6 +9,7 @@ registry.
 ```
 examples/
 ├── apps/
+│   ├── __init__.py                      # apps/ is a package
 │   ├── auth/       models.py            (production app)
 │   ├── another/    models.py, views.py  (staging app)
 │   ├── other/      models.py, views.py  (development app)
@@ -20,6 +21,16 @@ examples/
 │   └── framework.py     # the whole framework definition
 ├── main.py
 └── http_app.py          # routes generated from the registry
+```
+
+`config/spoc.toml` declares the apps as dotted module paths, imported
+exactly as written — the namespace is the final segment:
+
+```toml
+[spoc.apps]
+production  = ["apps.auth"]
+staging     = ["apps.another"]
+development = ["apps.demo", "apps.other"]
 ```
 
 ## The framework definition
@@ -89,8 +100,8 @@ Output:
 
 ```
 Ready: 7 components registered
-Installed apps: ['demo', 'other', 'another', 'auth']
-models:auth.user_account -> <class 'auth.models.UserAccount'>
+Installed apps: ['apps.demo', 'apps.other', 'apps.another', 'apps.auth']
+models:auth.user_account -> <class 'apps.auth.models.UserAccount'>
  - models:auth.role
  - models:auth.user_account
  - models:demo.comment_thread

@@ -5,7 +5,7 @@ none of it is restated here.
 
 ## Setup
 
-SPOC requires **Python 3.13+** and uses [uv](https://docs.astral.sh/uv/).
+SPOC requires **Python 3.12+** and uses [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync --all-groups

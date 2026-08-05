@@ -57,7 +57,7 @@ practical consequence is ordering: a hook function must be defined before the
 Any app module may define `initialize` and `teardown`:
 
 ```python
-# blog/models.py
+# apps/blog/models.py
 
 def initialize():
     """Runs during startup, after this module's dependencies."""
@@ -65,6 +65,30 @@ def initialize():
 def teardown():
     """Runs during shutdown, before this module's dependencies."""
 ```
+
+## Async lifecycle
+
+`astart(base_dir)` and `ashutdown()` mirror `start()`/`shutdown()` — the
+same sequence, the same guarantees. `KindSpec` `on_startup`/`on_shutdown`
+hooks and module `initialize()`/`teardown()` may be coroutine functions; the
+async path awaits them:
+
+```python
+# apps/blog/models.py
+
+async def initialize():
+    """Awaited by astart(), after this module's dependencies."""
+```
+
+```python
+await framework.astart(BASE_DIR)
+await framework.ashutdown()
+```
+
+The sync path refuses a coroutine hook or module function **loudly**: it
+raises `SpocError` naming the offender and pointing at
+`astart()`/`ashutdown()`. It never skips or half-runs one. Sync hooks work
+on either path.
 
 ## Full start order
 
@@ -76,14 +100,25 @@ def teardown():
    always an error, whatever its kind's optionality
 3. Component discovery — every module's declared components register into
    the registry; any failure (kind mismatch, invalid segment, duplicate,
-   metadata that departs from its kind's contract) aborts start **before**
-   any initialization side effects run
+   identity divergence, metadata that departs from its kind's contract)
+   aborts start **before** any initialization side effects run
 4. `on_ready` callbacks fire with the completed registry
 5. For each module in dependency order: startup hooks fire, then the
    module's `initialize()`
 6. On `shutdown()`: for each module in reverse order, shutdown hooks fire,
-   then the module's `teardown()` — then the framework resets to its inert
-   pre-start state, so a later `start()` is a clean boot
+   then the module's `teardown()` — then the framework resets everything the
+   kernel owns: registry, loader bookkeeping, config. Python's module cache
+   and module-level state persist — module-level code runs at most once per
+   process, and a second `start()` re-runs discovery against the cached
+   modules
+
+## Concurrency
+
+Decorating and marking objects is thread-safe. `start()` and `shutdown()`
+are serialized — racing starts produce exactly one winner, and the losers
+get the already-started error. Registry registrations are atomic and lose
+nothing under concurrency, and reads after a completed start need no
+coordination.
 
 ## Errors
 

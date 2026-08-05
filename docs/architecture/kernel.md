@@ -39,12 +39,12 @@ flowchart TB
 
         subgraph adapters ["adapters — touch the outside world"]
             direction LR
-            loader["loader<br/>import · dep order · lifecycle<br/><i>kind-blind</i>"]
-            config["config<br/>spoc.toml only · mode cascade"]
+            loader["loader<br/>import · dep order · lifecycle (sync + async)<br/><i>kind-blind</i>"]
+            config["config<br/>spoc.toml only · declarable mode cascade"]
         end
     end
 
-    subgraph apps ["Apps — the domain (apps/ directory)"]
+    subgraph apps ["Apps — the domain, declared by dotted path (apps.blog)"]
         direction LR
         blog["blog/<br/>models.py · views.py"]
         shop["shop/<br/>models.py · views.py"]
@@ -101,7 +101,7 @@ flowchart LR
 flowchart LR
     id["models : blog . post"]
     kind["kind<br/>= module file name<br/>(closed set, declared on Framework)"]
-    ns["namespace<br/>= app package name"]
+    ns["namespace<br/>= final segment of the app path"]
     name["object_name<br/>= declared name"]
 
     id --- kind
@@ -171,20 +171,18 @@ that would break new projects fails here rather than reaching users.
 
 ## The data surface
 
-`spoc.formats` is the second sidecar, on the same contract as the scaffolder: nothing in the
-kernel imports it, `start()` never calls it, and removing it changes nothing at runtime. It
-exists for the *project's* own data — fixtures, tables, per-app settings — never for the
-kernel's configuration, which stays `spoc.toml` through stdlib `tomllib`.
-
-Note the arrow directions. The one edge crossing into the kernel is `formats → identity`,
-which is the dependency pointing *inward* exactly as the rule requires: the collection key
-grammar is the kernel's grammar, not a second one. No arrow runs the other way.
+`spoc-formats` is its **own distribution** (`packages/spoc-formats`, import name
+`spoc_formats`) sharing this repository as a uv workspace member. Neither package imports the
+other — there is no edge between them in either direction. It exists for the *project's* own
+data — fixtures, tables, per-app settings — never for the kernel's configuration, which stays
+`spoc.toml` through stdlib `tomllib`. The collection-key grammar restates the kernel's segment
+convention locally: the two distributions share a convention, never code.
 
 ```mermaid
 flowchart TB
     project["Project code<br/><i>calls it directly — not a lifecycle hook</i>"]
 
-    subgraph formats ["spoc.formats — sidecar, imports resolve lazily"]
+    subgraph formats ["spoc_formats — its own distribution, imports resolve lazily"]
         direction TB
 
         subgraph fcore ["core — pure, no I/O, stdlib only"]
@@ -214,11 +212,10 @@ flowchart TB
     files --> ops
     ops --> ir
     access --> ir
-    formats -- "validate_segment<br/><i>one grammar, pointing inward</i>" --> identity
 ```
 
 The dotted edges are the laziness: a codec's dependency is imported the first time that
-*direction* of that *format* is used, so importing `spoc.formats` on a bare install pulls in
+*direction* of that *format* is used, so importing `spoc_formats` on a bare install pulls in
 nothing, and a missing extra fails naming itself rather than as an `ImportError`.
 
 Reading and querying are separate boxes on purpose. Addressing is split by failure semantics —
@@ -230,10 +227,9 @@ never relaxed into each other.
 1. **Zero runtime dependencies** — anything needing a dependency is, by
    definition, not kernel. `dependencies` is empty, so installing spoc acquires
    nothing, and this holds for the shipped scaffolder too: every build-vs-adopt
-   decision behind it landed on the standard library. The data sidecar does
-   adopt packages, but every one is quarantined behind an extra — they appear in
-   the wheel only as conditional `Requires-Dist ... ; extra == "…"` entries that
-   a bare install never resolves.
+   decision behind it landed on the standard library. The `spoc-formats`
+   distribution adopts packages, but every one is quarantined behind one of
+   *its* extras — the kernel distribution has no extras at all.
 2. **Describes, never executes** — the kernel calls no user code beyond
    lifecycle hooks; resolution is a pure lookup.
 3. **One registry, one grammar** — all views are derived from the flat
@@ -249,3 +245,11 @@ never relaxed into each other.
 7. **One metadata channel** — a record carries the metadata its kind declares
    and nothing else. A kind stating no contract accepts no metadata, so there is
    no untyped escape hatch by default.
+8. **Boot leaves the process alone** — start mutates neither `sys.path` nor the
+   filesystem; apps import through the normal import system under their declared
+   dotted paths, and the only global a boot populates is Python's own module
+   cache (which is why restart re-runs discovery, never module-level code).
+9. **A stated concurrency contract** — registration is atomic under one lock,
+   lifecycle transitions are serialized with exactly one winner, and reads after
+   a completed start need no coordination. One object, one identity: divergent
+   re-registration raises.

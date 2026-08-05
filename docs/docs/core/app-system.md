@@ -1,15 +1,17 @@
 # App System
 
-SPOC organizes code into **apps**: self-contained packages in an `apps/`
-directory, discovered and loaded by the framework. The app is also the unit
-of identity — its package name is the `namespace` segment of every component
-it declares.
+SPOC organizes code into **apps**: self-contained Python packages declared
+as dotted module paths in `[spoc.apps]` and imported through Python's normal
+import system, exactly as written. The app is also the unit of identity —
+the final segment of its declared path is the `namespace` segment of every
+component it declares: `apps.blog` declares under `blog`.
 
 ## Layout
 
 ```
 myproject/
-├── apps/
+├── apps/                  # a package — has __init__.py
+│   ├── __init__.py
 │   ├── blog/
 │   │   ├── __init__.py
 │   │   ├── models.py      # kind "models"
@@ -18,22 +20,27 @@ myproject/
 │       ├── __init__.py
 │       ├── models.py
 │       └── views.py
-└── config/
-    └── spoc.toml
+├── config/
+│   └── spoc.toml
+└── main.py
 ```
 
-`start(base_dir)` puts `apps/` on the import path, so apps import as
-top-level packages: `blog.models`, `shop.views`.
+The kernel never mutates `sys.path` and never creates directories. Running
+the entry point (`python main.py`) makes its directory importable, which is
+all the `apps/` package needs — `apps.blog` and `apps.shop` import like any
+other package. An app path that cannot be imported fails start with
+`AppNotFoundError` naming the declared path.
 
 The module files each app must provide are the framework's declared kinds —
 `spoc.Framework("models", "views")` means every app has `models.py` and
-`views.py`. In `strict` mode a missing module file is a startup error; in
-`loose` mode it is skipped.
+`views.py`. A missing module for a required kind is a startup error; for a
+kind declared `required=False` it is skipped.
 
 !!! note "Namespace rules"
-    The app directory name becomes an identifier segment, so it must be
-    lowercase snake_case (`^[a-z][a-z0-9_]*$`). An app named `MyApp` fails
-    at startup with `InvalidSegmentError`.
+    The final segment of the declared app path becomes an identifier
+    segment, so it must be lowercase snake_case (`^[a-z][a-z0-9_]*$`). An
+    app declared as `apps.MyApp` fails at startup with
+    `InvalidSegmentError`.
 
 ## Selecting apps
 
@@ -44,18 +51,23 @@ Apps are declared per mode in `[spoc.apps]` — the only source:
 mode = "development"
 
 [spoc.apps]
-production  = ["auth"]
-staging     = ["reports"]
-development = ["sandbox"]
+production  = ["apps.auth"]
+staging     = ["apps.reports"]
+development = ["apps.sandbox"]
 ```
 
 | mode | apps loaded |
 | --- | --- |
-| `production` | auth |
-| `staging` | reports, auth |
-| `development` | sandbox, reports, auth |
+| `production` | apps.auth |
+| `staging` | apps.reports, apps.auth |
+| `development` | apps.sandbox, apps.reports, apps.auth |
 
-Order is preserved and duplicates are dropped.
+Order is preserved and duplicates are dropped. Identifiers keep the short
+namespace — `apps.auth`'s models register as `models:auth.*`.
+
+The cascade above is the default triple; `[spoc.modes]` declares further
+modes that merge over it — see
+[Configuration](../getting-started/configuration.md#declaring-modes).
 
 ## Mode cascade as adapter selection
 
@@ -64,8 +76,8 @@ implementations as *different apps* makes the cascade select adapters:
 
 ```toml
 [spoc.apps]
-production  = ["comfyui_engine"]    # the real thing
-development = ["fake_engine"]       # a fake for local work
+production  = ["apps.comfyui_engine"]    # the real thing
+development = ["apps.fake_engine"]       # a fake for local work
 ```
 
 Both apps declare components under their own namespace; surfaces resolve

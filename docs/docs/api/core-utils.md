@@ -1,7 +1,7 @@
 # Core Utilities API Reference
 
-This page documents SPOC's core utility modules: exceptions, the configuration
-adapter, and path injection. (Dependency ordering uses the standard library's
+This page documents SPOC's core utility modules: exceptions and the
+configuration adapter. (Dependency ordering uses the standard library's
 `graphlib` — there is no SPOC-specific graph API.)
 
 ## Exceptions
@@ -65,22 +65,6 @@ to defaults; a missing file loads as all defaults with a warning.
       show_source: false
 
 ::: spoc.core.config.validate_spoc_config
-    options:
-      show_root_heading: true
-      show_source: false
-
-## Path Injection
-
-### inject_apps Function
-
-::: spoc.core.paths.inject_apps
-    options:
-      show_root_heading: true
-      show_source: false
-
-### eject_apps Function
-
-::: spoc.core.paths.eject_apps
     options:
       show_root_heading: true
       show_source: false

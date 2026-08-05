@@ -26,6 +26,21 @@ more than they could possibly save. If you are on 0.3.x, read
 
 ### Added
 
+- **An asynchronous lifecycle** — `astart()`/`ashutdown()` mirror `start()`/`shutdown()`
+  and await coroutine kind hooks and module `initialize`/`teardown`. The synchronous path
+  refuses a coroutine loudly, naming it and pointing at the async path — it never skips
+  or half-runs one. Stdlib `asyncio` only; `dependencies = []` holds.
+- **A stated, tested concurrency contract.** Registration is atomic under one lock and
+  loses nothing; racing duplicate identifiers and racing starts each have exactly one
+  winner and a loud loser; reads after a completed start need no coordination. Pinned by
+  `tests/test_concurrency.py`.
+- **Declarable modes.** `[spoc.modes]` maps a mode to its cascade
+  (`test = ["test", "production"]`) and merges over the default
+  development → staging → production triple, so adding a mode never restates it. The
+  active mode, every `[spoc.apps]` key, and every cascade entry must name a mode in the
+  effective set.
+- **`Registry.identifier_of(obj)`** — the canonical identifier an object is registered
+  under, or `None`.
 - **`spoc init` — a project scaffolder**, shipped as the `spoc` console entry point. It
   generates a runnable project: config, framework declaration, one app with a module per
   declared kind, and an entry point, with all names agreeing by construction instead of by the
@@ -52,6 +67,24 @@ more than they could possibly save. If you are on 0.3.x, read
 
 ### Changed
 
+- **BREAKING — apps are dotted module paths; the kernel never touches `sys.path`.**
+  `[spoc.apps]` entries import through the normal import system exactly as written
+  (`apps.blog`), the namespace is the path's final segment, and boot performs no
+  filesystem writes — the injected `apps/` path (and the stdlib-shadowing hazard it
+  carried) is gone, along with `spoc.core.paths`. Generated projects declare
+  `apps.<name>` and ship `apps/__init__.py`. Restart semantics are stated honestly:
+  shutdown resets what the kernel owns; Python's module cache and module-level state
+  persist, so module-level code runs at most once per process.
+- **BREAKING — identity divergence raises.** Re-registering an already-registered object
+  under a different identity raises `IdentityDivergenceError` naming both identifiers
+  instead of silently returning the prior record; same-identity re-registration stays
+  idempotent. Discovery still skips objects imported from another app — an import is not
+  a second declaration.
+- **BREAKING — `spoc.formats` is now the `spoc-formats` distribution.** The repo is a uv
+  workspace publishing two artifacts; `import spoc_formats`, extras move with it
+  (`pip install spoc-formats[full]`), `FormatError` no longer subclasses `SpocError`, and
+  neither package imports the other.
+- **The Python floor drops to 3.12** (was 3.13), and CI runs 3.12/3.13/3.14.
 - **BREAKING — plugins register in the one flat registry.** `framework.plugins` — a second
   lookup surface keyed by dotted URI — is gone. A `[spoc.plugins]` group now names a
   *declared kind*, and each loaded reference registers as a component under the canonical

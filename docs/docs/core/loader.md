@@ -19,12 +19,13 @@ all per-instance.
 from spoc.core.loader import Loader
 
 loader = Loader()
-loader.register("blog.models", kind="models", app="blog")
+loader.register("apps.blog.models", kind="models", app="apps.blog", namespace="blog")
 loader.register(
-    "blog.views",
+    "apps.blog.views",
     kind="views",
-    app="blog",
-    dependencies=("blog.models",),
+    app="apps.blog",
+    namespace="blog",
+    dependencies=("apps.blog.models",),
 )
 
 for entry in loader.ordered():           # dependency order, dependencies first
@@ -41,15 +42,21 @@ without knowing the registry exists.
 
 ## Module lifecycle
 
-- `register(name, kind=..., app=..., dependencies=..., required=...)` imports a
-  module and records its edges in the dependency graph. Edges are recorded even
-  when the dependency has not been registered yet, so registration order never
+- `register(name, kind=..., app=..., namespace=..., dependencies=..., required=...)`
+  imports a module exactly as named, through the normal import system — the
+  loader never alters the import environment to make a name resolvable — and
+  records its edges in the dependency graph. Edges are recorded even when the
+  dependency has not been registered yet, so registration order never
   silently drops one
 - `ordered()` returns the modules in topological order; circular dependencies
   raise `CircularDependencyError`
 - `initialize(...)` fires each module's startup hook, then its own
   `initialize()` if present
 - `shutdown(...)` walks in reverse, firing shutdown hooks then `teardown()`
+- `ainitialize(...)` and `ashutdown(...)` are the awaiting twins: hooks and
+  module functions that are coroutine functions are awaited. The sync pair
+  refuses a coroutine loudly with `SpocError` — it never skips or half-runs
+  one
 
 ## Absent is not broken
 
@@ -77,15 +84,19 @@ takes a loaded module plus a registry, reaching into no cache. `Framework` walks
 For each module `<app>.<kind>`, objects carrying a declaration marker are
 registered:
 
-- the app package name becomes the `namespace` segment
+- the final segment of the declared app path becomes the `namespace` segment
 - the module file name is the `kind` — a declared kind that doesn't match raises
   `ComponentKindMismatchError` naming the object, both kinds, and the file
 - only the object the decorator was applied to declares: instances and
   subclasses of a decorated class inherit the marker but are not components
 - classes and functions imported from elsewhere are skipped (they register where
   they are defined), and an already-registered object seen again — a decorated
-  instance imported into a second app, say — keeps its first identifier
-- duplicates raise `DuplicateComponentError`
+  instance imported into a second app, say — keeps its first identity: an
+  import is not a second declaration
+- duplicates raise `DuplicateComponentError`; registering an
+  already-registered object under a *different* identity raises
+  `IdentityDivergenceError` naming both identifiers, while same-identity
+  re-registration is idempotent
 
 Discovery runs for **all** modules before any module initializes, so registration
 errors surface before any initialization side effects run. The result lands in

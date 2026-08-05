@@ -2,6 +2,9 @@
 
 The flat component registry and the canonical identifier grammar.
 
+Registrations are atomic and lose nothing under concurrency; after a
+completed start, reads need no coordination.
+
 ## Registry Class
 
 ::: spoc.core.registry.Registry
@@ -80,6 +83,11 @@ error naming the failing segment, its value, and the valid candidates.
       show_source: false
 
 ::: spoc.core.exceptions.DuplicateComponentError
+    options:
+      show_root_heading: true
+      show_source: false
+
+::: spoc.core.exceptions.IdentityDivergenceError
     options:
       show_root_heading: true
       show_source: false

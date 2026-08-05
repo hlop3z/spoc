@@ -11,7 +11,7 @@ moment you first discover the real command, so the next session doesn't rediscov
 | Formatter         | `uv run ruff format --check .`                         | Python only. Markdown is unformatted — the ruff rule set drops `*.md` from `include` on purpose (see `pyproject.toml`). |
 | Linter            | `uv run ruff check` · `cd scripts/go && go vet ./...`  | Python + Go workspace                                                     |
 | Type checker      | `uv run ty check`                                      | Python (ty)                                                               |
-| Unit tests        | `uv run pytest`                                        | `testpaths = ["tests"]` is pinned in pyproject.toml                       |
+| Unit tests        | `uv run pytest`                                        | `testpaths` pins both suites in pyproject.toml: the kernel's `tests/` and `packages/spoc-formats/tests` |
 | Integration tests | `uv run pytest tests/test_framework.py`                | Filesystem-fixture framework tests (subset of unit run)                   |
 | Build             | `cd scripts/go && go build -o bin/ ./...`              | Go workspace only                                                         |
 | Doc links         | `cd scripts/py && uv run mdlinks ../..`                | Fails non-zero on any broken relative Markdown link (Rule 8)              |
