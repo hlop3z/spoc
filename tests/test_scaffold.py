@@ -247,6 +247,21 @@ def test_failed_swap_puts_the_destination_back(tmp_path, monkeypatch):
     assert os.path.exists(destination)
 
 
+def test_commit_refuses_a_non_empty_destination(tmp_path):
+    """Never-overwrite is the sink's own guarantee, not just its callers'."""
+    destination = tmp_path / "occupied"
+    destination.mkdir()
+    (destination / "keep.txt").write_text("precious", encoding="utf-8")
+    sink = DirectorySink(destination)
+    plan = GenerationPlan(files=(PlannedFile(path="a.txt", content="a"),))
+
+    with pytest.raises(TargetNotEmptyError):
+        sink.commit(plan)
+
+    assert (destination / "keep.txt").read_text(encoding="utf-8") == "precious"
+    assert not (destination / "a.txt").exists()
+
+
 def test_staging_directory_is_cleaned_up(tmp_path):
     destination = tmp_path / "proj"
     generate(destination)

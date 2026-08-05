@@ -17,7 +17,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from pathlib import Path
 
-from .errors import PathEscapeError
+from .errors import PathEscapeError, TargetNotEmptyError
 from .plan import GenerationPlan
 
 
@@ -31,6 +31,9 @@ class DirectorySink:
     def __init__(self, destination: Path) -> None:
         self.destination = destination
 
+    def location(self) -> str:
+        return str(self.destination)
+
     def is_empty(self) -> bool:
         if not self.destination.exists():
             return True
@@ -40,7 +43,13 @@ class DirectorySink:
         return tuple(p for p in paths if (self.destination / p).exists())
 
     def commit(self, plan: GenerationPlan) -> None:
-        """Write every file in the plan, or none of them."""
+        """Write every file in the plan, or none of them.
+
+        The never-overwrite guarantee is enforced here, not left to callers:
+        a non-empty destination is refused before anything is staged.
+        """
+        if not self.is_empty():
+            raise TargetNotEmptyError(self.location())
         parent = self.destination.parent
         parent.mkdir(parents=True, exist_ok=True)
 

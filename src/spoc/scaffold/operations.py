@@ -72,7 +72,7 @@ def init_project(
     plan = build_plan(loaded, values, kinds)
 
     if not sink.is_empty():
-        raise TargetNotEmptyError(str(getattr(sink, "destination", "destination")))
+        raise TargetNotEmptyError(sink.location())
     detect_conflicts(plan, sink.existing(plan.paths))
 
     sink.commit(plan)

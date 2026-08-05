@@ -93,6 +93,10 @@ class TemplateSource(Protocol):
 class ProjectSink(Protocol):
     """Writes a plan, and reports what already exists."""
 
+    def location(self) -> str:
+        """Human-readable name of where the plan would land — used in errors."""
+        ...
+
     def existing(self, paths: Sequence[str]) -> tuple[str, ...]:
         """Which of these relative paths already exist at the destination."""
         ...
@@ -102,7 +106,8 @@ class ProjectSink(Protocol):
         ...
 
     def commit(self, plan: GenerationPlan) -> None:
-        """Write every file in the plan, or none of them."""
+        """Write every file in the plan, or none of them. Refuses a non-empty
+        destination itself — the guarantee lives here, not in the caller."""
         ...
 
 
