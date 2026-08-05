@@ -90,11 +90,11 @@
 
 ## 9. Docs, changelog, validation
 
-- [ ] 9.1 Update README quick start (dotted apps, async lifecycle, formats
+- [x] 9.1 Update README quick start (dotted apps, async lifecycle, formats
       install line), docs site pages touched by D1/D2/D6/D8
-- [ ] 9.2 Update `docs/architecture/kernel.md` Mermaid to the post-change
+- [x] 9.2 Update `docs/architecture/kernel.md` Mermaid to the post-change
       shape (paths.py gone, workspace boundary)
-- [ ] 9.3 CHANGELOG: breaking entries for D1/D5/D8, additions for D2/D3/D6,
+- [x] 9.3 CHANGELOG: breaking entries for D1/D5/D8, additions for D2/D3/D6,
       floor change for D7
-- [ ] 9.4 Run `.canon/checks.md` gates (ruff, ty, pytest on 3.12+3.14);
+- [x] 9.4 Run `.canon/checks.md` gates (ruff, ty, pytest on 3.12+3.14);
       record anything unverifiable
