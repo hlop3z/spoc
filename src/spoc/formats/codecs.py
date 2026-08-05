@@ -19,6 +19,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .core import Codec, DecodeFn, EncodeFn
+from .errors import DecodeError, EncodeError
 
 # ── JSON — standard library, both directions ──────────────────────────────
 
@@ -46,13 +47,25 @@ def _json_writer() -> EncodeFn:
 def _csv_reader() -> DecodeFn:
     def decode(text: str) -> list[dict[str, str]]:
         rows: list[dict[str, str]] = []
-        for row in csv.DictReader(io.StringIO(text)):
-            # DictReader files overflow cells under a None key — a value outside
-            # the JSON data model that would round-trip as corrupted output.
+        reader = csv.DictReader(io.StringIO(text))
+        for row in reader:
+            # A ragged row is refused in both directions. DictReader files
+            # overflow cells under a None key, and pads a short row with None
+            # values — either way the result leaves the declared
+            # list[dict[str, str]] model and would round-trip as corrupted
+            # output, so neither is silently accepted.
+            line = len(rows) + 2
             if None in row:
-                raise ValueError(
-                    f"Malformed CSV: row {len(rows) + 2} has more cells "
-                    "than the header has columns"
+                raise DecodeError(
+                    "csv",
+                    f"row {line} has more cells than the header has columns",
+                )
+            missing = [key for key, cell in row.items() if cell is None]
+            if missing:
+                raise DecodeError(
+                    "csv",
+                    f"row {line} has no value for {', '.join(map(repr, missing))}; "
+                    "every row must supply every column the header declares",
                 )
             rows.append(row)
         return rows
@@ -65,14 +78,15 @@ def _csv_writer() -> EncodeFn:
         # CSVW minimal mode is the whole contract: anything but an array of
         # objects has no tabular meaning, so refuse it before csv mangles it.
         if not isinstance(value, list):
-            raise ValueError(
-                f"CSV encodes an array of objects, got {type(value).__name__}"
+            raise EncodeError(
+                "csv", f"expected an array of objects, got {type(value).__name__}"
             )
         for index, row in enumerate(value):
             if not isinstance(row, dict):
-                raise ValueError(
-                    "CSV encodes an array of objects, "
-                    f"but item {index} is {type(row).__name__}"
+                raise EncodeError(
+                    "csv",
+                    f"expected an array of objects, but item {index} "
+                    f"is {type(row).__name__}",
                 )
         if not value:
             return ""

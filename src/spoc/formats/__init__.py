@@ -34,8 +34,11 @@ from .codecs import CODECS
 from .core import Codec, FormatRegistry, FormatSupport
 from .errors import (
     CollectionError,
+    DecodeError,
     DuplicateEntryError,
+    EncodeError,
     FormatError,
+    MalformedAddressError,
     MissingDependencyError,
     PointerResolutionError,
     UnknownFormatError,
@@ -70,10 +73,16 @@ def write(
 
 
 def collect(
-    root: Path | str, *, options: Mapping[str, Mapping[str, Any]] | None = None
+    root: Path | str,
+    *,
+    options: Mapping[str, Mapping[str, Any]] | None = None,
+    ignore: tuple[str, ...] = (),
 ) -> Collection:
-    """Read every supported file under `root` into one mapping, eagerly."""
-    return _ops.collect(REGISTRY, root, options=options)
+    """Read every supported file under `root` into one mapping, eagerly.
+
+    Hidden entries are skipped; `ignore` globs extend that skip set.
+    """
+    return _ops.collect(REGISTRY, root, options=options, ignore=ignore)
 
 
 def supported() -> tuple[FormatSupport, ...]:
@@ -106,5 +115,8 @@ __all__ = [
     "UnsupportedDirectionError",
     "DuplicateEntryError",
     "CollectionError",
+    "DecodeError",
+    "EncodeError",
+    "MalformedAddressError",
     "PointerResolutionError",
 ]
