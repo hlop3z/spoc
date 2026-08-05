@@ -1,22 +1,46 @@
 # Command Line
 
-The `spoc` program does four things: **init** generates a runnable project,
-**check** validates one before runtime, **list** and **explain** read its
-registry. Everything the CLI does is a thin adapter over a library call —
-`spoc.scaffold` and `spoc.diagnostics` expose the same operations to code
-that never touches argv.
+The `spoc` program does five things: **init** generates a runnable project,
+**app** adds an app to one, **check** validates a project before runtime,
+**list** and **explain** read its registry. Everything the CLI does is a
+thin adapter over a library call — `spoc.scaffold` and `spoc.diagnostics`
+expose the same operations to code that never touches argv.
 
 ## `spoc init`
 
 ```console
 $ spoc init myproject
 $ spoc init myproject --kinds models,views --app blog
+$ spoc init myproject --template ./mytemplates
 ```
 
 Generates configuration, a framework declaration, one app, and an entry
 point; the project runs unedited. See the
 [installation guide](getting-started/installation.md) — `uvx spoc init`
 works without installing anything.
+
+`--template` takes an installed template set's name, or a directory path —
+the reference is a path exactly when it contains a separator
+(`./mytemplates`), so a bare name never silently resolves to a same-named
+local directory.
+
+## `spoc app`
+
+```console
+$ spoc app blog
+Created apps/blog
+  apps/blog/__init__.py
+  apps/blog/models.py
+  apps/blog/views.py
+
+Install it: add "apps.blog" to a mode list under [spoc.apps] in config/spoc.toml
+```
+
+Generates one additional app — the same shape `init` emits, one module per
+kind. The kinds come from the project's own framework declaration (no
+restating what `framework.py` already says); `--kinds models,views`
+overrides. An existing app is never overwritten, and your configuration is
+never edited — the exact entry to add is printed.
 
 ## `spoc check`
 
