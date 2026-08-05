@@ -31,21 +31,10 @@ Changelog = "https://github.com/hlop3z/spoc/blob/main/CHANGELOG.md"
 # The scaffolder ships in this distribution and needs nothing: every one of its
 # build-vs-adopt decisions landed on the standard library, so `dependencies`
 # above stays empty. The kernel imports nothing from `spoc.scaffold`.
+# Data formats live in their own distribution (`packages/spoc-formats`); the
+# kernel has no extras at all.
 [project.scripts]
 spoc = "spoc.scaffold.cli:main"
-
-# `spoc.formats` is the second sidecar, on the same contract: the kernel imports
-# nothing from it, and everything it adopts is quarantined here so `dependencies`
-# above stays empty. JSON, CSV, and TOML *reading* are standard library and cost
-# nothing — installing spoc bare still reads all three.
-[project.optional-dependencies]
-yaml = ["ruamel.yaml>=0.19.1"] # YAML 1.2, a strict JSON superset (design.md D6)
-xml = ["xmltodict>=1.0.4"]     # force_list's callable form is what D3 needs
-toml = ["tomli-w>=1.0"]        # stdlib tomllib reads; nothing in it writes
-# python-jsonpath carries RFC 9535 + RFC 6901; iregexp-check is what makes the
-# RFC's own match()/search() functions available, so conformance is not partial.
-query = ["python-jsonpath>=2.2.1", "iregexp-check>=0.1.4"]
-full = ["spoc[yaml,xml,toml,query]"]
 
 [build-system]
 requires = ["hatchling"]
@@ -104,7 +93,15 @@ root = ["./src"]
 unresolved-import = "ignore"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "packages/spoc-formats/tests"]
+
+# One repo, one lockfile, two published artifacts: the kernel here, the
+# formats sidecar as a member. Neither imports the other.
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+spoc-formats = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -112,12 +109,13 @@ dev = [
     "pytest>=9.0.2",
     "ruff>=0.14.13",
     "ty>=0.0.12",
-    # tests/test_formats.py exercises the real codecs and simulates a *missing* extra
-    # with a stub factory — so the extras must be present for the suite to mean
-    # anything. Declared here rather than as a CI flag: `uv sync` installs the dev
-    # group by default, so a plain sync gives CI and a laptop the same environment.
-    # This never reaches an installer of `spoc` — `dependencies` above stays empty.
-    "spoc[full]",
+    # The formats suite exercises the real codecs and simulates a *missing*
+    # extra with a stub factory — so the extras must be present for the suite
+    # to mean anything. Declared here rather than as a CI flag: `uv sync`
+    # installs the dev group by default, so a plain sync gives CI and a laptop
+    # the same environment. This never reaches an installer of `spoc` —
+    # `dependencies` above stays empty and the kernel has no extras.
+    "spoc-formats[full]",
 ]
 examples = [
     # HTTP surface for the registry-projection example (never a kernel dependency)

@@ -2,6 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.12"
 
+[manifest]
+members = [
+    "spoc",
+    "spoc-formats",
+]
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.5"
@@ -779,6 +785,47 @@ wheels = [
 name = "spoc"
 source = { editable = "." }
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "spoc-formats", extra = ["full"] },
+    { name = "ty" },
+]
+docs = [
+    { name = "mkdocs" },
+    { name = "mkdocs-macros-plugin" },
+    { name = "mkdocs-material" },
+    { name = "mkdocstrings", extra = ["python"] },
+    { name = "termynal" },
+]
+examples = [
+    { name = "fastapi" },
+]
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "ruff", specifier = ">=0.14.13" },
+    { name = "spoc-formats", extras = ["full"], editable = "packages/spoc-formats" },
+    { name = "ty", specifier = ">=0.0.12" },
+]
+docs = [
+    { name = "mkdocs", specifier = ">=1.6.1" },
+    { name = "mkdocs-macros-plugin", specifier = ">=1.0.5" },
+    { name = "mkdocs-material", specifier = ">=9.6.14" },
+    { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0.0" },
+    { name = "termynal", specifier = ">=0.13.0" },
+]
+examples = [{ name = "fastapi", specifier = ">=0.115" }]
+
+[[package]]
+name = "spoc-formats"
+version = "0.5.0"
+source = { editable = "packages/spoc-formats" }
+
 [package.optional-dependencies]
 full = [
     { name = "iregexp-check" },
@@ -801,54 +848,16 @@ yaml = [
     { name = "ruamel-yaml" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "ruff" },
-    { name = "spoc", extra = ["full"] },
-    { name = "ty" },
-]
-docs = [
-    { name = "mkdocs" },
-    { name = "mkdocs-macros-plugin" },
-    { name = "mkdocs-material" },
-    { name = "mkdocstrings", extra = ["python"] },
-    { name = "termynal" },
-]
-examples = [
-    { name = "fastapi" },
-]
-
 [package.metadata]
 requires-dist = [
-    { name = "iregexp-check", marker = "extra == 'full'", specifier = ">=0.1.4" },
     { name = "iregexp-check", marker = "extra == 'query'", specifier = ">=0.1.4" },
-    { name = "python-jsonpath", marker = "extra == 'full'", specifier = ">=2.2.1" },
     { name = "python-jsonpath", marker = "extra == 'query'", specifier = ">=2.2.1" },
-    { name = "ruamel-yaml", marker = "extra == 'full'", specifier = ">=0.19.1" },
     { name = "ruamel-yaml", marker = "extra == 'yaml'", specifier = ">=0.19.1" },
-    { name = "tomli-w", marker = "extra == 'full'", specifier = ">=1.0" },
+    { name = "spoc-formats", extras = ["yaml", "xml", "toml", "query"], marker = "extra == 'full'", editable = "packages/spoc-formats" },
     { name = "tomli-w", marker = "extra == 'toml'", specifier = ">=1.0" },
-    { name = "xmltodict", marker = "extra == 'full'", specifier = ">=1.0.4" },
     { name = "xmltodict", marker = "extra == 'xml'", specifier = ">=1.0.4" },
 ]
-provides-extras = ["full", "query", "toml", "xml", "yaml"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "ruff", specifier = ">=0.14.13" },
-    { name = "spoc", extras = ["full"] },
-    { name = "ty", specifier = ">=0.0.12" },
-]
-docs = [
-    { name = "mkdocs", specifier = ">=1.6.1" },
-    { name = "mkdocs-macros-plugin", specifier = ">=1.0.5" },
-    { name = "mkdocs-material", specifier = ">=9.6.14" },
-    { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0.0" },
-    { name = "termynal", specifier = ">=0.13.0" },
-]
-examples = [{ name = "fastapi", specifier = ">=0.115" }]
+provides-extras = ["yaml", "xml", "toml", "query", "full"]
 
 [[package]]
 name = "starlette"

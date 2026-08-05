@@ -1,23 +1,21 @@
 """
 The data surface's error family.
 
-These extend the kernel's :class:`~spoc.core.exceptions.SpocError` so a project catches one
-base for everything spoc raises, but nothing in the kernel raises them — the dependency runs
-one way, as it does for the scaffolder.
+:class:`FormatError` is this distribution's own root — ``spoc-formats`` imports
+nothing from the SPOC kernel, so a project using both catches each package's
+base separately. Every failure this package produces is one of these.
 
 Two of these carry a contract rather than just a message. A format whose optional extra is
 absent raises :class:`MissingDependencyError` naming the extra to install, never an
 ``ImportError`` from a transitive module — otherwise the extras are not optional in practice.
 And exact addressing raises :class:`PointerResolutionError` naming the segment that could not
-be resolved, mirroring the per-segment precision the registry's own resolution promises.
+be resolved, mirroring the per-segment precision the SPOC registry's own resolution promises.
 """
 
 from __future__ import annotations
 
-from ..core.exceptions import SpocError
 
-
-class FormatError(SpocError):
+class FormatError(Exception):
     """Base for every data-surface error."""
 
 
@@ -39,7 +37,7 @@ class MissingDependencyError(FormatError):
         self.capability, self.extra = capability, extra
         super().__init__(
             f"Cannot {capability}: it needs an optional dependency that is not "
-            f"installed. Install it with: pip install spoc[{extra}]"
+            f"installed. Install it with: pip install spoc-formats[{extra}]"
         )
 
 

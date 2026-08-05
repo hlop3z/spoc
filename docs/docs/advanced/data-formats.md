@@ -1,9 +1,9 @@
 # Data & Formats
 
-`spoc.formats` reads, writes, collects, and addresses structured data. It is a **sidecar**:
-the kernel imports nothing from it, `Framework.start()` never calls it, and deleting it
-leaves the kernel and its test suite intact. Reading `spoc.toml` remains the kernel's own job
-through the standard library.
+`spoc-formats` reads, writes, collects, and addresses structured data. It is its **own
+distribution** — install it alongside the kernel, or alone; neither package imports the
+other, and `Framework.start()` never calls it. Reading `spoc.toml` remains the kernel's own
+job through the standard library.
 
 Use it when your project needs to load its *own* data — fixtures, lookup tables, seed files,
 per-app settings — without hand-writing a loader per file and per format.
@@ -19,7 +19,7 @@ Any format ──► JSON representation ──► Any format
 ```
 
 ```python
-from spoc import formats
+import spoc_formats as formats
 
 settings = formats.read("config/app.yaml")     # format inferred from the extension
 formats.write(settings, "build/app.json")      # converted, no pairwise rule needed
@@ -27,21 +27,21 @@ formats.write(settings, "build/app.json")      # converted, no pairwise rule nee
 
 ## What costs a dependency
 
-Installing `spoc` acquires nothing. JSON, CSV, and TOML *reading* are standard library and
-work on a bare install; the rest is opt-in.
+Installing `spoc-formats` acquires nothing. JSON, CSV, and TOML *reading* are standard
+library and work on a bare install; the rest is opt-in.
 
 | Format | Read | Write | Extra |
 | ------ | ---- | ----- | ----- |
 | JSON   | ✅ stdlib | ✅ stdlib | — |
 | CSV    | ✅ stdlib | ✅ stdlib | — |
-| TOML   | ✅ stdlib | needs extra | `spoc[toml]` |
-| YAML   | needs extra | needs extra | `spoc[yaml]` |
-| XML    | needs extra | needs extra | `spoc[xml]` |
-| *addressing* | — | — | `spoc[query]` |
+| TOML   | ✅ stdlib | needs extra | `spoc-formats[toml]` |
+| YAML   | needs extra | needs extra | `spoc-formats[yaml]` |
+| XML    | needs extra | needs extra | `spoc-formats[xml]` |
+| *addressing* | — | — | `spoc-formats[query]` |
 
 ```bash
-pip install spoc[full]     # everything
-pip install spoc[yaml]     # just YAML
+pip install spoc-formats[full]     # everything
+pip install spoc-formats[yaml]     # just YAML
 ```
 
 A format whose extra is missing fails **when you ask for it**, naming what to install — never
@@ -50,7 +50,7 @@ as an `ImportError` from somewhere inside the library:
 ```python
 >>> formats.read("app.yaml")
 MissingDependencyError: Cannot read 'yaml': it needs an optional dependency
-that is not installed. Install it with: pip install spoc[yaml]
+that is not installed. Install it with: pip install spoc-formats[yaml]
 ```
 
 Ask what the current environment can actually do:

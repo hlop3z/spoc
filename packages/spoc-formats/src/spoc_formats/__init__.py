@@ -1,22 +1,22 @@
 """
-``spoc.formats`` — read, write, collect, and address structured data.
+``spoc_formats`` — read, write, collect, and address structured data.
 
 Five formats normalize to one representation drawn from the JSON data model, and everything
 else is expressed against that: ``Any Format → JSON → Any Format``. JSON, CSV, and TOML
 *reading* are standard library and work on a bare install; YAML, XML, and TOML *writing* live
 behind extras and say so when they are missing.
 
-    from spoc import formats
+    import spoc_formats as formats
 
     settings = formats.read("config/app.yaml")
     data = formats.collect("data")            # a tree of mixed formats, one mapping
     port = formats.pointer(settings, "/server/port")      # exact — raises if absent
     live = formats.query(data["users"], "$[?@.active == true].email")   # query — may be empty
 
-This package is a sidecar on the same contract as ``spoc.scaffold``: the kernel imports
-nothing from it, and deleting it leaves the kernel and its suite intact. Nothing here is
-invoked by ``Framework.start`` — reading ``spoc.toml`` remains the kernel's own job through
-stdlib ``tomllib``.
+This is its own distribution, sharing a repository with the SPOC kernel and
+nothing else: neither package imports the other, and either installs alone.
+Nothing here is invoked by ``Framework.start`` — reading ``spoc.toml`` remains
+the kernel's own job through stdlib ``tomllib``.
 
 This module is the composition root. It owns the one registry; everything else takes it as an
 argument and holds no state.

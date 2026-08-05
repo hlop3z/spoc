@@ -12,13 +12,12 @@ collection was requested instead of wherever some later code path first read tha
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
-from ..core.exceptions import InvalidSegmentError
-from ..core.identity import validate_segment
 from .core import READ, WRITE, FormatRegistry
 from .errors import (
     CollectionError,
@@ -88,12 +87,23 @@ class Collection(Mapping[str, Any]):
         return len(self.entries)
 
 
+#: The collection-key segment grammar — the same lowercase snake_case
+#: convention the SPOC kernel uses for identifier segments, restated here
+#: because the two distributions share a convention, never code.
+_SEGMENT: Final[re.Pattern[str]] = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
 def derive_key(root: Path, source: Path) -> str:
-    """The entry key for a file: its location, dotted, under the kernel's grammar (D8)."""
+    """The entry key for a file: its location, dotted, one grammar per segment (D8)."""
     relative = source.relative_to(root)
     segments = [*relative.parts[:-1], relative.stem]
     for segment in segments:
-        validate_segment("collection key segment", segment)
+        if not _SEGMENT.match(segment):
+            raise CollectionError(
+                str(source),
+                f"key segment {segment!r} must match ^[a-z][a-z0-9_]*$ "
+                "(lowercase snake_case)",
+            )
     return ".".join(segments)
 
 
@@ -124,12 +134,10 @@ def collect(
             skipped.append(str(source))
             continue
 
-        # Kept inside the FormatError family: a caller watching `except FormatError`
-        # must see every way a collection can fail, key grammar included.
-        try:
-            key = derive_key(base, source)
-        except InvalidSegmentError as exc:
-            raise CollectionError(str(source), str(exc)) from exc
+        # derive_key fails inside the FormatError family: a caller watching
+        # `except FormatError` sees every way a collection can go wrong,
+        # key grammar included.
+        key = derive_key(base, source)
         if key in origins:
             raise DuplicateEntryError(key, str(origins[key]), str(source))
 
