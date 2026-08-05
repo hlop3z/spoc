@@ -212,6 +212,24 @@ def test_shutdown_resets_to_a_clean_boot(tmp_path):
         fw.resolve("models:alpha.post")
 
 
+def test_failed_start_leaves_the_framework_inert_and_retryable(tmp_path):
+    """A failed boot must not strand half-booted state — fix the cause, start again."""
+    base = make_project(tmp_path, "alpha")
+    fw = Framework("models", "views")  # views is required and absent
+
+    with pytest.raises(MissingModuleError):
+        fw.start(base)
+
+    assert fw.started is False
+    assert fw.base_dir is None
+    assert len(fw.registry) == 0
+    assert str(base / "apps") not in sys.path
+
+    (base / "apps" / "alpha" / "views.py").write_text("")
+    fw.start(base)
+    assert fw.resolve("models:alpha.post")
+
+
 def test_failed_startup_rolls_back_initialized_modules(tmp_path):
     """A module that fails to initialize must not strand its predecessors' teardown."""
     base = tmp_path / "proj_rollback"

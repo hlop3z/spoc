@@ -130,27 +130,34 @@ class Framework:
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
     def start(self, base_dir: Path | str) -> Framework:
-        """Boot the project rooted at `base_dir`."""
+        """Boot the project rooted at `base_dir`.
+
+        A failed boot is rolled back: modules that came up are torn down and the
+        framework returns to its inert pre-start state, so the caller can fix
+        the cause and start again cleanly.
+        """
         if self._started:
             raise SpocError("Framework is already started")
 
         base_dir = Path(base_dir)
-        inject_apps(base_dir)
-        self.base_dir = base_dir
-        self.config = _build_config(base_dir, self.echo)
-        self.plugins = self._collect_plugins()
-        self._register_apps()
-
-        for entry in self.loader.ordered():
-            discover(self.registry, entry.module, entry.name)
-        for callback in self._ready_callbacks:
-            callback(self.registry)
         try:
+            inject_apps(base_dir)
+            self.base_dir = base_dir
+            self.config = _build_config(base_dir, self.echo)
+            self.plugins = self._collect_plugins()
+            self._register_apps()
+
+            for entry in self.loader.ordered():
+                discover(self.registry, entry.module, entry.name)
+            for callback in self._ready_callbacks:
+                callback(self.registry)
             self.loader.initialize(self._hooks(), self._components_for)
         except BaseException:
-            # Roll back the modules that did come up, then let the cause escape.
+            # Tear down what did come up (never-initialized modules are skipped),
+            # reset to inert, then let the cause escape untouched.
             with suppress(Exception):
                 self.loader.shutdown(self._hooks(), self._components_for)
+            self._reset(base_dir)
             raise
 
         self._started = True
@@ -167,15 +174,19 @@ class Framework:
             return self
         self.loader.shutdown(self._hooks(), self._components_for)
         assert self.base_dir is not None
-        eject_apps(self.base_dir)
+        self._reset(self.base_dir)
+        self._started = False
+        return self
+
+    def _reset(self, base_dir: Path) -> None:
+        """Return every owned piece to its inert pre-start state."""
+        eject_apps(base_dir)
         self.registry = Registry(self.kinds)
         self.loader = Loader()
         self.plugins = {}
         self.installed_apps = []
         self.config = None
         self.base_dir = None
-        self._started = False
-        return self
 
     # ── Boot steps (private) ──────────────────────────────────────────────
 
