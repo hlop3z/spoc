@@ -138,6 +138,10 @@ dev = [
     # neighborhood, so their tools are declared rather than assumed present.
     "pytest-cov>=6.0.0",
     "pytest-watch>=4.2.0",
+    # Property-based testing (tests/test_properties.py): universal
+    # quantification over the identifier grammar and registry invariants.
+    # Dev-only — never reaches the published (empty) dependency set.
+    "hypothesis>=6.100",
     "ruff>=0.14.13",
     "ty>=0.0.12",
     # The formats suite exercises the real codecs and simulates a *missing*
