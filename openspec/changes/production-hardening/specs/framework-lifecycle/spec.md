@@ -72,12 +72,12 @@ run — it never skips one and never half-runs it.
 
 ### Requirement: Restart rebuilds kernel state, not module state
 
-After shutdown, everything the kernel owns — the registry, module-ordering
-bookkeeping, and loaded configuration — MUST be reset, and a subsequent start
-MUST rebuild the registry by re-running discovery. The contract MUST state
-that the language runtime's module cache and any module-level state persist
-across restarts: module-level code executes at most once per process, and the
-kernel makes no claim of reloading it.
+After shutdown the framework MUST reset everything the kernel owns (the
+registry, module-ordering bookkeeping, and loaded configuration), and a
+subsequent start MUST rebuild the registry by re-running discovery. The
+contract MUST state that the language runtime's module cache and any
+module-level state persist across restarts: module-level code executes at
+most once per process, and the kernel makes no claim of reloading it.
 
 #### Scenario: Restart re-registers from cached modules
 
