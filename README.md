@@ -43,6 +43,17 @@ describes; it never executes.
 pip install spoc
 ```
 
+Scaffolding a project needs no install at all — `spoc init` ships as a console script,
+and SPOC has no dependencies to resolve:
+
+```bash
+uvx spoc init myproject      # generate; installs nothing
+```
+
+The generated project imports `spoc` at runtime, so install it in the environment you
+run the project from. Full detail in the
+[installation guide](https://hlop3z.github.io/spoc/getting-started/installation/).
+
 ## Quick Start
 
 ```python

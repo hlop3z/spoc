@@ -47,6 +47,53 @@ Installed 1 package in 5ms
 !!! tip "Why uv?"
     uv is significantly faster than pip and provides better dependency resolution. It's especially useful for large projects with many dependencies.
 
+### Using uvx — run the scaffolder without installing
+
+`spoc init` ships as a console script inside the package, so generating a project does
+not require installing anything first. `uvx` fetches SPOC into a throwaway environment,
+runs the command, and leaves nothing behind:
+
+<!-- termynal -->
+
+```bash
+$ uvx spoc init myproject
+Created /path/to/myproject
+  config/spoc.toml
+  framework.py
+  apps/core/__init__.py
+  main.py
+  apps/core/models.py
+```
+
+Nothing is added to your current environment and there is no virtual environment to
+create first. This works because `dependencies = []` is an invariant and the scaffolder
+is built entirely on the standard library — `uvx` has exactly one wheel to fetch.
+
+To keep the command on your PATH instead of re-fetching it each time:
+
+<!-- termynal -->
+
+```bash
+$ uv tool install spoc
+$ spoc init myproject
+```
+
+!!! warning "`uvx` covers generating, not running"
+    The generated project imports `spoc` at runtime, and it does not ship a
+    `pyproject.toml` declaring that dependency. A throwaway `uvx` environment is gone by
+    the time you run `python main.py`, so install SPOC into the environment you run the
+    project in:
+
+    ```bash
+    uvx spoc init myproject     # generate — installs nothing
+    cd myproject
+    uv venv && uv pip install spoc
+    python main.py
+    ```
+
+    If SPOC is already installed where you work — globally, or via `uv tool install` —
+    `python main.py` runs as-is.
+
 ### Development Installation
 
 If you want to contribute to SPOC or modify it for your needs, you can install it from source:

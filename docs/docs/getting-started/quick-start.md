@@ -21,6 +21,19 @@ Installed apps: ['core']
 That is a complete, running project. `spoc init` ships with the package and
 needs nothing else installed.
 
+If SPOC is not installed yet, `uvx` runs the generator without installing anything —
+the project still needs SPOC in the environment you run it from:
+
+```bash
+uvx spoc init myproject
+cd myproject
+uv venv && uv pip install spoc
+python main.py
+```
+
+See [Installation](installation.md#using-uvx-run-the-scaffolder-without-installing)
+for the full picture.
+
 Useful flags: `--kinds` sets the declared kind set (`--kinds models,views,tasks`),
 `--app` names the starter app, `--path` chooses the destination.
 
