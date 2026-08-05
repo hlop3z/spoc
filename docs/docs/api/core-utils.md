@@ -51,8 +51,10 @@ Declaring the kind with `required=False` on its
 
 ## Configuration
 
-`spoc.toml` is the only configuration file the kernel reads. Absent keys fall back
-to defaults; a missing file loads as all defaults with a warning.
+`spoc.toml` is the only configuration file the kernel reads. The `[spoc]` table is
+a closed key set — an unknown key raises `ConfigurationError` naming it and the
+valid set. Absent keys fall back to defaults; a missing file loads as all defaults,
+warning about it only when `echo` is on.
 
 ::: spoc.core.config.load_spoc_toml
     options:

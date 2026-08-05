@@ -33,7 +33,9 @@ imports. It only records the declaration — which is why app modules can
 safely import the decorators before anything has started.
 
 - Kinds are identifier segments: lowercase snake_case, validated, never
-  normalized.
+  normalized. Each is declared exactly once — declaring the same kind twice
+  raises `ConfigurationError`, because last-wins would silently replace the
+  first spec's dependencies, optionality, and hooks.
 - `depends_on` entries must be declared kinds — anything else raises
   `UnknownKindError` immediately.
 - `required` defaults to `True`, so tolerating a missing module is always a
@@ -90,7 +92,9 @@ the framework stays inert, so the caller can fix the cause and retry.
    only: it also locates the `.env` directories, and nothing else. The kernel
    never mutates `sys.path` and never creates directories
 2. Plugins are loaded from `[spoc.plugins]` and registered into the registry —
-   each group must name a declared kind, and a bad reference fails start
+   each group must name a declared kind, a bad reference fails start, and a
+   group naming a kind that declares a `metadata` contract is refused: a
+   reference in a file has no way to supply it
 3. Apps are collected via the mode cascade and imported through Python's
    normal import system, exactly as declared in `[spoc.apps]`. The active
    mode, every `[spoc.apps]` key, and every cascade entry must name a mode in
@@ -111,13 +115,20 @@ the framework stays inert, so the caller can fix the cause and retry.
 additionally **await** any coroutine hooks — `KindSpec` startup/shutdown
 hooks and module `initialize()`/`teardown()` may be coroutine functions. The
 sync path refuses a coroutine hook loudly with `SpocError` naming it and
-pointing at `astart()`/`ashutdown()` — it never skips or half-runs one.
+pointing at `astart()`/`ashutdown()` — it never skips or half-runs one. Steps
+1–5 stay **synchronous** on the async path: configuration reads and module
+imports run on the calling thread and do not yield to the event loop, so
+`astart()` in a server's startup blocks the loop for the length of the
+imports.
 
 Starting an already-started framework raises `SpocError`. `start` and
 `shutdown` are serialized: racing starts produce exactly one winner, and the
-losers get the already-started error. Decorating and marking objects is
-thread-safe, registry registrations are atomic and lose nothing under
-concurrency, and reads after a completed start need no coordination.
+losers get the already-started error. A transition called from *inside* one —
+a ready callback, hook, or module `initialize()` calling `start()` or
+`shutdown()` — raises `SpocError` naming the reentrant call instead of
+deadlocking. Decorating and marking objects is thread-safe, registry
+registrations are atomic and lose nothing under concurrency, and reads after a
+completed start need no coordination.
 
 ## on_ready — the finalize phase
 
@@ -151,8 +162,10 @@ framework = spoc.Framework(
 )
 ```
 
-Hooks fire for every app's module of that kind — see
-[Lifecycle](../advanced/lifecycle.md) for ordering details.
+Hooks fire once for every app's module of that kind, never once per kind, so
+a kind that only `[spoc.plugins]` populates has no module to fire against and
+never runs them — see [Lifecycle](../advanced/lifecycle.md) for ordering
+details.
 
 ## Reads
 

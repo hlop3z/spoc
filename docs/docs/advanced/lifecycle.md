@@ -48,6 +48,11 @@ Startup hooks fire before the module's own `initialize()`; shutdown hooks
 before its `teardown()`. Hooks are instance state — two frameworks never
 share them.
 
+Dispatch is **per loaded module**, not once per kind — a kind three apps
+provide fires three times. The corollary: a kind populated *only* by
+`[spoc.plugins]` entries has no module to dispatch against, so its hooks
+never fire. Hooks belong to modules, and a configured reference is not one.
+
 There is no decorator form. Every attribute of a kind is stated on the kind
 it describes, so no second surface can disagree with the declaration. The
 practical consequence is ordering: a hook function must be defined before the
@@ -91,6 +96,13 @@ raises `SpocError` naming the offender and pointing at
 `astart()`/`ashutdown()`. It never skips or half-runs one. Sync hooks work
 on either path.
 
+!!! warning "Discovery is synchronous on the async path too"
+    `astart()` awaits hooks and module `initialize()` — nothing else.
+    Configuration reads and app-module imports run on the calling thread and
+    **do not yield to the event loop**. Embedding `astart()` in a server's
+    startup blocks the loop for the length of the imports; the same holds for
+    `ashutdown()`, which awaits only hooks and `teardown()`.
+
 ## Full start order
 
 1. Plugins load from `[spoc.plugins]` and register into the registry
@@ -121,6 +133,11 @@ get the already-started error. Registry registrations are atomic and lose
 nothing under concurrency, and reads after a completed start need no
 coordination.
 
+A transition called from *inside* one — a ready callback, a hook, or a module
+`initialize()` calling `start()` or `shutdown()` — raises `SpocError` naming
+the reentrant call rather than deadlocking. The transition in flight is
+half-built, so there is no correct thing for the inner call to do.
+
 ## Errors
 
 Failures the kernel itself produces surface as `SpocError` (or a more specific
@@ -135,4 +152,7 @@ not a wrapper around it.
 Nothing is silently skipped, and a failed start rolls itself back: modules
 that initialized are torn down in reverse, the framework returns to its inert
 pre-start state, and `framework.started` stays False — fix the cause and call
-`start()` again.
+`start()` again. Rollback keeps the two halves paired: a module whose
+`initialize()` raised *after* its kind's startup hook fired still gets that
+kind's shutdown hook, and gets no `teardown()` for an `initialize()` that
+never completed.

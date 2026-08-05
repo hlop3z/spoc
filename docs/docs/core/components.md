@@ -120,20 +120,29 @@ def list_posts():                 # declared 'views', discovered in 'models'
 ```
 
 Objects *imported* into a module register where they are **defined**, not
-where they are imported — `from apps.blog.models import post` in another
-app does not re-register `post`: an import is not a second declaration, and
-the object keeps its first identity.
+where they are imported. A marked object appearing in a module of another
+kind — `from .models import repo` inside `views.py` — is a use, not a second
+declaration, and is skipped. Classes and functions carry `__module__`, so a
+re-export of one never registers twice either.
+
+An instance carries no such marker, so the same marked instance re-exported
+into a second module of the **same** kind is a second claim over one object:
+it raises `IdentityDivergenceError` naming both identities rather than
+letting load order decide whose namespace it gets.
 
 Two objects under the same identifier raise `DuplicateComponentError` at
 startup, naming the identifier and the already-registered object.
-Registering an already-registered object under a *different* identity raises
-`IdentityDivergenceError` naming both identifiers; re-registering it under
-the *same* identity is idempotent.
+Re-registering an object under the *same* identity is idempotent.
+
+An object that cannot carry the marker at all — `__slots__` without
+`__spoc__`, or a built-in type — raises `UnmarkableObjectError` at
+decoration, naming the object and the constraint.
 
 ## The registry record
 
 Each registered component becomes one immutable `Component` record — the
-unit of enumeration and projection:
+unit of enumeration and projection. Its segment fields carry the grammar's
+own names, so the record's `object_name` *is* the identifier's `object_name`:
 
 ```python
 record = framework.resolve("models:blog.post")
@@ -141,10 +150,9 @@ record = framework.resolve("models:blog.post")
 record.identifier   # "models:blog.post"
 record.kind         # "models"
 record.namespace    # "blog"
-record.name         # "post"
+record.object_name  # "post"
 record.object       # the registered object, unexecuted
-record.config       # {"table": "posts"}
-record.metadata     # {"public": True, "type": "models"}
+record.metadata     # ModelMeta(table="posts", public=True) — the kind's contract type
 ```
 
 A surface can build its whole projection — routes, schemas, docs — from
@@ -153,8 +161,11 @@ records alone. See [Framework](framework.md) for enumeration and resolution.
 ## Checking declarations
 
 ```python
-import spoc
+from spoc.core.declaration import get_info, is_spoc
 
-spoc.is_spoc(post)      # carries a SPOC marker?
-spoc.get_info(post)     # the Internal marker (name, config, metadata), or None
+is_spoc(post)      # carries a SPOC marker?
+get_info(post)     # the Internal marker (name, kind, metadata), or None
 ```
+
+These are kernel internals, not part of the `spoc` top-level surface — import
+them from `spoc.core.declaration` when you are extending the kernel.

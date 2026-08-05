@@ -24,7 +24,7 @@ lookup.
 - **Dependency-ordered loading** — modules load and initialize in topological
   order; teardown runs in reverse
 - **One flat registry** — every component is a typed record with `kind`,
-  `namespace`, and `name` facets; grouped views are derived, never stored
+  `namespace`, and `object_name` facets; grouped views are derived, never stored
 - **Conventional identity** — write PEP 8 Python; class names derive their
   snake_case identifier automatically. A name you *state* is verbatim and
   validated, and lookups are always exact

@@ -52,7 +52,10 @@ without knowing the registry exists.
   raise `CircularDependencyError`
 - `initialize(...)` fires each module's startup hook, then its own
   `initialize()` if present
-- `shutdown(...)` walks in reverse, firing shutdown hooks then `teardown()`
+- `shutdown(...)` walks in reverse, firing shutdown hooks then `teardown()`.
+  The two halves are tracked separately, so a module whose own `initialize()`
+  raised *after* its startup hook fired still gets the paired shutdown hook —
+  and no `teardown()` for an `initialize()` that never completed
 - `ainitialize(...)` and `ashutdown(...)` are the awaiting twins: hooks and
   module functions that are coroutine functions are awaited. The sync pair
   refuses a coroutine loudly with `SpocError` — it never skips or half-runs
@@ -91,14 +94,14 @@ registered:
   `ComponentKindMismatchError` naming the object, both kinds, and the file
 - only the object the decorator was applied to declares: instances and
   subclasses of a decorated class inherit the marker but are not components
-- classes and functions imported from elsewhere are skipped (they register where
-  they are defined), and an already-registered object seen again — a decorated
-  instance imported into a second app, say — keeps its first identity: an
-  import is not a second declaration
-- duplicates raise `DuplicateComponentError`; registering an
-  already-registered object under a *different* identity raises
-  `IdentityDivergenceError` naming both identifiers, while same-identity
-  re-registration is idempotent
+- a marked object found in a module of *another* kind is a use, not a claim, and
+  is skipped; classes and functions carry `__module__`, so a re-export registers
+  where it was defined
+- a marked *instance* found in a second module of the **same** kind is a second
+  claim over one object and raises `IdentityDivergenceError` naming both
+  identities — load order never gets to pick the namespace
+- duplicates raise `DuplicateComponentError`; re-registration under the same
+  identity is idempotent
 
 Discovery runs for **all** modules before any module initializes, so registration
 errors surface before any initialization side effects run. The result lands in
