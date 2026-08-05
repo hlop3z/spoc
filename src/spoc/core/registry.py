@@ -103,11 +103,17 @@ class Registry:
 
     def by_kind(self, kind: str) -> list[Component]:
         """Records of one kind, ordered by identifier."""
-        return [c for c in self.all() if c.kind == kind]
+        return sorted(
+            (c for c in self._store.values() if c.kind == kind),
+            key=lambda c: c.identifier,
+        )
 
     def by_namespace(self, namespace: str) -> list[Component]:
         """Records of one namespace, ordered by identifier."""
-        return [c for c in self.all() if c.namespace == namespace]
+        return sorted(
+            (c for c in self._store.values() if c.namespace == namespace),
+            key=lambda c: c.identifier,
+        )
 
     def namespaces(self, kind: str | None = None) -> tuple[str, ...]:
         """Namespaces present in the registry, optionally for one kind."""
@@ -128,8 +134,16 @@ class Registry:
     # ── Resolution: pure lookup, per-segment precise failure ──────────────
 
     def resolve(self, identifier: str) -> Component:
-        """Resolve a canonical identifier to its record, failing per segment."""
+        """Resolve a canonical identifier to its record, failing per segment.
+
+        Success is a single dict hit after the grammar check; the per-segment
+        scans run only on the failure path, where precision is worth the walk.
+        """
         parsed = parse(identifier)
+
+        record = self._store.get(str(parsed))
+        if record is not None:
+            return record
 
         if parsed.kind not in self._kinds:
             raise UnknownKindError(parsed.kind, self._kinds)
@@ -138,14 +152,7 @@ class Registry:
         if parsed.namespace not in namespaces:
             raise UnknownNamespaceError(parsed.namespace, parsed.kind, namespaces)
 
-        record = self._store.get(str(parsed))
-        if record is None:
-            candidates = tuple(
-                c.name
-                for c in self.by_kind(parsed.kind)
-                if c.namespace == parsed.namespace
-            )
-            raise UnknownObjectError(
-                parsed.name, parsed.kind, parsed.namespace, candidates
-            )
-        return record
+        candidates = tuple(
+            c.name for c in self.by_kind(parsed.kind) if c.namespace == parsed.namespace
+        )
+        raise UnknownObjectError(parsed.name, parsed.kind, parsed.namespace, candidates)
