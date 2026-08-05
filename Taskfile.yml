@@ -16,9 +16,10 @@ tasks:
       - uv sync
 
   install:dev:
-    desc: Install development dependencies
+    desc: Install development dependencies (examples group included — CI tests
+      the reference app's HTTP projection, so a dev environment matches)
     cmds:
-      - uv sync --group dev
+      - uv sync --group dev --group examples
 
   install:docs:
     desc: Install documentation dependencies

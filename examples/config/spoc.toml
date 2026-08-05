@@ -4,11 +4,13 @@ mode = "development" # the default mode set; extend it under [spoc.modes]
 debug = true
 
 # Installed apps by mode, each a dotted module path imported exactly as
-# written (development cascades staging and production in).
+# written (development cascades staging and production in). The storefront
+# ships all three domain apps; development adds nothing extra, so every mode
+# boots the same system — mode differences live in config/.env/<mode>.toml.
 [spoc.apps]
-production = ["apps.auth"]
-staging = ["apps.another"]
-development = ["apps.demo", "apps.other"]
+production = ["apps.catalog", "apps.orders", "apps.auth"]
+staging = []
+development = []
 
 # Additional components (plugins and hooks), each a resolvable reference.
 # The segment before the module is the namespace (a top-level module is its

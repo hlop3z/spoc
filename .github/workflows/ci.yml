@@ -30,8 +30,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # --group examples: the reference-application spec requires the HTTP
+      # projection test to genuinely construct the app in CI, never skip.
       - name: Install Dependencies
-        run: uv sync --locked
+        run: uv sync --locked --group examples
 
       - name: Formatter
         run: uv run ruff format --check .

@@ -5,6 +5,7 @@ from framework.framework import model
 
 @dc.dataclass
 @model
-class UserAccount:
+class Order:
     id: int
-    name: str
+    product_id: int
+    quantity: int
