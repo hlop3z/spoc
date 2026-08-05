@@ -24,6 +24,7 @@ from typing import Any
 
 from .exceptions import (
     DuplicateComponentError,
+    IdentityDivergenceError,
     UnknownKindError,
     UnknownNamespaceError,
     UnknownObjectError,
@@ -67,19 +68,19 @@ class Registry:
     ) -> Component:
         """Register an object, building its record and canonical identifier.
 
-        One object holds exactly one canonical identifier: re-registering an
-        already-registered object (an instance imported into another app, say)
-        returns its existing record rather than forking its identity. First
-        registration wins — the later call's namespace and name are validated,
-        then discarded along with the identifier they would have composed.
+        One object holds exactly one canonical identifier. Re-registering an
+        object under its existing identity is idempotent and returns the
+        existing record; re-registering it under a *different* identity raises
+        — the registry never answers a registration with a record whose
+        identity differs from what the caller stated.
         """
         if kind not in self._kinds:
             raise UnknownKindError(kind, self._kinds)
-        # Composed before the identity short-circuit: reusing an object is not a
-        # licence to skip the segment grammar every other registration answers to.
         identifier = compose(kind, namespace, name)
         prior = self._identifier_of.get(id(obj))
         if prior is not None:
+            if prior != identifier:
+                raise IdentityDivergenceError(prior, identifier)
             return self._store[prior]
         if identifier in self._store:
             raise DuplicateComponentError(identifier, self._store[identifier].object)
@@ -94,6 +95,10 @@ class Registry:
         self._store[identifier] = record
         self._identifier_of[id(obj)] = identifier
         return record
+
+    def identifier_of(self, obj: Any) -> str | None:
+        """The canonical identifier `obj` is registered under, or None."""
+        return self._identifier_of.get(id(obj))
 
     # ── Reads: one store, derived views, deterministic order ──────────────
 

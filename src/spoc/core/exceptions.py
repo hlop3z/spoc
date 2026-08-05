@@ -122,6 +122,19 @@ class UnknownObjectError(SpocError):
         )
 
 
+class IdentityDivergenceError(SpocError):
+    """An already-registered object was re-registered under a different identity."""
+
+    def __init__(self, existing_identifier: str, requested_identifier: str) -> None:
+        self.existing_identifier = existing_identifier
+        self.requested_identifier = requested_identifier
+        super().__init__(
+            f"Object already registered as {existing_identifier!r}; refusing to "
+            f"register it again as {requested_identifier!r}. One object holds "
+            "exactly one canonical identifier"
+        )
+
+
 class DuplicateComponentError(SpocError):
     """A second object was registered under an existing identifier."""
 

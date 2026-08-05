@@ -165,7 +165,9 @@ def discover(
     """Register every component declared in `module` into `registry`.
 
     The namespace is the caller's statement — the final segment of the app's
-    declared module path — never parsed back out of the module name.
+    declared module path — never parsed back out of the module name. An object
+    the registry already holds is skipped: a component imported from another
+    app is an import, not a second declaration, and keeps its first identity.
     """
     declared = _declared_objects(module, module_name)
     if not declared:
@@ -175,6 +177,8 @@ def discover(
     namespace = validate_segment("namespace", namespace)
 
     for attr_name, obj, info in declared:
+        if registry.identifier_of(obj) is not None:
+            continue  # already declared elsewhere; imports never re-register
         if info.kind != location_kind:
             raise ComponentKindMismatchError(
                 info.name or attr_name, info.kind, location_kind, module_name

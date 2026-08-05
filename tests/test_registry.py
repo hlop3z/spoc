@@ -7,6 +7,7 @@ import pytest
 
 from spoc.core.exceptions import (
     DuplicateComponentError,
+    IdentityDivergenceError,
     InvalidSegmentError,
     MalformedIdentifierError,
     UnknownKindError,
@@ -76,15 +77,22 @@ class TestStore:
         assert first is second
         assert len(r) == 1
 
-    def test_reregistration_under_another_namespace_keeps_the_first_identity(self):
-        """An instance imported into a second app does not fork its identity."""
+    def test_reregistration_under_another_identity_is_loud(self):
+        """The registry never hands back a record whose identity differs from
+        what the caller stated — divergence raises, naming both."""
         r = Registry(("models",))
         obj = object()
-        first = r.add("models", "blog", "post", obj)
-        second = r.add("models", "shop", "post", obj)
-        assert first is second
-        assert second.namespace == "blog"
-        assert len(r) == 1
+        r.add("models", "blog", "post", obj)
+        with pytest.raises(IdentityDivergenceError) as exc:
+            r.add("models", "shop", "post", obj)
+        message = str(exc.value)
+        assert "models:blog.post" in message
+        assert "models:shop.post" in message
+        assert len(r) == 1  # the registry is unchanged after the raise
+        assert r.identifier_of(obj) == "models:blog.post"
+
+    def test_identifier_of_unregistered_object_is_none(self):
+        assert Registry(("models",)).identifier_of(object()) is None
 
     def test_reregistration_still_validates_its_segments(self):
         """Identity reuse is not a bypass for the grammar every add() answers to."""
