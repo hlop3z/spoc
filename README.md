@@ -46,6 +46,10 @@ describes; it never executes.
   framework scope, a declarative app-tree builder, and a mode override; with
   pytest installed the same pieces arrive as fixtures automatically, and the
   kernel never imports any of it
+- **Pre-runtime diagnostics** — `spoc check` dry-boots the project and reports
+  config problems, unresolvable apps, cycles, collisions, and sync/async
+  lifecycle mismatches before they reach runtime; `spoc list` and
+  `spoc explain` read the registry from the command line
 
 Structured-data loading ships in the box as the contained subpackage
 `spoc.formats` (`from spoc import formats`) — the kernel never imports it,

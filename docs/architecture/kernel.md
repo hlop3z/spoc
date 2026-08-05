@@ -259,6 +259,40 @@ pytest is the only thing that ever imports the module and a runtime install neve
 a test runner. The dotted edge to TOML emission mirrors the formats rule — a missing
 extra fails naming itself.
 
+## The diagnostics and the composed CLI
+
+`spoc.diagnostics` is the fourth contained subpackage: pre-runtime validation
+(`check`) and registry introspection (`list`, `explain`) as library-first
+operations. A diagnostic run is an isolated dry boot — it composes
+`spoc.testing`'s scopes (the one sanctioned edge between contained
+subpackages) and the kernel's public API, so nothing a run imports or
+registers outlives it. The `spoc` console script is one composed parser in
+`spoc.cli`; each surface registers its own subcommands and stays a thin
+adapter.
+
+```mermaid
+flowchart TB
+    console["spoc console script"] --> cli["spoc.cli — composed parser<br/><i>parse · dispatch · map refusals to exit codes</i>"]
+    cli -->|init| scaffold["spoc.scaffold"]
+    cli -->|check · list · explain| diag
+
+    subgraph diag ["spoc.diagnostics — contained subpackage"]
+        direction TB
+        dcli["cli — subcommand adapters"]
+        dcore["core<br/>check · list_records · explain"]
+        locate["locate<br/>framework:framework convention · mod:attr override"]
+        dcli --> dcore --> locate
+    end
+
+    dcore -->|isolated dry boot| harness["spoc.testing scopes"]
+    dcore --> kernel["Kernel public API<br/>start · registry · resolve · typed errors"]
+```
+
+The findings never rephrase anything: `check` reports the kernel's own error
+text (failing segment, valid candidates), gathered instead of raised. The
+kernel imports none of this — `spoc.cli` is entry-point metadata until the
+console script runs.
+
 ## Invariants
 
 1. **Zero runtime dependencies** — anything needing a dependency is, by

@@ -13,6 +13,7 @@ nav:
           - Installation: getting-started/installation.md
           - Quick Start: getting-started/quick-start.md
           - Configuration: getting-started/configuration.md
+      - Command Line: cli.md
       - Core Concepts:
           - Framework: core/framework.md
           - App System: core/app-system.md
