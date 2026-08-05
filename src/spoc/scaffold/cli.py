@@ -1,32 +1,48 @@
 """
-The command-line adapter.
+The scaffold's command-line adapter — the ``init`` subcommand.
 
 Thin by contract: it parses arguments, wires the concrete adapters, calls the
 operation, and renders the result. It holds no generation logic, no conflict
 rules, and no template knowledge — everything it does is available to a caller
-who never touches argv.
+who never touches argv. The composed ``spoc`` program (``spoc.cli``) mounts it
+via :func:`register`.
 
 ``argparse`` is the standard library, which is why the scaffolder can ship
 inside a package whose published dependency set is empty.
 """
 
 import argparse
-import sys
 from pathlib import Path
 
-from ..core.exceptions import SpocError
 from .operations import DEFAULT_APP_NAME, DEFAULT_KINDS, init_project
 from .sink import DirectorySink
 from .sources import BUILTIN_SET, InstalledTemplateSources
 
+__all__ = ["register"]
 
-def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="spoc",
-        description="Scaffold a runnable spoc project.",
+
+def _run_init(args: argparse.Namespace) -> int:
+    destination = args.path if args.path is not None else Path.cwd() / args.name
+    kinds = tuple(k.strip() for k in args.kinds.split(",") if k.strip())
+
+    plan = init_project(
+        source=InstalledTemplateSources(),
+        sink=DirectorySink(destination),
+        project_name=args.name,
+        app_name=args.app,
+        kinds=kinds,
+        template_set=args.template,
     )
-    subcommands = parser.add_subparsers(dest="command", required=True)
 
+    print(f"Created {destination}")
+    for planned in plan:
+        print(f"  {planned.path}")
+    print(f"\nNext:\n  cd {destination}\n  python main.py")
+    return 0
+
+
+def register(subcommands: argparse._SubParsersAction) -> None:
+    """Mount ``init`` on the composed ``spoc`` parser."""
     init = subcommands.add_parser(
         "init",
         help="Generate a new project that starts unedited.",
@@ -61,37 +77,4 @@ def _build_parser() -> argparse.ArgumentParser:
         default=BUILTIN_SET,
         help=f"Template set to render (default: {BUILTIN_SET}).",
     )
-    return parser
-
-
-def main(argv: list[str] | None = None) -> int:
-    """Entry point. Returns a process exit code rather than raising."""
-    args = _build_parser().parse_args(argv)
-
-    destination = args.path if args.path is not None else Path.cwd() / args.name
-    kinds = tuple(k.strip() for k in args.kinds.split(",") if k.strip())
-
-    try:
-        plan = init_project(
-            source=InstalledTemplateSources(),
-            sink=DirectorySink(destination),
-            project_name=args.name,
-            app_name=args.app,
-            kinds=kinds,
-            template_set=args.template,
-        )
-    # SpocError covers the scaffolder's own refusals and the kernel's identity
-    # errors alike — validate_name raises the kernel's InvalidSegmentError.
-    except (SpocError, ValueError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
-
-    print(f"Created {destination}")
-    for planned in plan:
-        print(f"  {planned.path}")
-    print(f"\nNext:\n  cd {destination}\n  python main.py")
-    return 0
-
-
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main())
+    init.set_defaults(handler=_run_init)

@@ -34,7 +34,7 @@ Changelog = "https://github.com/hlop3z/spoc/blob/main/CHANGELOG.md"
 # `spoc.formats` — both are contained subpackages, and the boundary is pinned
 # by the test suite.
 [project.scripts]
-spoc = "spoc.scaffold.cli:main"
+spoc = "spoc.cli:main"
 
 # The pytest plugin is inert metadata until pytest itself runs: pytest is the
 # only importer of `spoc.testing.plugin`, so pytest never becomes a runtime

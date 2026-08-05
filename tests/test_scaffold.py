@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from spoc.cli import main as cli_main
 from spoc.core.exceptions import InvalidSegmentError
 from spoc.scaffold import (
     DEFAULT_KINDS,
@@ -27,7 +28,6 @@ from spoc.scaffold import (
     UnsatisfiedValueError,
     init_project,
 )
-from spoc.scaffold.cli import main as cli_main
 from spoc.scaffold.core import (
     build_plan,
     declared_identifiers,
@@ -296,7 +296,7 @@ def test_traversal_in_name_rejected(tmp_path, bad):
 
 def test_cli_reports_an_invalid_name_instead_of_crashing(tmp_path, capsys, monkeypatch):
     """The kernel's identity errors exit like any other refusal — code 1, no traceback."""
-    from spoc.scaffold.cli import main
+    from spoc.cli import main
 
     monkeypatch.chdir(tmp_path)
     assert main(["init", "BadName"]) == 1
