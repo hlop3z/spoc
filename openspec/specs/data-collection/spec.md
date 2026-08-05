@@ -128,13 +128,20 @@ reads it.
 ### Requirement: Collection does not participate in framework startup
 
 The collection surface MUST NOT be invoked by framework startup, and the kernel MUST NOT import
-it. Removing the surface entirely MUST leave framework startup, configuration loading,
+it. Importing the kernel MUST NOT load the data surface or any optional format dependency.
+Removing the surface entirely MUST leave framework startup, configuration loading,
 discovery, identity, and resolution behaving identically.
 
 #### Scenario: Startup does not load collections
 
 - **WHEN** a framework is started in a project containing collectible data directories
 - **THEN** no collection is performed and no optional format dependency is loaded
+
+#### Scenario: Importing the kernel does not load the data surface
+
+- **WHEN** the kernel package is imported without touching the data surface
+- **THEN** the data surface's modules are not loaded, and no optional format dependency
+  is imported
 
 #### Scenario: The surface is removable
 
