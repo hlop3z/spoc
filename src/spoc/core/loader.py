@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import graphlib
 import importlib
+import inspect
 import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -145,6 +146,20 @@ class Loader:
         return len(self._modules)
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
+    #
+    # Each phase exists twice: a synchronous form that refuses coroutine
+    # callables loudly (it can neither run a loop of its own nor guess at
+    # one), and an asynchronous form that awaits whatever a hook or module
+    # function returns awaitable. Both walk the same order and share the
+    # same error contract.
+
+    @staticmethod
+    def _refuse_coroutine(fn: Callable[..., Any], owner: str) -> None:
+        if inspect.iscoroutinefunction(fn):
+            raise SpocError(
+                f"{owner} is a coroutine function; the synchronous lifecycle "
+                "cannot run it — use astart()/ashutdown() to await it"
+            )
 
     def initialize(
         self,
@@ -157,10 +172,39 @@ class Loader:
                 logger.debug("Initializing module: %s", entry.name)
                 on_startup, _ = hooks.get(entry.kind, (None, None))
                 if on_startup is not None:
+                    self._refuse_coroutine(
+                        on_startup, f"startup hook for kind {entry.kind!r}"
+                    )
                     on_startup(components_for(entry))
                 fn = getattr(entry.module, "initialize", None)
                 if callable(fn) and not entry.initialized:
+                    self._refuse_coroutine(fn, f"{entry.name}.initialize")
                     fn()
+                entry.initialized = True
+        except (CircularDependencyError, SpocError):
+            raise
+        except Exception as e:
+            raise SpocError(f"Error during startup: {e}") from e
+
+    async def ainitialize(
+        self,
+        hooks: dict[str, KindHooks],
+        components_for: Callable[[LoadedModule], set[Any]],
+    ) -> None:
+        """Asynchronous :meth:`initialize`: awaits coroutine hooks and modules."""
+        try:
+            for entry in self.ordered():
+                logger.debug("Initializing module: %s", entry.name)
+                on_startup, _ = hooks.get(entry.kind, (None, None))
+                if on_startup is not None:
+                    result = on_startup(components_for(entry))
+                    if inspect.isawaitable(result):
+                        await result
+                fn = getattr(entry.module, "initialize", None)
+                if callable(fn) and not entry.initialized:
+                    result = fn()
+                    if inspect.isawaitable(result):
+                        await result
                 entry.initialized = True
         except (CircularDependencyError, SpocError):
             raise
@@ -183,10 +227,40 @@ class Loader:
                     continue
                 _, on_shutdown = hooks.get(entry.kind, (None, None))
                 if on_shutdown is not None:
+                    self._refuse_coroutine(
+                        on_shutdown, f"shutdown hook for kind {entry.kind!r}"
+                    )
                     on_shutdown(components_for(entry))
                 fn = getattr(entry.module, "teardown", None)
                 if callable(fn):
+                    self._refuse_coroutine(fn, f"{entry.name}.teardown")
                     fn()
+                entry.initialized = False
+        except (CircularDependencyError, SpocError):
+            raise
+        except Exception as e:
+            raise SpocError(f"Error during shutdown: {e}") from e
+
+    async def ashutdown(
+        self,
+        hooks: dict[str, KindHooks],
+        components_for: Callable[[LoadedModule], set[Any]],
+    ) -> None:
+        """Asynchronous :meth:`shutdown`: awaits coroutine hooks and modules."""
+        try:
+            for entry in reversed(self.ordered()):
+                if not entry.initialized:
+                    continue
+                _, on_shutdown = hooks.get(entry.kind, (None, None))
+                if on_shutdown is not None:
+                    result = on_shutdown(components_for(entry))
+                    if inspect.isawaitable(result):
+                        await result
+                fn = getattr(entry.module, "teardown", None)
+                if callable(fn):
+                    result = fn()
+                    if inspect.isawaitable(result):
+                        await result
                 entry.initialized = False
         except (CircularDependencyError, SpocError):
             raise

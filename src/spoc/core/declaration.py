@@ -43,8 +43,12 @@ class KindSpec:
     depends_on: tuple[str, ...] = ()
     required: bool = True
     metadata: type | None = None
-    on_startup: Callable[[set[Any]], None] | None = None
-    on_shutdown: Callable[[set[Any]], None] | None = None
+    #: Hooks may be plain functions or coroutine functions on the same
+    #: attribute; a coroutine hook is dispatched by the asynchronous
+    #: lifecycle path (``astart``/``ashutdown``) and refused loudly by the
+    #: synchronous one.
+    on_startup: Callable[[set[Any]], Any] | None = None
+    on_shutdown: Callable[[set[Any]], Any] | None = None
 
     def __post_init__(self) -> None:
         validate_segment("kind", self.name)

@@ -157,19 +157,7 @@ class Framework:
 
             base_dir = Path(base_dir)
             try:
-                # A failed boot's contract is "fix the cause and start again" —
-                # the fix may be a file created since the last import attempt,
-                # which the import system's directory caches would still hide.
-                importlib.invalidate_caches()
-                self.base_dir = base_dir
-                self.config = _build_config(base_dir, self.echo)
-                self._register_plugins(self.config.project)
-                self._register_apps()
-
-                for entry in self.loader.ordered():
-                    discover(self.registry, entry.module, entry.name, entry.namespace)
-                for callback in self._ready_callbacks:
-                    callback(self.registry)
+                self._boot_discovery(base_dir)
                 self.loader.initialize(self._hooks(), self._components_for)
             except BaseException:
                 # Tear down what did come up (never-initialized modules are
@@ -182,12 +170,42 @@ class Framework:
             self._started = True
             return self
 
+    async def astart(self, base_dir: Path | str) -> Framework:
+        """Asynchronous :meth:`start`: awaits coroutine hooks and module code.
+
+        Discovery is the same synchronous work; only hook dispatch and module
+        ``initialize`` awaits. A concurrent transition is a programming error
+        and fails immediately — an event loop is never parked on a lock.
+        """
+        if not self._transition_lock.acquire(blocking=False):
+            raise SpocError("Framework lifecycle transition already in progress")
+        try:
+            if self._started:
+                raise SpocError("Framework is already started")
+
+            base_dir = Path(base_dir)
+            try:
+                self._boot_discovery(base_dir)
+                await self.loader.ainitialize(self._hooks(), self._components_for)
+            except BaseException:
+                with suppress(Exception):
+                    await self.loader.ashutdown(self._hooks(), self._components_for)
+                self._reset()
+                raise
+
+            self._started = True
+            return self
+        finally:
+            self._transition_lock.release()
+
     def shutdown(self) -> Framework:
         """Tear down modules in reverse dependency order, then reset to pre-start state.
 
-        After shutdown the framework is inert again — empty registry, no loaded
-        modules, no injected import path — so a subsequent ``start`` is a clean boot
-        rather than one layered on stale state. No-op if never started.
+        Everything the kernel owns is reset — registry, module bookkeeping,
+        configuration. What persists is Python's own module cache and any
+        module-level state: module-level code runs at most once per process,
+        and a subsequent ``start`` re-runs discovery against those cached
+        modules rather than re-executing them. No-op if never started.
         """
         with self._transition_lock:
             if not self._started:
@@ -196,6 +214,20 @@ class Framework:
             self._reset()
             self._started = False
             return self
+
+    async def ashutdown(self) -> Framework:
+        """Asynchronous :meth:`shutdown`: awaits coroutine hooks and teardowns."""
+        if not self._transition_lock.acquire(blocking=False):
+            raise SpocError("Framework lifecycle transition already in progress")
+        try:
+            if not self._started:
+                return self
+            await self.loader.ashutdown(self._hooks(), self._components_for)
+            self._reset()
+            self._started = False
+            return self
+        finally:
+            self._transition_lock.release()
 
     def _reset(self) -> None:
         """Return every owned piece to its inert pre-start state."""
@@ -206,6 +238,23 @@ class Framework:
         self.base_dir = None
 
     # ── Boot steps (private) ──────────────────────────────────────────────
+
+    def _boot_discovery(self, base_dir: Path) -> None:
+        """The synchronous boot phases shared by both lifecycle paths:
+        configuration, app registration, discovery, and ready callbacks."""
+        # A failed boot's contract is "fix the cause and start again" — the
+        # fix may be a file created since the last import attempt, which the
+        # import system's directory caches would otherwise still hide.
+        importlib.invalidate_caches()
+        self.base_dir = base_dir
+        self.config = _build_config(base_dir, self.echo)
+        self._register_plugins(self.config.project)
+        self._register_apps()
+
+        for entry in self.loader.ordered():
+            discover(self.registry, entry.module, entry.name, entry.namespace)
+        for callback in self._ready_callbacks:
+            callback(self.registry)
 
     def _hooks(self) -> dict[str, KindHooks]:
         return {
