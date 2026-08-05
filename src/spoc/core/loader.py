@@ -50,7 +50,13 @@ class LoadedModule:
     module: ModuleType
     kind: str
     namespace: str = ""
+    #: The module's own ``initialize()`` completed, so its ``teardown()`` is owed.
     initialized: bool = False
+    #: The startup phase completed for this module — the kind's startup hook ran,
+    #: or there was none to run — so the shutdown hook is owed. Tracked apart
+    #: from `initialized` because a module whose own ``initialize()`` raises has
+    #: still been through startup, and rollback must pair the two halves.
+    started: bool = False
 
 
 class Loader:
@@ -77,7 +83,17 @@ class Loader:
         name resolvable.
         """
         if name in self._modules:
-            return self._modules[name].module
+            existing = self._modules[name]
+            if (kind, namespace) != (existing.kind, existing.namespace) or set(
+                dependencies
+            ) != self._graph.get(name, set()):
+                raise SpocError(
+                    f"Module {name!r} is already registered with different "
+                    "labels or dependencies. Registering it again would "
+                    "silently discard the new edges",
+                    name,
+                )
+            return existing.module
 
         try:
             module = importlib.import_module(name)
@@ -177,6 +193,7 @@ class Loader:
                     on_startup, f"startup hook for kind {entry.kind!r}"
                 )
                 on_startup(components_for(entry))
+            entry.started = True
             fn = getattr(entry.module, "initialize", None)
             if callable(fn) and not entry.initialized:
                 self._refuse_coroutine(fn, f"{entry.name}.initialize")
@@ -196,6 +213,7 @@ class Loader:
                 result = on_startup(components_for(entry))
                 if inspect.isawaitable(result):
                     await result
+            entry.started = True
             fn = getattr(entry.module, "initialize", None)
             if callable(fn) and not entry.initialized:
                 result = fn()
@@ -210,23 +228,26 @@ class Loader:
     ) -> None:
         """Fire each module's shutdown hook, then its own ``teardown()``, in reverse.
 
-        Modules that never finished initializing are skipped, so a partial startup
-        can be rolled back without tearing down what never came up.
+        What never came up is not torn down, and the two halves are tracked
+        separately: a module whose own ``initialize()`` raised after its kind's
+        startup hook fired still gets the paired shutdown hook, but not a
+        ``teardown()`` for an initialize that never completed.
         """
         for entry in reversed(self.ordered()):
-            if not entry.initialized:
-                continue
-            _, on_shutdown = hooks.get(entry.kind, (None, None))
-            if on_shutdown is not None:
-                self._refuse_coroutine(
-                    on_shutdown, f"shutdown hook for kind {entry.kind!r}"
-                )
-                on_shutdown(components_for(entry))
-            fn = getattr(entry.module, "teardown", None)
-            if callable(fn):
-                self._refuse_coroutine(fn, f"{entry.name}.teardown")
-                fn()
-            entry.initialized = False
+            if entry.started:
+                _, on_shutdown = hooks.get(entry.kind, (None, None))
+                if on_shutdown is not None:
+                    self._refuse_coroutine(
+                        on_shutdown, f"shutdown hook for kind {entry.kind!r}"
+                    )
+                    on_shutdown(components_for(entry))
+                entry.started = False
+            if entry.initialized:
+                fn = getattr(entry.module, "teardown", None)
+                if callable(fn):
+                    self._refuse_coroutine(fn, f"{entry.name}.teardown")
+                    fn()
+                entry.initialized = False
 
     async def ashutdown(
         self,
@@ -235,16 +256,17 @@ class Loader:
     ) -> None:
         """Asynchronous :meth:`shutdown`: awaits coroutine hooks and modules."""
         for entry in reversed(self.ordered()):
-            if not entry.initialized:
-                continue
-            _, on_shutdown = hooks.get(entry.kind, (None, None))
-            if on_shutdown is not None:
-                result = on_shutdown(components_for(entry))
-                if inspect.isawaitable(result):
-                    await result
-            fn = getattr(entry.module, "teardown", None)
-            if callable(fn):
-                result = fn()
-                if inspect.isawaitable(result):
-                    await result
-            entry.initialized = False
+            if entry.started:
+                _, on_shutdown = hooks.get(entry.kind, (None, None))
+                if on_shutdown is not None:
+                    result = on_shutdown(components_for(entry))
+                    if inspect.isawaitable(result):
+                        await result
+                entry.started = False
+            if entry.initialized:
+                fn = getattr(entry.module, "teardown", None)
+                if callable(fn):
+                    result = fn()
+                    if inspect.isawaitable(result):
+                        await result
+                entry.initialized = False

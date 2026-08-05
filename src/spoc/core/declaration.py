@@ -28,10 +28,12 @@ from typing import Any
 
 from .exceptions import (
     ComponentKindMismatchError,
+    IdentityDivergenceError,
     MetadataContractError,
     MissingNameError,
+    UnmarkableObjectError,
 )
-from .identity import to_snake_case, validate_segment
+from .identity import compose, to_snake_case, validate_segment
 from .registry import Registry
 
 
@@ -46,8 +48,13 @@ class KindSpec:
     #: Hooks may be plain functions or coroutine functions on the same
     #: attribute; a coroutine hook is dispatched by the asynchronous
     #: lifecycle path (``astart``/``ashutdown``) and refused loudly by the
-    #: synchronous one. Each receives its kind's components as an immutable
-    #: sequence in canonical-identifier order.
+    #: synchronous one.
+    #:
+    #: Dispatch is **per loaded module**, not once per kind: a hook fires once
+    #: for each app module of this kind, receiving that app's components of
+    #: this kind as an immutable sequence in canonical-identifier order. A kind
+    #: populated only by ``[spoc.plugins]`` entries has no module to dispatch
+    #: against, so its hooks never fire.
     on_startup: Callable[[Sequence[Any]], Any] | None = None
     on_shutdown: Callable[[Sequence[Any]], Any] | None = None
 
@@ -89,14 +96,19 @@ def component(
         if target is None:
             raise ValueError("Cannot register None as a component")
         if name is not None:
-            resolved = name
+            resolved: str | None = name
+            derived_from = None
         else:
             intrinsic = getattr(target, "__name__", None)
             resolved = to_snake_case(intrinsic) if intrinsic is not None else None
+            derived_from = intrinsic
         if resolved is None:
             raise MissingNameError(target)
-        validate_segment("object_name", resolved)
-        target.__spoc__ = Internal(name=resolved, kind=kind, metadata=meta)
+        validate_segment("object_name", resolved, derived_from=derived_from)
+        try:
+            target.__spoc__ = Internal(name=resolved, kind=kind, metadata=meta)
+        except (AttributeError, TypeError) as exc:
+            raise UnmarkableObjectError(target, str(exc)) from exc
         return target
 
     return decorator(obj) if obj is not None else decorator
@@ -170,9 +182,16 @@ def discover(
     """Register every component declared in `module` into `registry`.
 
     The namespace is the caller's statement — the final segment of the app's
-    declared module path — never parsed back out of the module name. An object
-    the registry already holds is skipped: a component imported from another
-    app is an import, not a second declaration, and keeps its first identity.
+    declared module path — never parsed back out of the module name.
+
+    Layout is taxonomy, and that is what tells a *use* from a *claim*. A marked
+    object appearing in a module of some other kind — ``from .models import
+    repo`` inside ``views.py`` — is an ordinary import and is skipped. Two
+    modules of the *same* kind both holding it is a second claim: for classes
+    and functions ``__module__`` already settled which one declared it (they
+    were filtered out before this loop), but an instance carries no such marker,
+    so registering it here would hand it whichever namespace loaded first. That
+    is refused instead.
     """
     declared = _declared_objects(module, module_name)
     if not declared:
@@ -182,16 +201,22 @@ def discover(
     namespace = validate_segment("namespace", namespace)
 
     for attr_name, obj, info in declared:
-        if registry.identifier_of(obj) is not None:
-            continue  # already declared elsewhere; imports never re-register
+        prior = registry.identifier_of(obj)
         if info.kind != location_kind:
+            if prior is not None:
+                continue  # imported into another kind's module — a use
             raise ComponentKindMismatchError(
                 info.name or attr_name, info.kind, location_kind, module_name
             )
+        if prior is not None:
+            requested = compose(location_kind, namespace, info.name)
+            if prior != requested:
+                raise IdentityDivergenceError(prior, requested)
+            continue  # the same claim twice — idempotent, nothing to do
         registry.add(
             kind=location_kind,
             namespace=namespace,
-            name=info.name,
+            object_name=info.name,
             obj=obj,
             metadata=info.metadata,
         )

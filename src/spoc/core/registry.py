@@ -21,7 +21,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Final
 
 from .exceptions import (
     DuplicateComponentError,
@@ -32,15 +32,36 @@ from .exceptions import (
 )
 from .identity import compose, parse, validate_segment
 
+#: Types whose instances the runtime is free to share — small integers and many
+#: strings are interned, ``()`` is a singleton. For these, ``id()`` is not a
+#: proxy for "the same declared object": two registrations that merely hold
+#: equal values would collide in the divergence map and be reported as one
+#: object claiming two identities. They are excluded from that map instead.
+_SHARED_VALUE_TYPES: Final[tuple[type, ...]] = (
+    int,  # bool is a subclass
+    float,
+    complex,
+    str,
+    bytes,
+    tuple,
+    frozenset,
+    type(None),
+)
+
 
 @dataclass(frozen=True)
 class Component:
-    """One registry record — the unit of enumeration and projection."""
+    """One registry record — the unit of enumeration and projection.
+
+    The three segment fields carry the grammar's own names, so a projection
+    reads ``kind``/``namespace``/``object_name`` here, in a parsed identifier,
+    and in an error message alike.
+    """
 
     identifier: str
     kind: str
     namespace: str
-    name: str
+    object_name: str
     object: Any
     metadata: Any = field(default=None)
 
@@ -72,7 +93,7 @@ class Registry:
         self,
         kind: str,
         namespace: str,
-        name: str,
+        object_name: str,
         obj: Any,
         metadata: Any = None,
     ) -> Component:
@@ -83,34 +104,49 @@ class Registry:
         existing record; re-registering it under a *different* identity raises
         — the registry never answers a registration with a record whose
         identity differs from what the caller stated.
+
+        Divergence is a claim about *objects*, so it is tracked only for those
+        whose identity is their own (see :data:`_SHARED_VALUE_TYPES`).
         """
         if kind not in self._kinds:
             raise UnknownKindError(kind, self._kinds)
-        identifier = compose(kind, namespace, name)
+        identifier = compose(kind, namespace, object_name)
+        tracked = not isinstance(obj, _SHARED_VALUE_TYPES)
         with self._lock:
-            prior = self._identifier_of.get(id(obj))
-            if prior is not None:
-                if prior != identifier:
-                    raise IdentityDivergenceError(prior, identifier)
-                return self._store[prior]
-            if identifier in self._store:
-                raise DuplicateComponentError(
-                    identifier, self._store[identifier].object
-                )
+            if tracked:
+                prior = self._identifier_of.get(id(obj))
+                if prior is not None:
+                    if prior != identifier:
+                        raise IdentityDivergenceError(prior, identifier)
+                    return self._store[prior]
+            existing = self._store.get(identifier)
+            if existing is not None:
+                # The same object under the same identifier is idempotent even
+                # when it is a shared value the divergence map does not track.
+                if existing.object is obj:
+                    return existing
+                raise DuplicateComponentError(identifier, existing.object)
             record = Component(
                 identifier=identifier,
                 kind=kind,
                 namespace=namespace,
-                name=name,
+                object_name=object_name,
                 object=obj,
                 metadata=metadata,
             )
             self._store[identifier] = record
-            self._identifier_of[id(obj)] = identifier
+            if tracked:
+                self._identifier_of[id(obj)] = identifier
             return record
 
     def identifier_of(self, obj: Any) -> str | None:
-        """The canonical identifier `obj` is registered under, or None."""
+        """The canonical identifier `obj` is registered under, or None.
+
+        Always None for a shared value type, whose ``id()`` says nothing about
+        which registration it came from.
+        """
+        if isinstance(obj, _SHARED_VALUE_TYPES):
+            return None
         with self._lock:
             return self._identifier_of.get(id(obj))
 
@@ -179,6 +215,10 @@ class Registry:
             raise UnknownNamespaceError(parsed.namespace, parsed.kind, namespaces)
 
         candidates = tuple(
-            c.name for c in self.by_kind(parsed.kind) if c.namespace == parsed.namespace
+            c.object_name
+            for c in self.by_kind(parsed.kind)
+            if c.namespace == parsed.namespace
         )
-        raise UnknownObjectError(parsed.name, parsed.kind, parsed.namespace, candidates)
+        raise UnknownObjectError(
+            parsed.object_name, parsed.kind, parsed.namespace, candidates
+        )

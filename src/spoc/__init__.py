@@ -31,6 +31,7 @@ from .core.exceptions import (
     UnknownKindError,
     UnknownNamespaceError,
     UnknownObjectError,
+    UnmarkableObjectError,
     UnresolvedReferenceError,
 )
 from .core.identity import Identifier, compose, parse
@@ -67,5 +68,6 @@ __all__ = [
     "IdentityDivergenceError",
     "ComponentKindMismatchError",
     "MissingNameError",
+    "UnmarkableObjectError",
     "MetadataContractError",
 ]

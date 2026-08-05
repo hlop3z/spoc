@@ -31,8 +31,8 @@ from __future__ import annotations
 
 import importlib
 import threading
-from collections.abc import Callable
-from contextlib import suppress
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -46,7 +46,6 @@ from .core.config import (
 from .core.declaration import (
     KindSpec,
     as_kind_spec,
-    check_metadata,
     discover,
     registrar,
 )
@@ -65,7 +64,7 @@ class Config:
 
 
 def _build_config(base_dir: Path, echo: bool = False) -> Config:
-    raw = load_spoc_toml(base_dir).get("spoc", {})
+    raw = load_spoc_toml(base_dir, echo=echo).get("spoc", {})
     return Config(
         project=raw,
         environment=load_environment(
@@ -83,12 +82,25 @@ class Framework:
     callers race to start, exactly one boot proceeds and the rest fail with
     the already-started error. Reads after a completed start need no
     coordination, because nothing writes to the registry after boot.
+
+    A transition invoked from *inside* a transition — a ready callback or
+    lifecycle hook calling ``start`` or ``shutdown`` — fails immediately
+    rather than deadlocking on the non-reentrant lock. The transition is
+    mid-flight and its state is half-built, so there is no correct thing for
+    the inner call to do.
     """
 
     def __init__(self, *kinds: str | KindSpec, echo: bool = False) -> None:
         self._specs: dict[str, KindSpec] = {}
         for kind in kinds:
             spec = as_kind_spec(kind)
+            if spec.name in self._specs:
+                # Last-wins would let a second declaration silently replace the
+                # first's dependencies, optionality, and hooks.
+                raise ConfigurationError(
+                    f"Kind {spec.name!r} is declared more than once. "
+                    "Each kind is declared exactly once, on one KindSpec"
+                )
             self._specs[spec.name] = spec
         for spec in self._specs.values():
             for dep in spec.depends_on:
@@ -101,6 +113,9 @@ class Framework:
         self._ready_callbacks: list[Callable[[Registry], Any]] = []
         self._started = False
         self._transition_lock = threading.Lock()
+        #: Thread currently inside a lifecycle transition, so a reentrant call
+        #: from lifecycle code can be told apart from a racing caller.
+        self._transition_owner: int | None = None
         self.base_dir: Path | None = None
         self.config: Config | None = None
         self.installed_apps: list[str] = []
@@ -142,6 +157,27 @@ class Framework:
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
+    def _refuse_reentry(self, label: str) -> None:
+        """Refuse a transition called from inside one already on this thread."""
+        if self._transition_owner == threading.get_ident():
+            raise SpocError(
+                f"{label} was called from inside a lifecycle transition already "
+                "running on this thread. A ready callback, lifecycle hook, or "
+                "module initializer cannot start or shut down the framework "
+                "that is booting it"
+            )
+
+    @contextmanager
+    def _transition(self, label: str) -> Iterator[None]:
+        """Hold the transition lock, recording the owning thread."""
+        self._refuse_reentry(label)
+        with self._transition_lock:
+            self._transition_owner = threading.get_ident()
+            try:
+                yield
+            finally:
+                self._transition_owner = None
+
     def start(self, base_dir: Path | str) -> Framework:
         """Boot the project rooted at `base_dir`.
 
@@ -149,7 +185,7 @@ class Framework:
         framework returns to its inert pre-start state, so the caller can fix
         the cause and start again cleanly.
         """
-        with self._transition_lock:
+        with self._transition("start()"):
             if self._started:
                 raise SpocError("Framework is already started")
 
@@ -171,12 +207,16 @@ class Framework:
     async def astart(self, base_dir: Path | str) -> Framework:
         """Asynchronous :meth:`start`: awaits coroutine hooks and module code.
 
-        Discovery is the same synchronous work; only hook dispatch and module
-        ``initialize`` awaits. A concurrent transition is a programming error
-        and fails immediately — an event loop is never parked on a lock.
+        Discovery is the same synchronous work — configuration reads and module
+        imports run on the calling thread and do not yield to the event loop.
+        Only hook dispatch and module ``initialize`` awaits. A concurrent
+        transition is a programming error and fails immediately — an event loop
+        is never parked on a lock.
         """
+        self._refuse_reentry("astart()")
         if not self._transition_lock.acquire(blocking=False):
             raise SpocError("Framework lifecycle transition already in progress")
+        self._transition_owner = threading.get_ident()
         try:
             if self._started:
                 raise SpocError("Framework is already started")
@@ -194,6 +234,7 @@ class Framework:
             self._started = True
             return self
         finally:
+            self._transition_owner = None
             self._transition_lock.release()
 
     def shutdown(self) -> Framework:
@@ -205,7 +246,7 @@ class Framework:
         and a subsequent ``start`` re-runs discovery against those cached
         modules rather than re-executing them. No-op if never started.
         """
-        with self._transition_lock:
+        with self._transition("shutdown()"):
             if not self._started:
                 return self
             self.loader.shutdown(self._hooks(), self._components_for)
@@ -215,8 +256,10 @@ class Framework:
 
     async def ashutdown(self) -> Framework:
         """Asynchronous :meth:`shutdown`: awaits coroutine hooks and teardowns."""
+        self._refuse_reentry("ashutdown()")
         if not self._transition_lock.acquire(blocking=False):
             raise SpocError("Framework lifecycle transition already in progress")
+        self._transition_owner = threading.get_ident()
         try:
             if not self._started:
                 return self
@@ -225,6 +268,7 @@ class Framework:
             self._started = False
             return self
         finally:
+            self._transition_owner = None
             self._transition_lock.release()
 
     def _reset(self) -> None:
@@ -280,9 +324,21 @@ class Framework:
         is its own namespace — and the attribute derives the object_name. A
         kind only plugins populate is declared ``required=False`` so apps
         need not provide a module for it.
+
+        A configured reference is a name in a file — there is nowhere for it to
+        carry metadata — so a kind that states a metadata contract cannot be
+        populated this way, and says so rather than reporting a contract
+        violation the author has no way to satisfy.
         """
         for group, references in (project.get("plugins", {}) or {}).items():
             spec = self.spec(group)  # an undeclared group raises UnknownKindError
+            if spec.metadata is not None and references:
+                raise ConfigurationError(
+                    f"Kind {spec.name!r} declares the metadata contract "
+                    f"{spec.metadata.__name__}, which a [spoc.plugins] entry "
+                    "cannot supply. Register its components from an app module, "
+                    "where metadata is passed at declaration"
+                )
             for uri in references:
                 obj = self.loader.load_from_uri(uri)
                 module_path, _, attr = uri.rpartition(".")
@@ -290,9 +346,8 @@ class Framework:
                 namespace = validate_segment(
                     "namespace", segments[-2] if len(segments) > 1 else segments[-1]
                 )
-                name = to_snake_case(attr)
-                check_metadata(spec, name, None)
-                self.registry.add(spec.name, namespace, name, obj)
+                object_name = to_snake_case(attr)
+                self.registry.add(spec.name, namespace, object_name, obj)
 
     @staticmethod
     def _collect_apps(
