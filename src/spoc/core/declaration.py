@@ -124,10 +124,24 @@ def get_info(obj: Any) -> Internal | None:
     return info if isinstance(info, Internal) else None
 
 
+def _owns_marker(obj: Any) -> bool:
+    """True if ``__spoc__`` is attached to `obj` itself rather than inherited."""
+    try:
+        return "__spoc__" in vars(obj)
+    except TypeError:  # no __dict__, so the marker can only be inherited
+        return False
+
+
 def _declared_objects(
     module: ModuleType, module_name: str
 ) -> list[tuple[str, Any, Internal]]:
-    """Marked objects belonging to `module` — imports declared elsewhere are skipped."""
+    """Marked objects belonging to `module` — imports declared elsewhere are skipped.
+
+    Ownership is the marker's attachment point: an instance or subclass of a decorated
+    class inherits ``__spoc__`` through attribute lookup, but only the object the
+    decorator was applied to carries it in its own ``__dict__``. Inherited markers are
+    not declarations.
+    """
     found: list[tuple[str, Any, Internal]] = []
     for attr_name in dir(module):
         if attr_name.startswith("_"):
@@ -136,6 +150,8 @@ def _declared_objects(
         info = getattr(obj, "__spoc__", None)
         if not isinstance(info, Internal):
             continue
+        if not _owns_marker(obj):
+            continue  # inherited from a decorated class — not a declaration
         if (inspect.isclass(obj) or inspect.isfunction(obj)) and (
             getattr(obj, "__module__", module_name) != module_name
         ):

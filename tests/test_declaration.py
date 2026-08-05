@@ -264,3 +264,66 @@ class TestDiscovery:
 
         with pytest.raises(SpocError, match="Cannot derive a namespace"):
             discover(Registry(("models",)), module, "toplevel")
+
+    def test_instance_of_a_decorated_class_is_not_a_declaration(self):
+        """An instance inherits ``__spoc__`` from its class; only the class declares."""
+        from types import ModuleType
+
+        from spoc.core.registry import Registry
+
+        module = ModuleType("blog.models")
+
+        @component(kind="models")
+        class Post: ...
+
+        Post.__module__ = "blog.models"
+        setattr(module, "Post", Post)  # noqa: B010
+        setattr(module, "default_post", Post())  # noqa: B010
+
+        registry = Registry(("models",))
+        discover(registry, module, "blog.models")
+
+        assert [c.identifier for c in registry] == ["models:blog.post"]
+
+    def test_subclass_inheriting_a_marker_is_not_a_declaration(self):
+        """A subclass of a decorated class carries the marker but did not declare."""
+        from types import ModuleType
+
+        from spoc.core.registry import Registry
+
+        module = ModuleType("blog.models")
+
+        @component(kind="models")
+        class Post: ...
+
+        class DraftPost(Post): ...
+
+        for cls in (Post, DraftPost):
+            cls.__module__ = "blog.models"
+            setattr(module, cls.__name__, cls)
+
+        registry = Registry(("models",))
+        discover(registry, module, "blog.models")
+
+        assert [c.identifier for c in registry] == ["models:blog.post"]
+
+    def test_imported_instance_keeps_its_first_identity(self):
+        """A decorated instance imported into another app is not re-namespaced."""
+        from types import ModuleType
+
+        from spoc.core.registry import Registry
+
+        class Repository: ...
+
+        repo = component(Repository(), kind="models", name="repo")
+
+        blog = ModuleType("blog.models")
+        setattr(blog, "repo", repo)  # noqa: B010
+        shop = ModuleType("shop.models")
+        setattr(shop, "repo", repo)  # noqa: B010
+
+        registry = Registry(("models",))
+        discover(registry, blog, "blog.models")
+        discover(registry, shop, "shop.models")
+
+        assert [c.identifier for c in registry] == ["models:blog.repo"]

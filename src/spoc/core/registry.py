@@ -49,6 +49,8 @@ class Registry:
     def __init__(self, kinds: tuple[str, ...] = ()) -> None:
         self._kinds: tuple[str, ...] = tuple(validate_segment("kind", k) for k in kinds)
         self._store: dict[str, Component] = {}
+        # id() is stable here because _store holds a strong reference to every object.
+        self._identifier_of: dict[int, str] = {}
 
     @property
     def kinds(self) -> tuple[str, ...]:
@@ -63,15 +65,20 @@ class Registry:
         obj: Any,
         metadata: Any = None,
     ) -> Component:
-        """Register an object, building its record and canonical identifier."""
+        """Register an object, building its record and canonical identifier.
+
+        One object holds exactly one canonical identifier: re-registering an
+        already-registered object (an instance imported into another app, say)
+        returns its existing record rather than forking its identity.
+        """
         if kind not in self._kinds:
             raise UnknownKindError(kind, self._kinds)
+        prior = self._identifier_of.get(id(obj))
+        if prior is not None:
+            return self._store[prior]
         identifier = compose(kind, namespace, name)
         if identifier in self._store:
-            existing = self._store[identifier]
-            if existing.object is obj:
-                return existing  # same object re-discovered — not a duplicate
-            raise DuplicateComponentError(identifier, existing.object)
+            raise DuplicateComponentError(identifier, self._store[identifier].object)
         record = Component(
             identifier=identifier,
             kind=kind,
@@ -81,6 +88,7 @@ class Registry:
             metadata=metadata,
         )
         self._store[identifier] = record
+        self._identifier_of[id(obj)] = identifier
         return record
 
     # ── Reads: one store, derived views, deterministic order ──────────────
