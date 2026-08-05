@@ -100,7 +100,10 @@ class Loader:
     def load_from_uri(self, uri: str) -> Any:
         """Load an attribute from a ``package.module.attribute`` reference."""
         module_path, sep, attr = uri.rpartition(".")
-        if not sep:
+        # Every segment must be non-empty. An empty or dot-leading module path makes
+        # importlib raise its own ValueError/TypeError before this method's
+        # ModuleNotFoundError handler can see it, which would escape the error family.
+        if not sep or not attr or not all(module_path.split(".")):
             raise UnresolvedReferenceError(
                 uri, "expected the form 'package.module.attribute'"
             )

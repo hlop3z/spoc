@@ -18,7 +18,9 @@ All notable changes to this project are documented here. The format follows
   not exist raises `AppNotFoundError` instead of a raw `ModuleNotFoundError` (and
   `required=False` no longer excuses it); a plugin module that exists but fails to import
   propagates its own error instead of being misreported as absent; a malformed plugin
-  reference or missing attribute raises the new `UnresolvedReferenceError`; `[spoc.apps]`
+  reference or missing attribute raises the new `UnresolvedReferenceError` — including the
+  empty-segment forms (`.attr`, `pkg..mod.attr`, `pkg.mod.`) that `importlib` answers with
+  its own `ValueError` or `TypeError`; `[spoc.apps]`
   and `[spoc.plugins]` groups must be lists of strings (a bare string used to boot one app
   per character); an unknown `mode` — or an app list stranded under a misspelled one —
   fails start with `ConfigurationError` instead of silently installing nothing.

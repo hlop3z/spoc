@@ -208,6 +208,13 @@ class TestLoadFromUri:
             ("invalid", UnresolvedReferenceError),
             ("invalid.module.attr.extra", AppNotFoundError),
             ("os.nonexistent_attr", UnresolvedReferenceError),
+            # Empty segments: importlib answers these with its own ValueError or
+            # TypeError, which must never be what a caller sees.
+            (".attr", UnresolvedReferenceError),
+            ("..module.attr", UnresolvedReferenceError),
+            ("package..module.attr", UnresolvedReferenceError),
+            ("package.module.", UnresolvedReferenceError),
+            (".", UnresolvedReferenceError),
         ],
     )
     def test_errors(self, loader, uri, expected):
