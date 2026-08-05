@@ -223,6 +223,42 @@ Reading and querying are separate boxes on purpose. Addressing is split by failu
 a pointer names one value or raises, a query returns a possibly-empty list — and the two are
 never relaxed into each other.
 
+## The test harness
+
+`spoc.testing` is the third contained subpackage, under the same boundary as the other
+two: the kernel never imports it, importing `spoc` never loads it, and the suite pins
+both directions. It consumes only the kernel's *public* contracts — construction,
+`start`/`shutdown`, resolution — and owns the process state a boot touches in a test
+(`sys.path`, `sys.modules`), which the kernel itself never mutates.
+
+```mermaid
+flowchart TB
+    suite["A project's test suite<br/><i>any runner, or none</i>"]
+    pytest["pytest<br/><i>the only importer of plugin</i>"]
+
+    subgraph testing ["spoc.testing — contained subpackage"]
+        direction TB
+        plugin["plugin<br/><i>fixtures: spoc_tree · spoc_isolated · spoc_framework</i>"]
+        core["core<br/>isolated · import_state · mode"]
+        tree["tree<br/>ProjectTree → bootable directory"]
+    end
+
+    kernel["Kernel public API<br/>Framework · start · shutdown · resolve"]
+
+    suite --> core
+    suite --> tree
+    pytest -.->|pytest11 entry point| plugin
+    plugin --> core
+    plugin --> tree
+    core --> kernel
+    tree -.->|toml extra, lazy| emit["TOML emission"]
+```
+
+The dotted edge to `plugin` is the inertness contract: the entry point is metadata, so
+pytest is the only thing that ever imports the module and a runtime install never loads
+a test runner. The dotted edge to TOML emission mirrors the formats rule — a missing
+extra fails naming itself.
+
 ## Invariants
 
 1. **Zero runtime dependencies** — anything needing a dependency is, by

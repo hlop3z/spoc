@@ -42,6 +42,10 @@ describes; it never executes.
 - **Precise resolution** — failures name the failing segment and the valid
   candidates; a typo never falls through to `None`
 - **Zero runtime dependencies** — `dependencies = []` is an invariant
+- **A shipped test harness** — `spoc.testing` gives every project an isolated
+  framework scope, a declarative app-tree builder, and a mode override; with
+  pytest installed the same pieces arrive as fixtures automatically, and the
+  kernel never imports any of it
 
 Structured-data loading ships in the box as the contained subpackage
 `spoc.formats` (`from spoc import formats`) — the kernel never imports it,
