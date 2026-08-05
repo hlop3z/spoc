@@ -33,6 +33,14 @@ class AppNotFoundError(SpocError):
         super().__init__("Module could not be found", module_name)
 
 
+class UnresolvedReferenceError(SpocError):
+    """A ``package.module.attribute`` reference names something that does not exist."""
+
+    def __init__(self, uri: str, reason: str) -> None:
+        self.uri, self.reason = uri, reason
+        super().__init__(f"Cannot resolve reference {uri!r}: {reason}")
+
+
 class MissingModuleError(SpocError):
     """An app provides no module for a kind whose modules are required."""
 

@@ -22,6 +22,7 @@ from spoc.core.exceptions import (
     CircularDependencyError,
     MissingModuleError,
     SpocError,
+    UnresolvedReferenceError,
 )
 from spoc.core.loader import LoadedModule, Loader
 
@@ -204,12 +205,13 @@ class TestLoadFromUri:
     @pytest.mark.parametrize(
         "uri,expected",
         [
-            ("invalid", ValueError),
+            ("invalid", UnresolvedReferenceError),
             ("invalid.module.attr.extra", AppNotFoundError),
-            ("os.nonexistent_attr", AttributeError),
+            ("os.nonexistent_attr", UnresolvedReferenceError),
         ],
     )
     def test_errors(self, loader, uri, expected):
+        """Every reference failure is a named kernel refusal, not a raw exception."""
         with pytest.raises(expected):
             loader.load_from_uri(uri)
 

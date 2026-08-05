@@ -29,6 +29,7 @@ from .exceptions import (
     CircularDependencyError,
     MissingModuleError,
     SpocError,
+    UnresolvedReferenceError,
 )
 
 logger = logging.getLogger("spoc")
@@ -100,7 +101,9 @@ class Loader:
         """Load an attribute from a ``package.module.attribute`` reference."""
         module_path, sep, attr = uri.rpartition(".")
         if not sep:
-            raise ValueError("URI must be in the form 'package.module.function'")
+            raise UnresolvedReferenceError(
+                uri, "expected the form 'package.module.attribute'"
+            )
         try:
             module = importlib.import_module(module_path)
         except ModuleNotFoundError as e:
@@ -110,7 +113,9 @@ class Loader:
                 raise AppNotFoundError(module_path) from e
             raise  # the module exists; something it imports does not
         if not hasattr(module, attr):
-            raise AttributeError(f"Module '{module_path}' has no attribute '{attr}'")
+            raise UnresolvedReferenceError(
+                uri, f"module {module_path!r} has no attribute {attr!r}"
+            )
         return getattr(module, attr)
 
     def ordered(self) -> list[LoadedModule]:

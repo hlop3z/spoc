@@ -29,6 +29,7 @@ from .core.exceptions import (
     UnknownKindError,
     UnknownNamespaceError,
     UnknownObjectError,
+    UnresolvedReferenceError,
 )
 from .core.identity import Identifier, compose, parse
 from .core.registry import Component, Registry
@@ -57,6 +58,7 @@ __all__ = [
     "UnknownKindError",
     "UnknownNamespaceError",
     "UnknownObjectError",
+    "UnresolvedReferenceError",
     "DuplicateComponentError",
     "ComponentKindMismatchError",
     "MissingNameError",
