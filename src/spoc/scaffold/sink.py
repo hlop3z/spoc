@@ -14,6 +14,7 @@ import os
 import shutil
 import tempfile
 from collections.abc import Sequence
+from contextlib import suppress
 from pathlib import Path
 
 from .errors import PathEscapeError
@@ -67,10 +68,30 @@ class DirectorySink:
             os.replace(staging, self.destination)
             return
 
-        for staged in sorted(staging.rglob("*")):
-            if staged.is_dir():
-                continue
-            relative = staged.relative_to(staging)
-            final = self.destination / relative
-            final.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(staged, final)
+        try:
+            # The destination exists but is empty (is_empty gated the operation):
+            # remove it so the whole-tree move stays the single atomic step.
+            os.rmdir(self.destination)
+        except OSError:
+            # The directory cannot be swapped out (it is the working directory,
+            # say) — move per file, undoing the moves if any one of them fails.
+            self._move_files_with_rollback(staging)
+        else:
+            os.replace(staging, self.destination)
+
+    def _move_files_with_rollback(self, staging: Path) -> None:
+        moved: list[Path] = []
+        try:
+            for staged in sorted(staging.rglob("*")):
+                if staged.is_dir():
+                    continue
+                relative = staged.relative_to(staging)
+                final = self.destination / relative
+                final.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(staged, final)
+                moved.append(final)
+        except BaseException:
+            for final in moved:
+                with suppress(OSError):
+                    final.unlink()
+            raise

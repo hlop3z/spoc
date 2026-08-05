@@ -182,6 +182,42 @@ def test_failure_leaves_nothing_behind(tmp_path):
     assert not (tmp_path / "escape.py").exists()
 
 
+def test_failure_in_an_existing_directory_leaves_it_empty(tmp_path, monkeypatch):
+    """All-or-nothing must hold on the per-file fallback path, not just the swap."""
+    import os
+
+    destination = tmp_path / "proj"
+    destination.mkdir()
+    sink = DirectorySink(destination)
+    plan = GenerationPlan(
+        files=(
+            PlannedFile(path="a.txt", content="a"),
+            PlannedFile(path="b.txt", content="b"),
+            PlannedFile(path="c.txt", content="c"),
+        )
+    )
+
+    def deny_rmdir(path):
+        raise OSError("directory is in use")
+
+    real_replace = os.replace
+    calls = {"count": 0}
+
+    def flaky_replace(src, dst):
+        calls["count"] += 1
+        if calls["count"] == 2:
+            raise OSError("disk full")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr("spoc.scaffold.sink.os.rmdir", deny_rmdir)
+    monkeypatch.setattr("spoc.scaffold.sink.os.replace", flaky_replace)
+
+    with pytest.raises(OSError, match="disk full"):
+        sink.commit(plan)
+
+    assert list(destination.iterdir()) == []
+
+
 def test_staging_directory_is_cleaned_up(tmp_path):
     destination = tmp_path / "proj"
     generate(destination)
@@ -210,6 +246,16 @@ def test_traversal_in_name_rejected(tmp_path, bad):
     with pytest.raises(PathEscapeError):
         generate(tmp_path / "proj", app_name=bad)
     assert not (tmp_path / "proj").exists()
+
+
+def test_cli_reports_an_invalid_name_instead_of_crashing(tmp_path, capsys, monkeypatch):
+    """The kernel's identity errors exit like any other refusal — code 1, no traceback."""
+    from spoc.scaffold.cli import main
+
+    monkeypatch.chdir(tmp_path)
+    assert main(["init", "BadName"]) == 1
+    assert capsys.readouterr().err.startswith("error:")
+    assert not (tmp_path / "BadName").exists()
 
 
 def test_rendered_target_escaping_root_rejected():
@@ -390,6 +436,18 @@ def test_undeclared_placeholder_rejected():
     with pytest.raises(UndeclaredValueError) as exc:
         validate_template_set(template, {"undeclared": "x"})
     assert "sneaky.tmpl" in str(exc.value)
+
+
+def test_kind_placeholder_needs_a_per_kind_file():
+    """The repetition supplies ``kind`` only to per_kind files — a plain file
+    using it must be refused at validation, not crash mid-render."""
+    template = fake_set(
+        TemplateFile(source="t.tmpl", target="out.txt", content="hello $kind"),
+        values=("kind",),
+    )
+    with pytest.raises(UnsatisfiedValueError) as exc:
+        build_plan(template, {}, ("models",))
+    assert "kind" in str(exc.value)
 
 
 # ── Template sets: substitution values are declared ───────────────────────

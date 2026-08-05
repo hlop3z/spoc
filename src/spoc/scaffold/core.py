@@ -75,6 +75,9 @@ def validate_template_set(template_set: TemplateSet, values: Values) -> None:
 
     - every placeholder a template uses must be declared in the manifest, so the
       declaration can be trusted without rendering;
+    - every placeholder must be satisfied by the binding its file will actually
+      render with — the per-kind repetition supplies ``kind`` only to ``per_kind``
+      files;
     - every declared value must be supplied, either by this operation or by the
       per-kind repetition.
 
@@ -88,10 +91,13 @@ def validate_template_set(template_set: TemplateSet, values: Values) -> None:
 
     declared = set(template_set.values)
     for file in template_set.files:
+        bound = set(values) | ({PER_KIND_VALUE} if file.per_kind else set())
         for text in (file.content, file.target):
             for name in Template(text).get_identifiers():
                 if name not in declared:
                     raise UndeclaredValueError(name, file.source)
+                if name not in bound:
+                    raise UnsatisfiedValueError(name)
 
     supplied = set(values) | {PER_KIND_VALUE}
     for name in template_set.values:

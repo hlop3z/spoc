@@ -14,7 +14,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .errors import ScaffoldError
+from ..core.exceptions import SpocError
 from .operations import DEFAULT_APP_NAME, DEFAULT_KINDS, init_project
 from .sink import DirectorySink
 from .sources import BUILTIN_SET, InstalledTemplateSources
@@ -80,10 +80,9 @@ def main(argv: list[str] | None = None) -> int:
             kinds=kinds,
             template_set=args.template,
         )
-    except ScaffoldError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
-    except ValueError as exc:
+    # SpocError covers the scaffolder's own refusals and the kernel's identity
+    # errors alike — validate_name raises the kernel's InvalidSegmentError.
+    except (SpocError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
