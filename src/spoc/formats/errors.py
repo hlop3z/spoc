@@ -6,7 +6,7 @@ base for everything spoc raises, but nothing in the kernel raises them — the d
 one way, as it does for the scaffolder.
 
 Two of these carry a contract rather than just a message. A format whose optional extra is
-absent raises :class:`MissingFormatDependencyError` naming the extra to install, never an
+absent raises :class:`MissingDependencyError` naming the extra to install, never an
 ``ImportError`` from a transitive module — otherwise the extras are not optional in practice.
 And exact addressing raises :class:`PointerResolutionError` naming the segment that could not
 be resolved, mirroring the per-segment precision the registry's own resolution promises.

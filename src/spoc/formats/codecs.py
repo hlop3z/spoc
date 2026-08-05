@@ -45,7 +45,17 @@ def _json_writer() -> EncodeFn:
 
 def _csv_reader() -> DecodeFn:
     def decode(text: str) -> list[dict[str, str]]:
-        return list(csv.DictReader(io.StringIO(text)))
+        rows: list[dict[str, str]] = []
+        for row in csv.DictReader(io.StringIO(text)):
+            # DictReader files overflow cells under a None key — a value outside
+            # the JSON data model that would round-trip as corrupted output.
+            if None in row:
+                raise ValueError(
+                    f"Malformed CSV: row {len(rows) + 2} has more cells "
+                    "than the header has columns"
+                )
+            rows.append(row)
+        return rows
 
     return decode
 
@@ -54,8 +64,13 @@ def _csv_writer() -> EncodeFn:
     def encode(value: list[dict[str, Any]]) -> str:
         if not value:
             return ""
+        # The header is the union of every row's keys, first appearance wins —
+        # deriving it from row 0 alone would crash on any later row's new key.
+        fieldnames = list(dict.fromkeys(key for row in value for key in row))
         out = io.StringIO()
-        writer = csv.DictWriter(out, fieldnames=list(value[0]), lineterminator="\n")
+        writer = csv.DictWriter(
+            out, fieldnames=fieldnames, restval="", lineterminator="\n"
+        )
         writer.writeheader()
         writer.writerows(value)
         return out.getvalue()

@@ -188,6 +188,22 @@ def test_a_single_data_row_is_still_an_array():
     assert formats.loads("a,b\n1,2\n", "csv") == [{"a": "1", "b": "2"}]
 
 
+def test_a_ragged_row_is_refused_not_smuggled():
+    """A row wider than the header would decode outside the JSON data model."""
+    with pytest.raises(ValueError, match="row 2"):
+        formats.loads("a,b\n1,2,3\n", "csv")
+
+
+def test_a_short_row_fills_with_null():
+    assert formats.loads("a,b\n1\n", "csv") == [{"a": "1", "b": None}]
+
+
+def test_heterogeneous_rows_share_a_union_header():
+    """Later rows may introduce keys; the header is the union, gaps stay empty."""
+    text = formats.dumps([{"a": "1"}, {"a": "2", "b": "3"}], "csv")
+    assert text == "a,b\n1,\n2,3\n"
+
+
 # ── format-codecs: hierarchical markup ────────────────────────────────────
 
 ONE_BOOK = "<catalog><book id='1'/></catalog>"
