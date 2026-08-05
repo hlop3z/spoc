@@ -1,9 +1,10 @@
 """
 The data surface's error family.
 
-:class:`FormatError` is this distribution's own root — ``spoc-formats`` imports
-nothing from the SPOC kernel, so a project using both catches each package's
-base separately. Every failure this package produces is one of these.
+:class:`FormatError` is the data surface's own root — ``spoc.formats`` imports
+nothing from the SPOC kernel and its errors are not kernel errors, so a project
+using both catches each family's base separately. Every failure this surface
+produces is one of these.
 
 Two of these carry a contract rather than just a message. A format whose optional extra is
 absent raises :class:`MissingDependencyError` naming the extra to install, never an
@@ -37,7 +38,7 @@ class MissingDependencyError(FormatError):
         self.capability, self.extra = capability, extra
         super().__init__(
             f"Cannot {capability}: it needs an optional dependency that is not "
-            f"installed. Install it with: pip install spoc-formats[{extra}]"
+            f'installed. Install it with: pip install "spoc[{extra}]"'
         )
 
 

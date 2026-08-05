@@ -34,11 +34,21 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
 
-      # --all-packages: the workspace publishes two distributions (spoc,
-      # spoc-formats). Both build into dist/ before either publishes, so a
-      # build failure can never leave a partial release on PyPI.
-      - name: Build all workspace packages
-        run: uv build --all-packages
+      - name: Build the distribution
+        run: uv build
+
+      # One artifact ships everything: kernel, scaffold, and the contained
+      # spoc.formats subpackage. A wheel missing the surface is a broken build.
+      - name: Verify the wheel carries spoc.formats
+        run: |
+          python - <<'EOF'
+          import glob, zipfile
+          wheel = glob.glob("dist/spoc-*.whl")[0]
+          names = zipfile.ZipFile(wheel).namelist()
+          assert any(n.startswith("spoc/formats/") for n in names), \
+              f"spoc.formats missing from {wheel}"
+          print(f"ok: {wheel}")
+          EOF
 
       - name: Publish package distributions to PyPI
         run: uv publish

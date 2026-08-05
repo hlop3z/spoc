@@ -43,9 +43,10 @@ describes; it never executes.
   candidates; a typo never falls through to `None`
 - **Zero runtime dependencies** — `dependencies = []` is an invariant
 
-Structured-data loading lives in its own distribution,
-[`spoc-formats`](packages/spoc-formats) (`import spoc_formats`) — same
-repository, and neither package imports the other.
+Structured-data loading ships in the box as the contained subpackage
+`spoc.formats` (`from spoc import formats`) — the kernel never imports it,
+importing `spoc` never loads it, and its optional codecs live behind extras
+(`pip install "spoc[full]"`).
 
 ## Installation
 

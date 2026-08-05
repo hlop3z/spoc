@@ -171,18 +171,19 @@ that would break new projects fails here rather than reaching users.
 
 ## The data surface
 
-`spoc-formats` is its **own distribution** (`packages/spoc-formats`, import name
-`spoc_formats`) sharing this repository as a uv workspace member. Neither package imports the
-other — there is no edge between them in either direction. It exists for the *project's* own
-data — fixtures, tables, per-app settings — never for the kernel's configuration, which stays
-`spoc.toml` through stdlib `tomllib`. The collection-key grammar restates the kernel's segment
-convention locally: the two distributions share a convention, never code.
+`spoc.formats` is a **contained subpackage** of the `spoc` distribution. The kernel never
+imports it and importing `spoc` never loads it — there is no edge between them in either
+direction, a boundary the test suite enforces rather than packaging. It exists for the
+*project's* own data — fixtures, tables, per-app settings — never for the kernel's
+configuration, which stays `spoc.toml` through stdlib `tomllib`. The collection-key grammar
+restates the kernel's segment convention locally: the two surfaces share a convention,
+never code.
 
 ```mermaid
 flowchart TB
     project["Project code<br/><i>calls it directly — not a lifecycle hook</i>"]
 
-    subgraph formats ["spoc_formats — its own distribution, imports resolve lazily"]
+    subgraph formats ["spoc.formats — contained subpackage, imports resolve lazily"]
         direction TB
 
         subgraph fcore ["core — pure, no I/O, stdlib only"]
@@ -215,7 +216,7 @@ flowchart TB
 ```
 
 The dotted edges are the laziness: a codec's dependency is imported the first time that
-*direction* of that *format* is used, so importing `spoc_formats` on a bare install pulls in
+*direction* of that *format* is used, so importing `spoc.formats` on a bare install pulls in
 nothing, and a missing extra fails naming itself rather than as an `ImportError`.
 
 Reading and querying are separate boxes on purpose. Addressing is split by failure semantics —
@@ -227,9 +228,9 @@ never relaxed into each other.
 1. **Zero runtime dependencies** — anything needing a dependency is, by
    definition, not kernel. `dependencies` is empty, so installing spoc acquires
    nothing, and this holds for the shipped scaffolder too: every build-vs-adopt
-   decision behind it landed on the standard library. The `spoc-formats`
-   distribution adopts packages, but every one is quarantined behind one of
-   *its* extras — the kernel distribution has no extras at all.
+   decision behind it landed on the standard library. The `spoc.formats`
+   surface adopts packages, but every one is quarantined behind an extra and
+   imported lazily — a bare install still acquires nothing.
 2. **Describes, never executes** — the kernel calls no user code beyond
    lifecycle hooks; resolution is a pure lookup.
 3. **One registry, one grammar** — all views are derived from the flat

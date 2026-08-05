@@ -80,10 +80,11 @@ more than they could possibly save. If you are on 0.3.x, read
   instead of silently returning the prior record; same-identity re-registration stays
   idempotent. Discovery still skips objects imported from another app — an import is not
   a second declaration.
-- **BREAKING — `spoc.formats` is now the `spoc-formats` distribution.** The repo is a uv
-  workspace publishing two artifacts; `import spoc_formats`, extras move with it
-  (`pip install spoc-formats[full]`), `FormatError` no longer subclasses `SpocError`, and
-  neither package imports the other.
+- **BREAKING — `spoc.formats` is a contained subpackage with a test-enforced boundary.**
+  The data surface ships inside the one `spoc` distribution (`from spoc import formats`),
+  with its codecs behind extras (`pip install "spoc[full]"`) so the bare install still
+  acquires nothing. The kernel never imports it, importing `spoc` never loads it, and
+  `FormatError` no longer subclasses `SpocError` — all three pinned by the suite.
 - **The Python floor drops to 3.12** (was 3.13), and CI runs 3.12/3.13/3.14.
 - **BREAKING — plugins register in the one flat registry.** `framework.plugins` — a second
   lookup surface keyed by dotted URI — is gone. A `[spoc.plugins]` group now names a

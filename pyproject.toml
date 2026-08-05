@@ -30,11 +30,23 @@ Changelog = "https://github.com/hlop3z/spoc/blob/main/CHANGELOG.md"
 
 # The scaffolder ships in this distribution and needs nothing: every one of its
 # build-vs-adopt decisions landed on the standard library, so `dependencies`
-# above stays empty. The kernel imports nothing from `spoc.scaffold`.
-# Data formats live in their own distribution (`packages/spoc-formats`); the
-# kernel has no extras at all.
+# above stays empty. The kernel imports nothing from `spoc.scaffold` or
+# `spoc.formats` — both are contained subpackages, and the boundary is pinned
+# by the test suite.
 [project.scripts]
 spoc = "spoc.scaffold.cli:main"
+
+# The bare install reads JSON, CSV, and TOML through the standard library and
+# costs nothing. Every non-stdlib codec lives behind an extra — these are the
+# feature flags; `dependencies` above stays empty.
+[project.optional-dependencies]
+yaml = ["ruamel.yaml>=0.19.1"] # YAML 1.2, a strict JSON superset
+xml = ["xmltodict>=1.0.4"]     # force_list's callable form is what the XML design needs
+toml = ["tomli-w>=1.0"]        # stdlib tomllib reads; nothing in it writes
+# python-jsonpath carries RFC 9535 + RFC 6901; iregexp-check is what makes the
+# RFC's own match()/search() functions available, so conformance is not partial.
+query = ["python-jsonpath>=2.2.1", "iregexp-check>=0.1.4"]
+full = ["spoc[yaml,xml,toml,query]"]
 
 [build-system]
 requires = ["hatchling"]
@@ -92,21 +104,13 @@ root = ["./src"]
 # runtime-path package, tests import fixture modules they create in tmp_path, and
 # scripts/py tools carry their own uv environments.
 [[tool.ty.overrides]]
-include = ["examples/**", "tests/**", "packages/spoc-formats/tests/**", "scripts/**"]
+include = ["examples/**", "tests/**", "scripts/**"]
 
 [tool.ty.overrides.rules]
 unresolved-import = "ignore"
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "packages/spoc-formats/tests"]
-
-# One repo, one lockfile, two published artifacts: the kernel here, the
-# formats sidecar as a member. Neither imports the other.
-[tool.uv.workspace]
-members = ["packages/*"]
-
-[tool.uv.sources]
-spoc-formats = { workspace = true }
+testpaths = ["tests"]
 
 [dependency-groups]
 dev = [
@@ -119,8 +123,8 @@ dev = [
     # to mean anything. Declared here rather than as a CI flag: `uv sync`
     # installs the dev group by default, so a plain sync gives CI and a laptop
     # the same environment. This never reaches an installer of `spoc` —
-    # `dependencies` above stays empty and the kernel has no extras.
-    "spoc-formats[full]",
+    # `dependencies` above stays empty; the extras are opt-in feature flags.
+    "spoc[full]",
 ]
 examples = [
     # HTTP surface for the registry-projection example (never a kernel dependency)

@@ -270,3 +270,25 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   of maintainers." Bounded two ways: the `Codec` port makes a backend swap a one-adapter
   change, and `ruyaml` is a drop-in replacement if upstream stalls. **Revisit ~August 2027.**
 - **Isolation**: one codec adapter, restricted to safe loading.
+
+### Decision: Formats packaging — one distribution, containment enforced by tests
+
+- **Status**: approved. **Supersedes** "Multi-distribution packaging — Adopt uv
+  workspaces" (recorded in the archived change
+  `openspec/changes/archive/2026-08-04-production-hardening/design.md`, D8), reversed
+  before anything was published.
+- **Why**: SPOC is the single point of connections and reading data files is a
+  capability of that point, not a separate context. The split's unique benefits
+  (independent cadence, wheel purity) solve problems this project does not have, while
+  its costs are immediate: a second PyPI project, a second import name, a weaker
+  one-install story. The defects the split fixed — `FormatError` subclassing
+  `SpocError`, a blurred import boundary — are orthogonal to packaging and stay fixed,
+  now pinned by the test suite (the kernel never imports `spoc.formats`; importing
+  `spoc` never loads it). Extras remain the feature flags, so `dependencies = []`
+  still holds for the bare install.
+- **Considered**: keeping two distributions (operational cost with no current
+  benefit); `spoc` depending on `spoc-formats` with a re-export (reintroduces a
+  kernel→formats dependency direction the boundary forbids).
+- **Isolation**: `src/spoc/formats/` only; the boundary tests in
+  `tests/test_formats.py` are what a future re-split would lean on — the code stays
+  split-ready indefinitely.

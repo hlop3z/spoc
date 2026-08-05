@@ -9,9 +9,9 @@ no extras still reads every standard-library format.
 The two directions are declared separately because they genuinely differ — stdlib ``tomllib``
 reads TOML and nothing in the standard library writes it. Modelling that as two independent
 factories, rather than one codec with a special case, is what lets "TOML output needs
-``spoc-formats[toml]``" be a lookup instead of a branch in calling code.
+``spoc[toml]``" be a lookup instead of a branch in calling code.
 
-This module imports nothing outside the standard library and the kernel's own error base.
+This module imports nothing outside the standard library and the surface's own error base.
 The codecs themselves live in ``codecs.py``; the registry is assembled in ``__init__.py``,
 which is this package's composition root.
 """

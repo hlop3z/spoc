@@ -1,16 +1,16 @@
 """
-Loading a project's own data with ``spoc_formats``.
+Loading a project's own data with ``spoc.formats``.
 
 Run with:  uv run python examples/data_app.py
 
 Nothing here is wired into the framework. The kernel reads ``config/spoc.toml`` and stops;
 everything below is the *project* loading its own files, which is the whole point of the
-sidecar. Requires the extras:  pip install spoc-formats[full]
+data surface. Requires the extras:  pip install "spoc[full]"
 """
 
 from pathlib import Path
 
-import spoc_formats as formats
+from spoc import formats
 
 BASE_DIR = Path(__file__).resolve().parent
 

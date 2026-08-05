@@ -16,11 +16,13 @@ import tomllib
 from pathlib import Path
 
 import pytest
-import spoc_formats as formats
-from spoc_formats.core import READ, WRITE, Codec, FormatRegistry
-from spoc_formats.errors import (
+
+from spoc import formats
+from spoc.formats.core import READ, WRITE, Codec, FormatRegistry
+from spoc.formats.errors import (
     CollectionError,
     DuplicateEntryError,
+    FormatError,
     MissingDependencyError,
     PointerResolutionError,
     UnknownFormatError,
@@ -129,7 +131,7 @@ def test_missing_extra_is_reported_actionably():
     registry = _registry_missing_extra()
     with pytest.raises(MissingDependencyError) as exc:
         registry.function("pretend", READ)
-    assert "pip install spoc-formats[pretend]" in str(exc.value)
+    assert 'pip install "spoc[pretend]"' in str(exc.value)
 
 
 def test_missing_extra_does_not_claim_the_direction_is_unsupported():
@@ -160,7 +162,7 @@ def test_supported_directions_are_enumerable():
 
 def test_standard_library_formats_declare_no_extra():
     """JSON and CSV must work on a bare install, so neither may name an extra."""
-    from spoc_formats.codecs import CODECS
+    from spoc.formats.codecs import CODECS
 
     stdlib = {c.name: c for c in CODECS}
     for name in ("json", "csv"):
@@ -500,10 +502,39 @@ def test_kernel_does_not_import_the_data_surface():
     assert result.stdout.strip() == "[]"
 
 
+def test_format_errors_are_not_kernel_errors():
+    """One repo, two error families: catching SpocError never swallows a data failure."""
+    from spoc.core.exceptions import SpocError
+
+    assert not issubclass(FormatError, SpocError)
+
+
+def test_no_kernel_module_imports_the_data_surface():
+    """Containment is a contract, not a packaging accident: the boundary holds in
+    source, whatever distribution the two sides share."""
+    root = Path(__file__).parent.parent / "src/spoc"
+    for path in sorted(root.rglob("*.py")):
+        if (root / "formats") in path.parents:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                # A relative import can reach the surface too (`from .formats
+                # import ...` / `from . import formats`), so both the module
+                # path and the imported names are checked.
+                names = [node.module or "", *(alias.name for alias in node.names)]
+            else:
+                continue
+            for name in names:
+                assert "formats" not in name.split("."), f"{path.name}: {name}"
+
+
 def test_importing_the_surface_loads_no_optional_dependency():
     """Extras stay optional only if importing the package never reaches for them."""
     code = (
-        "import sys; import spoc_formats as formats; "
+        "import sys; from spoc import formats; "
         "print(sorted(m for m in sys.modules "
         "if m.split('.')[0] in {'ruamel', 'xmltodict', 'tomli_w', 'jsonpath'}))"
     )
@@ -519,7 +550,7 @@ def test_standard_library_formats_work_with_no_optional_dependency():
         "import sys\n"
         "for name in ('ruamel', 'ruamel.yaml', 'xmltodict', 'tomli_w', 'jsonpath'):\n"
         "    sys.modules[name] = None\n"
-        "import spoc_formats as formats\n"
+        "from spoc import formats\n"
         "assert formats.loads('{\"a\": 1}', 'json') == {'a': 1}\n"
         "assert formats.loads('a\\nb\\n', 'csv') == [{'a': 'b'}]\n"
         "assert formats.loads('a = 1', 'toml') == {'a': 1}\n"
@@ -535,7 +566,7 @@ def test_standard_library_formats_work_with_no_optional_dependency():
 def test_core_imports_nothing_beyond_stdlib(module: str):
     """design.md D2: the port, the registry, and the operations stay pure —
     and nothing here imports the SPOC kernel."""
-    root = Path(__file__).parent.parent / "src/spoc_formats"
+    root = Path(__file__).parent.parent / "src/spoc/formats"
     tree = ast.parse((root / module).read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -550,7 +581,7 @@ def test_core_imports_nothing_beyond_stdlib(module: str):
 
 def test_only_the_codecs_and_access_layer_touch_adopted_packages():
     """Third-party imports are confined, and every one of them is lazy."""
-    root = Path(__file__).parent.parent / "src/spoc_formats"
+    root = Path(__file__).parent.parent / "src/spoc/formats"
     for path in sorted(root.glob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
