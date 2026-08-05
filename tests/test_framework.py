@@ -7,11 +7,11 @@ globals).
 import sys
 import textwrap
 from dataclasses import dataclass
-from pathlib import Path
 
 import pytest
 
 import spoc
+import spoc.testing
 from spoc import Framework, KindSpec
 from spoc.core.config import DEFAULT_MODES
 from spoc.core.declaration import get_info
@@ -26,65 +26,9 @@ from spoc.core.exceptions import (
     UnknownKindError,
     UnknownNamespaceError,
 )
+from tests.conftest import MODELS_BODY, make_project
 
-MODELS_BODY = """
-    from spoc.core.declaration import component
-
-    @component(kind="models")
-    class Post:
-        ...
-"""
-
-
-def make_project(
-    tmp_path: Path,
-    app: str,
-    models_body: str = MODELS_BODY,
-    extra_toml: str = "",
-    extra_modules: dict[str, str] | None = None,
-) -> Path:
-    """Build a minimal SPOC project with one app on disk. No settings.py.
-
-    The app is a top-level package under the project root, declared by its
-    dotted path (here a single segment). The test environment — not the
-    kernel — makes the root importable, exactly as a real entry point's
-    script directory would be.
-    """
-    base = tmp_path / f"proj_{app}"
-    (base / "config").mkdir(parents=True)
-    (base / "config" / "spoc.toml").write_text(
-        textwrap.dedent(
-            f"""
-            [spoc]
-            mode = "development"
-            debug = true
-
-            [spoc.apps]
-            development = ["{app}"]
-            """
-        )
-        + extra_toml
-    )
-    app_dir = base / app
-    app_dir.mkdir(parents=True)
-    (app_dir / "__init__.py").write_text("")
-    (app_dir / "models.py").write_text(textwrap.dedent(models_body))
-    for name, body in (extra_modules or {}).items():
-        (app_dir / f"{name}.py").write_text(textwrap.dedent(body))
-    sys.path.insert(0, str(base))
-    return base
-
-
-@pytest.fixture(autouse=True)
-def clean_sys_path_and_modules():
-    """Keep app imports from leaking between tests."""
-    path_before = list(sys.path)
-    modules_before = set(sys.modules)
-    yield
-    sys.path[:] = path_before
-    for name in set(sys.modules) - modules_before:
-        del sys.modules[name]
-
+pytestmark = pytest.mark.usefixtures("clean_sys_path_and_modules")
 
 # ── Declaration ───────────────────────────────────────────────────────────
 
@@ -743,17 +687,13 @@ def test_declared_modes_merge_over_the_default_triple(tmp_path):
     base = make_project(
         tmp_path,
         "modeapp",
-        extra_toml='\n[spoc.modes]\ntest = ["test", "development"]\n',
+        config={"modes": {"test": ["test", "development"]}},
     )
-    (base / "config" / "spoc.toml").write_text(
-        (base / "config" / "spoc.toml")
-        .read_text()
-        .replace('mode = "development"', 'mode = "test"')
-    )
-    fw = Framework("models").start(base)
-    # `test` cascades into development, whose app list holds the one app.
-    assert [c.identifier for c in fw.registry] == ["models:modeapp.post"]
-    fw.shutdown()
+    with spoc.testing.mode(base, "test"):
+        fw = Framework("models").start(base)
+        # `test` cascades into development, whose app list holds the one app.
+        assert [c.identifier for c in fw.registry] == ["models:modeapp.post"]
+        fw.shutdown()
 
 
 def test_mode_typo_fails_start_instead_of_booting_empty(tmp_path):
@@ -776,7 +716,7 @@ def test_unresolvable_plugin_fails_start(tmp_path):
     base = make_project(
         tmp_path,
         "plugapp",
-        extra_toml='\n[spoc.plugins]\nhooks = ["no_such_module.attr"]\n',
+        config={"plugins": {"hooks": ["no_such_module.attr"]}},
     )
     fw = Framework("models", KindSpec("hooks", required=False))
     with pytest.raises(AppNotFoundError, match="no_such_module"):
@@ -789,7 +729,7 @@ def test_declared_plugin_registers_in_the_registry(tmp_path):
     base = make_project(
         tmp_path,
         "plugok",
-        extra_toml='\n[spoc.plugins]\nhooks = ["plugok.extras.hook"]\n',
+        config={"plugins": {"hooks": ["plugok.extras.hook"]}},
     )
     (base / "plugok" / "extras.py").write_text("def hook():\n    return 'loaded'\n")
     fw = Framework("models", KindSpec("hooks", required=False)).start(base)
@@ -803,7 +743,7 @@ def test_plugin_group_must_name_a_declared_kind(tmp_path):
     base = make_project(
         tmp_path,
         "plugbad",
-        extra_toml='\n[spoc.plugins]\nhooks = ["plugbad.extras.hook"]\n',
+        config={"plugins": {"hooks": ["plugbad.extras.hook"]}},
     )
     fw = Framework("models")
     with pytest.raises(UnknownKindError, match="hooks"):
@@ -816,7 +756,7 @@ def test_plugin_name_derives_from_the_attribute(tmp_path):
     base = make_project(
         tmp_path,
         "plugcase",
-        extra_toml='\n[spoc.plugins]\nhooks = ["plugcase.extras.AuditHook"]\n',
+        config={"plugins": {"hooks": ["plugcase.extras.AuditHook"]}},
     )
     (base / "plugcase" / "extras.py").write_text("class AuditHook:\n    ...\n")
     fw = Framework("models", KindSpec("hooks", required=False)).start(base)
@@ -859,7 +799,7 @@ def test_top_level_plugin_module_is_its_own_namespace(tmp_path):
     base = make_project(
         tmp_path,
         "plugtop",
-        extra_toml='\n[spoc.plugins]\nhooks = ["plugmod.AuditHook"]\n',
+        config={"plugins": {"hooks": ["plugmod.AuditHook"]}},
     )
     (base / "plugmod.py").write_text("class AuditHook:\n    ...\n")
     fw = Framework("models", KindSpec("hooks", required=False)).start(base)
@@ -1181,7 +1121,7 @@ def test_plugin_group_on_a_metadata_kind_says_why(tmp_path):
     base = make_project(
         tmp_path,
         "metaplug",
-        extra_toml='\n[spoc.plugins]\nhooks = ["metaplug.extras.AuditHook"]\n',
+        config={"plugins": {"hooks": ["metaplug.extras.AuditHook"]}},
         extra_modules={"extras": "class AuditHook: ...\n"},
     )
     fw = Framework("models", KindSpec("hooks", required=False, metadata=HookMeta))

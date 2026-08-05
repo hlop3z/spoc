@@ -7,53 +7,14 @@ half-running them.
 """
 
 import asyncio
-import sys
-import textwrap
-from pathlib import Path
 
 import pytest
 
 from spoc import Framework, KindSpec
 from spoc.core.exceptions import SpocError
+from tests.conftest import MODELS_BODY, make_project
 
-MODELS_BODY = """
-    from spoc.core.declaration import component
-
-    @component(kind="models")
-    class Post:
-        ...
-"""
-
-
-@pytest.fixture(autouse=True)
-def clean_sys_path_and_modules():
-    path_before = list(sys.path)
-    modules_before = set(sys.modules)
-    yield
-    sys.path[:] = path_before
-    for name in set(sys.modules) - modules_before:
-        del sys.modules[name]
-
-
-def make_project(
-    tmp_path: Path,
-    app: str,
-    models_body: str = MODELS_BODY,
-    extra_modules: dict[str, str] | None = None,
-) -> Path:
-    base = tmp_path / f"proj_{app}"
-    (base / "config").mkdir(parents=True)
-    (base / "config" / "spoc.toml").write_text(
-        f'[spoc]\nmode = "development"\n\n[spoc.apps]\ndevelopment = ["{app}"]\n'
-    )
-    app_dir = base / app
-    app_dir.mkdir(parents=True)
-    (app_dir / "__init__.py").write_text("")
-    (app_dir / "models.py").write_text(textwrap.dedent(models_body))
-    for name, body in (extra_modules or {}).items():
-        (app_dir / f"{name}.py").write_text(textwrap.dedent(body))
-    sys.path.insert(0, str(base))
-    return base
+pytestmark = pytest.mark.usefixtures("clean_sys_path_and_modules")
 
 
 def test_astart_awaits_coroutine_hooks_in_order(tmp_path):

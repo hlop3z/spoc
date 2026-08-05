@@ -6,28 +6,18 @@ guarantees hold under any interleaving; lifecycle transitions are mutually
 exclusive with exactly one winner.
 """
 
-import sys
-import textwrap
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 
 import pytest
 
 from spoc import Framework
 from spoc.core.exceptions import DuplicateComponentError, SpocError
 from spoc.core.registry import Registry
+from tests.conftest import make_project
+
+pytestmark = pytest.mark.usefixtures("clean_sys_path_and_modules")
 
 WORKERS = 16
-
-
-@pytest.fixture(autouse=True)
-def clean_sys_path_and_modules():
-    path_before = list(sys.path)
-    modules_before = set(sys.modules)
-    yield
-    sys.path[:] = path_before
-    for name in set(sys.modules) - modules_before:
-        del sys.modules[name]
 
 
 def test_parallel_registration_loses_nothing():
@@ -86,30 +76,6 @@ def test_reads_concurrent_with_writes_see_only_complete_records():
 
     assert not seen_bad
     assert len(registry) == 300
-
-
-def make_project(tmp_path: Path, app: str) -> Path:
-    base = tmp_path / f"proj_{app}"
-    (base / "config").mkdir(parents=True)
-    (base / "config" / "spoc.toml").write_text(
-        f'[spoc]\nmode = "development"\n\n[spoc.apps]\ndevelopment = ["{app}"]\n'
-    )
-    app_dir = base / app
-    app_dir.mkdir(parents=True)
-    (app_dir / "__init__.py").write_text("")
-    (app_dir / "models.py").write_text(
-        textwrap.dedent(
-            """
-            from spoc.core.declaration import component
-
-            @component(kind="models")
-            class Post:
-                ...
-            """
-        )
-    )
-    sys.path.insert(0, str(base))
-    return base
 
 
 def test_racing_starts_have_one_winner(tmp_path):
