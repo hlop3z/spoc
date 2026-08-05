@@ -81,17 +81,27 @@ class DirectorySink:
 
     def _move_files_with_rollback(self, staging: Path) -> None:
         moved: list[Path] = []
+        created_dirs: list[Path] = []
         try:
             for staged in sorted(staging.rglob("*")):
                 if staged.is_dir():
                     continue
                 relative = staged.relative_to(staging)
                 final = self.destination / relative
+                parent = final.parent
+                while not parent.exists() and parent != self.destination:
+                    created_dirs.append(parent)
+                    parent = parent.parent
                 final.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(staged, final)
                 moved.append(final)
         except BaseException:
+            # Best-effort restoration to emptiness: the files we moved, then the
+            # directories we created for them, deepest first.
             for final in moved:
                 with suppress(OSError):
                     final.unlink()
+            for directory in sorted(created_dirs, reverse=True):
+                with suppress(OSError):
+                    directory.rmdir()
             raise

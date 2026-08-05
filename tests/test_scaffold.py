@@ -192,20 +192,27 @@ def test_failure_in_an_existing_directory_leaves_it_empty(tmp_path, monkeypatch)
     plan = GenerationPlan(
         files=(
             PlannedFile(path="a.txt", content="a"),
-            PlannedFile(path="b.txt", content="b"),
+            PlannedFile(path="pkg/deep/b.txt", content="b"),
             PlannedFile(path="c.txt", content="c"),
         )
     )
 
+    real_rmdir = os.rmdir
+
     def deny_rmdir(path):
-        raise OSError("directory is in use")
+        # Only the destination itself is unremovable (it is "in use"); its
+        # subdirectories behave normally, as they would for a real cwd.
+        if Path(path) == destination:
+            raise OSError("directory is in use")
+        return real_rmdir(path)
 
     real_replace = os.replace
     calls = {"count": 0}
 
     def flaky_replace(src, dst):
+        # Fail on the last move, after files and their directories exist.
         calls["count"] += 1
-        if calls["count"] == 2:
+        if calls["count"] == 3:
             raise OSError("disk full")
         return real_replace(src, dst)
 
