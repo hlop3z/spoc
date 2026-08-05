@@ -69,14 +69,18 @@ class Registry:
 
         One object holds exactly one canonical identifier: re-registering an
         already-registered object (an instance imported into another app, say)
-        returns its existing record rather than forking its identity.
+        returns its existing record rather than forking its identity. First
+        registration wins — the later call's namespace and name are validated,
+        then discarded along with the identifier they would have composed.
         """
         if kind not in self._kinds:
             raise UnknownKindError(kind, self._kinds)
+        # Composed before the identity short-circuit: reusing an object is not a
+        # licence to skip the segment grammar every other registration answers to.
+        identifier = compose(kind, namespace, name)
         prior = self._identifier_of.get(id(obj))
         if prior is not None:
             return self._store[prior]
-        identifier = compose(kind, namespace, name)
         if identifier in self._store:
             raise DuplicateComponentError(identifier, self._store[identifier].object)
         record = Component(

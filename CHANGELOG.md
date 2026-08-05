@@ -13,7 +13,9 @@ All notable changes to this project are documented here. The format follows
   `__spoc__` marker but is no longer treated as a declaration — a module-level
   `default_post = Post()` used to crash boot with a spurious `DuplicateComponentError`.
   The registry now also enforces one-object-one-identifier directly: a decorated instance
-  imported into a second app keeps its first identity instead of registering twice.
+  imported into a second app keeps its first identity instead of registering twice. That
+  short-circuit still validates the kind and segments it was handed, so identity reuse is
+  not a way past the identifier grammar.
 - **Error taxonomy at the boundaries.** An app declared in `spoc.toml` whose package does
   not exist raises `AppNotFoundError` instead of a raw `ModuleNotFoundError` (and
   `required=False` no longer excuses it); a plugin module that exists but fails to import

@@ -76,6 +76,26 @@ class TestStore:
         assert first is second
         assert len(r) == 1
 
+    def test_reregistration_under_another_namespace_keeps_the_first_identity(self):
+        """An instance imported into a second app does not fork its identity."""
+        r = Registry(("models",))
+        obj = object()
+        first = r.add("models", "blog", "post", obj)
+        second = r.add("models", "shop", "post", obj)
+        assert first is second
+        assert second.namespace == "blog"
+        assert len(r) == 1
+
+    def test_reregistration_still_validates_its_segments(self):
+        """Identity reuse is not a bypass for the grammar every add() answers to."""
+        r = Registry(("models",))
+        obj = object()
+        r.add("models", "blog", "post", obj)
+        with pytest.raises(InvalidSegmentError):
+            r.add("models", "blog", "Not A Segment", obj)
+        with pytest.raises(UnknownKindError):
+            r.add("commands", "blog", "post", obj)
+
     def test_enumeration_deterministic(self, registry):
         first = [c.identifier for c in registry.all()]
         second = [c.identifier for c in registry.all()]
