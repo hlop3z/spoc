@@ -290,5 +290,10 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   benefit); `spoc` depending on `spoc-formats` with a re-export (reintroduces a
   kernel→formats dependency direction the boundary forbids).
 - **Isolation**: `src/spoc/formats/` only; the boundary tests in
-  `tests/test_formats.py` are what a future re-split would lean on — the code stays
-  split-ready indefinitely.
+  `tests/test_formats.py` are the containment contract.
+- **Standing constraint (owner mandate, 2026-08-05)**: SPOC ships as **exactly one
+  PyPI distribution** — do not split `spoc.formats`, or any future surface, into a
+  separate package. A capability that wants optional dependencies gets the same
+  treatment formats got: a contained subpackage behind extras, its boundary pinned
+  by tests. Re-splitting is not an open option to revisit; it would take a new
+  owner decision superseding this one.
