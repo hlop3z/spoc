@@ -28,12 +28,13 @@ local directory.
 
 ```console
 $ spoc app blog
-Created apps/blog
+Created /path/to/myproject/apps/blog
   apps/blog/__init__.py
   apps/blog/models.py
   apps/blog/views.py
 
-Install it: add "apps.blog" to a mode list under [spoc.apps] in config/spoc.toml
+Install it: add "apps.blog" to a mode list under [spoc.apps] in config/spoc.toml, e.g.
+  development = [..., "apps.blog"]
 ```
 
 Generates one additional app — the same shape `init` emits, one module per

@@ -119,6 +119,3 @@ list(loader)                               # LoadedModule entries, in dependency
 `AppNotFoundError`, a malformed reference or a missing attribute raises
 `UnresolvedReferenceError`, and a module that exists but fails to import
 propagates its own exception.
-
-The module cache manipulation API (`has`, `get`, `clear`, `clear_all`,
-`unload_all`, `keys`) was removed — nothing outside its own tests used it.

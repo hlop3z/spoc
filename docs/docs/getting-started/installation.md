@@ -41,7 +41,7 @@ $ uv add spoc
 Resolved 1 package in 50ms
 Downloaded 1 package in 100ms
 Installed 1 package in 5ms
- + spoc==0.1.0
+ + spoc==0.5.0
 ```
 
 !!! tip "Why uv?"
@@ -62,8 +62,13 @@ Created /path/to/myproject
   framework.py
   apps/__init__.py
   apps/core/__init__.py
-  apps/core/models.py
   main.py
+  apps/core/models.py
+  apps/core/views.py
+
+Next:
+  cd /path/to/myproject
+  python main.py
 ```
 
 Nothing is added to your current environment and there is no virtual environment to
@@ -155,9 +160,9 @@ After installation, verify that SPOC is correctly installed by importing it in P
 ```python
 $ python
 Python 3.12.0 (main, Oct  7 2024, 10:00:00)
->>> from spoc.__about__ import __version__
+>>> from spoc import __version__
 >>> print(__version__)
-0.4.0
+0.5.0
 ```
 
 You can also verify the installation by checking the available modules:
@@ -243,7 +248,7 @@ $ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 (.venv) $ uv pip install spoc
 Resolved 1 package in 50ms
 Installed 1 package in 5ms
- + spoc==0.1.0
+ + spoc==0.5.0
 ```
 
 !!! success "Installation Complete"

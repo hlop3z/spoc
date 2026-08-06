@@ -13,15 +13,18 @@ examples/
 │   ├── __init__.py              # apps/ is a package
 │   ├── catalog/    models.py, views.py   (Product + stock)
 │   ├── orders/     models.py, views.py   (Order; reaches catalog via the registry)
-│   └── auth/       models.py             (UserAccount, Role)
+│   └── auth/       models.py, views.py   (UserAccount, Role)
 ├── config/
 │   ├── spoc.toml        # the only file the kernel reads
 │   └── settings.py      # user-owned; SPOC never imports it
 ├── framework/
 │   └── framework.py     # the whole framework definition
+├── data/                # mixed-format inputs for the spoc.formats demo
+├── build/               # what data_app.py writes; generated, never collected
 ├── extras.py            # plugin-configured registrations
 ├── main.py              # synchronous entry
 ├── async_main.py        # asynchronous entry (coroutine hooks + astart)
+├── data_app.py          # spoc.formats demo: collect, pointer, query, write
 └── http_app.py          # routes generated from the registry
 ```
 
@@ -142,3 +145,22 @@ The same `build_routes` works for Robyn, a CLI, or any other surface — the
 registry record is the whole contract. And `spoc check examples --framework
 framework.framework:framework` validates the whole thing before any of it
 runs.
+
+## Loading project data
+
+`data_app.py` sits deliberately outside the framework: the kernel reads
+`config/spoc.toml` and stops, and the *project* loads its own files through
+[`spoc.formats`](../advanced/data-formats.md). One `collect()` call walks the
+mixed-format `data/` tree (TOML, CSV, YAML), `pointer` addresses
+configuration where a typo must fail loudly, `query` filters the datasets,
+and `write` emits `build/books.json` from the CSV via the format-agnostic
+representation. It requires the extras (`pip install "spoc[full]"`):
+
+```console
+$ uv run python examples/data_app.py
+```
+
+The output lands in `build/`, not `data/` — writing `books.json` next to
+`books.csv` would make both derive the key `catalog.books`, and the next
+`collect()` would refuse the tree. Generated output does not belong in a
+collected tree.
