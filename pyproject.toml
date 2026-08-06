@@ -107,10 +107,11 @@ root = ["./src"]
 
 # unresolved-import stays on for the published packages. It is ignored only where
 # imports genuinely cannot resolve statically: the example project imports its own
-# runtime-path package, tests import fixture modules they create in tmp_path, and
-# scripts/py tools carry their own uv environments.
+# runtime-path package, tests import fixture modules they create in tmp_path,
+# scripts/py tools carry their own uv environments, and the docs macros module
+# imports from the `docs` group, which the checking environment does not install.
 [[tool.ty.overrides]]
-include = ["examples/**", "tests/**", "scripts/**"]
+include = ["examples/**", "tests/**", "scripts/**", "docs/**"]
 
 [tool.ty.overrides.rules]
 unresolved-import = "ignore"
