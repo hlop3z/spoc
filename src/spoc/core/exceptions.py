@@ -184,7 +184,7 @@ class MissingNameError(SpocError):
         self.obj = obj
         super().__init__(
             f"Cannot register {obj!r}: it has no __name__, so an explicit "
-            "name is required — register(kind, obj, name='...'). "
+            "name is required — pass name='...' to the kind decorator. "
             "Identity is never inferred from the execution environment"
         )
 
