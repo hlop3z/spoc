@@ -1,6 +1,6 @@
 import dataclasses as dc
 
-from framework.framework import view
+from framework import view
 
 from .models import PRODUCTS
 

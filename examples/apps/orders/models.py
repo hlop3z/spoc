@@ -1,6 +1,6 @@
 import dataclasses as dc
 
-from framework.framework import model
+from framework import model
 
 
 @dc.dataclass

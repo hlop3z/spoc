@@ -1,6 +1,6 @@
 import dataclasses as dc
 
-from framework.framework import model
+from framework import model
 
 # UserAccount → models:auth.user_account, Role → models:auth.role.
 # Pass name= only to override the derived identifier.

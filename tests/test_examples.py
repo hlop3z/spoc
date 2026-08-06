@@ -23,7 +23,7 @@ pytestmark = pytest.mark.usefixtures("clean_sys_path_and_modules")
 def _example_framework():
     """The example's own declaration, imported from its tree."""
     sys.path.insert(0, str(EXAMPLES))
-    return importlib.import_module("framework.framework").framework
+    return importlib.import_module("framework").framework
 
 
 def test_storefront_boots_and_registers_the_domain():
@@ -105,7 +105,9 @@ def test_reference_project_passes_spoc_check():
     """The diagnostics and the reference app agree with each other."""
     from spoc.diagnostics import check
 
-    report = check(EXAMPLES, "framework.framework:framework")
+    # No explicit ref: the reference app now sits on the same convention
+    # `spoc init` emits, so the diagnostics locate it like any generated project.
+    report = check(EXAMPLES)
     assert report.ok, [f.message for f in report.findings]
 
 

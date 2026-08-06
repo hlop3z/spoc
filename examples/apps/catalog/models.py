@@ -1,6 +1,6 @@
 import dataclasses as dc
 
-from framework.framework import model
+from framework import model
 
 # PEP 8 class names convert to their snake_case identifier automatically:
 # Product → models:catalog.product.

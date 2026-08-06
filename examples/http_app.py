@@ -13,7 +13,7 @@ Run:  uvicorn http_app:app  (from the examples/ directory, fastapi installed)
 from pathlib import Path
 from typing import Any
 
-from framework.framework import framework
+from framework import framework
 
 if not framework.started:
     framework.start(Path(__file__).resolve().parent)

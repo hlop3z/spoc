@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from framework.framework import framework
+from framework import framework
 
 BASE_DIR = Path(__file__).resolve().parent
 

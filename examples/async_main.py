@@ -4,7 +4,7 @@ The asynchronous lifecycle over the same storefront apps.
 A declaration whose hooks are coroutine functions is async-only: the
 synchronous path refuses coroutines loudly rather than guessing at an event
 loop, so a project picks its lifecycle path when it declares. This file is
-the async variant of ``framework/framework.py`` — a process runs one
+the async variant of ``framework.py`` — a process runs one
 declaration or the other, never both.
 
 One consequence worth reading twice: app code that resolves other apps at

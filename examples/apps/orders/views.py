@@ -1,6 +1,6 @@
 import dataclasses as dc
 
-from framework.framework import framework, view
+from framework import framework, view
 
 from .models import Order
 
