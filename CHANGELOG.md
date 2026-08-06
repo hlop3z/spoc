@@ -5,11 +5,7 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — with the 0.x caveat that a
 **minor** bump is where breaking changes land until 1.0.0.
 
-## [0.5.0] — unreleased
-
-> Prepared, not yet tagged. `task version:release` commits this file alongside the
-> version bump and creates `v0.5.0` in the same commit, at which point the compare
-> link at the foot of this file resolves.
+## [0.5.0] — 2026-08-06
 
 SPOC is rewritten around a single idea: **the kernel describes and never executes.** Every
 object a project defines gets one canonical identifier, the kernel holds a registry of them,
@@ -36,6 +32,9 @@ more than they could possibly save. If you are on 0.3.x, read
   loses nothing; racing duplicate identifiers and racing starts each have exactly one
   winner and a loud loser; reads after a completed start need no coordination. Pinned by
   `tests/test_concurrency.py`.
+- **Property-based coverage of the identifier grammar and the registry invariants**
+  (`tests/test_properties.py`) — universal quantification over generated names, rather than a
+  fixed table of cases that only proves the examples someone thought of.
 - **Declarable modes.** `[spoc.modes]` maps a mode to its cascade
   (`test = ["test", "production"]`) and merges over the default
   development → staging → production triple, so adding a mode never restates it. The
@@ -53,6 +52,29 @@ more than they could possibly save. If you are on 0.3.x, read
   half-populated. Substitution is `string.Template`: name substitution and nothing else, no
   expressions to evaluate. Downstream frameworks can supply their own template sets through an
   entry-point group.
+- **`spoc app` — adds one app to an existing project.** Same shape `init` emits, one module
+  per declared kind, with the kinds read from the project's own `framework.py` rather than
+  restated on the command line (`--kinds` overrides). It never overwrites an existing app and
+  never edits your configuration — it prints the exact `[spoc.apps]` entry to add. `--template`
+  now accepts a directory as well as an installed template set: a reference is a path exactly
+  when it contains a separator (`./mytemplates`), so a bare name can never silently resolve to
+  a same-named local directory.
+- **Diagnostics — `spoc check`, `spoc list`, `spoc explain`.** `check` dry-boots a project and
+  reports what the first real boot would raise: configuration problems, unresolvable app and
+  plugin references, kind dependency cycles, identity collisions, and coroutine hooks the
+  synchronous lifecycle would refuse. Findings carry the kernel's own messages, and the exit
+  code is `0` clean / `1` findings. `list` enumerates registered identifiers in deterministic
+  order; `explain` resolves one and describes its record. All three are library-first —
+  `spoc.diagnostics` exposes `check`, `list_records`, and `explain` to code that never touches
+  argv — and all three run as isolated dry boots that leave no state behind. The framework is
+  found by the convention `spoc init` emits, or named with `--framework`.
+- **`spoc.testing` — the test harness, shipped inside the distribution.** `ProjectTree` builds
+  a project on disk from a dict of sources, `isolated()` boots one inside a scope that leaves
+  no registry, import state, or loaded module behind, and `mode()` sets the mode for a block.
+  A pytest plugin ships in the same distribution and surfaces the same pieces as the
+  `spoc_tree`, `spoc_isolated`, and `spoc_framework` fixtures — pytest imports it, so pytest
+  never becomes a runtime dependency and `dependencies = []` still holds. SPOC's own suite
+  runs on the harness it ships.
 - **`spoc.formats` — a data sidecar** for reading, collecting, and addressing data. Five
   formats normalize to one JSON-shaped representation, so a project stops writing a loader per
   file and per format. Addressing is split by failure semantics rather than unified: RFC 6901
@@ -60,6 +82,12 @@ more than they could possibly save. If you are on 0.3.x, read
   JSONPath returns a possibly-empty list — configuration reads must be loud, dataset queries
   legitimately match nothing. XML repetition is declared by path rather than inferred from
   occurrence counts, so a one-element document keeps the same shape as a many-element one.
+- **A reference application under `examples/`** — a storefront whose apps form one domain:
+  `catalog` seeds and clears stock through module lifecycle, `orders` reaches catalog at call
+  time through the registry so the only coupling between apps is the identifier grammar, and
+  `auth` rounds it out. `async_main.py` is the async declaration variant. The suite boots the
+  actual tree and constructs its FastAPI projection, so kernel drift against the worked example
+  fails the standard gate, and the example passes its own `spoc check`.
 - **`docs/architecture/kernel.md`** — the canonical Mermaid diagrams: system shape, identifier
   anatomy, resolution flow, and the kernel invariants.
 - **`CONTRIBUTING.md`**, a project canon under `.canon/`, and a CI workflow that runs the
