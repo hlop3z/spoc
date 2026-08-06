@@ -201,12 +201,18 @@ def test_failure_in_an_existing_directory_leaves_it_empty(tmp_path, monkeypatch)
 
     real_rmdir = os.rmdir
 
-    def deny_rmdir(path):
+    def deny_rmdir(path, *, dir_fd=None):
         # Only the destination itself is unremovable (it is "in use"); its
         # subdirectories behave normally, as they would for a real cwd.
-        if Path(path) == destination:
+        #
+        # The signature mirrors os.rmdir's on purpose: patching the attribute
+        # on `spoc.scaffold.sink.os` patches the os module itself, so the
+        # sink's own cleanup rmtree calls this too — and on POSIX it removes
+        # directories relative to an open fd. A stub taking only a path fails
+        # there while passing on Windows, where rmtree never passes dir_fd.
+        if dir_fd is None and Path(path) == destination:
             raise OSError("directory is in use")
-        return real_rmdir(path)
+        return real_rmdir(path, dir_fd=dir_fd)
 
     real_replace = os.replace
     calls = {"count": 0}
