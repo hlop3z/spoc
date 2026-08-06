@@ -20,7 +20,13 @@ from .errors import (
     UndeclaredValueError,
     UnsatisfiedValueError,
 )
-from .operations import DEFAULT_APP_NAME, DEFAULT_KINDS, init_project
+from .operations import (
+    DEFAULT_APP_NAME,
+    DEFAULT_KINDS,
+    AddedApp,
+    add_app,
+    init_project,
+)
 from .plan import (
     GenerationPlan,
     PlannedFile,
@@ -33,8 +39,10 @@ from .sink import DirectorySink
 from .sources import ENTRY_POINT_GROUP, InstalledTemplateSources
 
 __all__ = [
-    # Operation
+    # Operations
     "init_project",
+    "add_app",
+    "AddedApp",
     "DEFAULT_KINDS",
     "DEFAULT_APP_NAME",
     # Plan and ports
