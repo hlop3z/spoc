@@ -1,9 +1,10 @@
 # The Reference Application
 
 The repository's `examples/` directory is a complete storefront monolith —
-three apps, cross-namespace resolution through the registry, both
-lifecycles, plugins, and an HTTP surface projected from the registry. The
-test suite boots it, so it can never silently drift from the kernel.
+three small apps that never import each other, wired only through the
+registry, with both lifecycles, plugins, and an HTTP surface generated from
+the registry. The test suite boots it, so it can never silently drift from
+the kernel.
 
 ## Layout
 
@@ -17,8 +18,7 @@ examples/
 ├── config/
 │   ├── spoc.toml        # the only file the kernel reads
 │   └── settings.py      # user-owned; SPOC never imports it
-├── framework/
-│   └── framework.py     # the whole framework definition
+├── framework.py         # the whole framework definition
 ├── data/                # mixed-format inputs for the spoc.formats demo
 ├── build/               # what data_app.py writes; generated, never collected
 ├── extras.py            # plugin-configured registrations
@@ -42,7 +42,8 @@ hooks      = ["extras.hook"]
 
 ## The framework definition
 
-`framework/framework.py` — the entire thing:
+`framework.py` — the entire thing, on the same top-level convention
+`spoc init` emits:
 
 ```python
 import spoc
@@ -65,7 +66,7 @@ the module's `initialize`/`teardown` seed and clear the stock:
 
 ```python
 import dataclasses as dc
-from framework.framework import model
+from framework import model
 
 PRODUCTS: dict[int, "Product"] = {}
 
@@ -85,12 +86,22 @@ def teardown():
 
 ## Cross-namespace resolution — the registry way
 
-`apps/orders/views.py` never imports catalog's modules. It resolves
-catalog's objects by canonical identifier at call time, so the only
-coupling between the apps is the identifier grammar:
+`apps/orders/views.py` never imports catalog's modules. It asks the registry
+for catalog's objects by name, at call time — so the only thing the two apps
+share is the naming scheme:
+
+```mermaid
+flowchart LR
+    catalog["apps/catalog<br/><i>Product · list_products</i>"]
+    reg[("Registry")]
+    orders["apps/orders/views.py<br/><i>order_summary()</i>"]
+
+    catalog -- "@model · @view<br/>register" --> reg
+    orders -- "resolve('models:catalog.product')<br/>at call time" --> reg
+```
 
 ```python
-from framework.framework import framework, view
+from framework import framework, view
 
 @view
 def order_summary():
@@ -142,9 +153,9 @@ GET  /orders/order_summary    <- views:orders.order_summary
 ```
 
 The same `build_routes` works for Robyn, a CLI, or any other surface — the
-registry record is the whole contract. And `spoc check examples --framework
-framework.framework:framework` validates the whole thing before any of it
-runs.
+registry record is the whole contract. And because the example sits on the
+same layout convention `spoc init` emits, plain `spoc check examples`
+validates the whole thing before any of it runs.
 
 ## Loading project data
 
@@ -160,7 +171,7 @@ representation. It requires the extras (`pip install "spoc[full]"`):
 $ uv run python examples/data_app.py
 ```
 
-The output lands in `build/`, not `data/` — writing `books.json` next to
-`books.csv` would make both derive the key `catalog.books`, and the next
-`collect()` would refuse the tree. Generated output does not belong in a
-collected tree.
+The output lands in `build/`, not `data/`: if `books.json` sat next to
+`books.csv`, both files would claim the same key (`catalog.books`) and the
+next `collect()` would refuse to load the tree. Generated files do not
+belong in the tree you collect from.
