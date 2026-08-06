@@ -24,6 +24,18 @@ Identifier and registry errors are documented on the
       show_root_heading: true
       show_source: false
 
+### UnresolvedReferenceError
+
+Raised when a dotted `package.module.attribute` reference — a plugin entry in
+`spoc.toml`, or an argument to
+[`Loader.load_from_uri`](loader.md) — is malformed or names an attribute the
+module does not define.
+
+::: spoc.core.exceptions.UnresolvedReferenceError
+    options:
+      show_root_heading: true
+      show_source: false
+
 ### MissingModuleError
 
 Raised when an app provides no module for a kind whose modules are required.

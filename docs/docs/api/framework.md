@@ -1,6 +1,8 @@
 # Framework API Reference
 
 This page provides detailed API documentation for the Framework module in SPOC.
+Both classes are top-level exports — import them as `spoc.Framework` and
+`spoc.Config` (see the [public surface](public.md)).
 
 The framework object is the single declaration point and the composition root. It
 owns the registry, the loader, and the configuration adapter, and it is the only

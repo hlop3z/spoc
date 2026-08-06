@@ -21,6 +21,11 @@ completed start, reads need no coordination.
 
 ## Identifier Grammar
 
+`parse`, `compose`, and `Identifier` are part of the top-level surface —
+import them as `spoc.parse`, `spoc.compose`, and `spoc.Identifier`; the
+`spoc.core.identity` paths below are where they live, not how they are meant
+to be reached. See the [public surface](public.md).
+
 Validation and conversion are separate, and the split is by *origin*. A name the
 author **states** is used verbatim and validated. A name the kernel **derives**
 from an object is converted to snake_case by `to_snake_case` first, then validated

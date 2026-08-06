@@ -26,11 +26,13 @@ nav:
           - Data & Formats: advanced/data-formats.md
           - Testing Your App: advanced/testing.md
       - API Reference:
+          - Public Surface: api/public.md
           - Framework: api/framework.md
           - Registry: api/registry.md
           - Declaration: api/components.md
           - Loader: api/loader.md
           - Core Utilities: api/core-utils.md
+          - Scaffold & Diagnostics: api/tooling.md
       - Examples:
           - Basic Example: examples/basic.md
   # One home: CONTRIBUTING.md lives at the repo root, where GitHub surfaces it in the
