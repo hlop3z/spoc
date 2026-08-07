@@ -98,5 +98,5 @@
       - **Unverified:** "a set retrieved over `gh:` produces the record" cannot be shown against
         the live fixture until this change is on `origin/main` — the fixture is the repo itself.
         Covered by the in-memory test in 6.2. Re-run this row after the change lands.
-- [ ] 8.3 Review the diff and split into commits by intent (Rule 3): the conformance fix, the
+- [x] 8.3 Review the diff and split into commits by intent (Rule 3): the conformance fix, the
       reserved-target hardening, the error-message fix, and the docs correction.
