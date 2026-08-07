@@ -20,9 +20,29 @@ from .core.exceptions import SpocError
 from .diagnostics import cli as diagnostics_cli
 from .diagnostics.locate import LocateError, locate_framework
 from .scaffold import cli as scaffold_cli
+from .scaffold.cache import DirectoryCache
+from .scaffold.remote import HttpFetcher, HttpRevisionResolver
+from .scaffold.sources import InstalledTemplateSources, RemoteTemplateSource
 from .testing import import_state
 
 __all__ = ["main"]
+
+
+def _template_sources() -> InstalledTemplateSources:
+    """Every template source the shipped CLI can resolve, wired together.
+
+    The retrieval adapters are constructed here and nowhere else. That keeps the
+    kernel's one outbound network path visible in a single place, and keeps the
+    scaffold's own CLI free of any knowledge that remote references exist — it
+    passes a reference through and the resolver decides what it designates.
+    """
+    return InstalledTemplateSources(
+        RemoteTemplateSource(
+            revisions=HttpRevisionResolver(),
+            fetcher=HttpFetcher(),
+            cache=DirectoryCache(),
+        )
+    )
 
 
 def _derive_kinds(project_root: Path) -> tuple[str, ...]:
@@ -50,7 +70,9 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     subcommands = parser.add_subparsers(dest="command", required=True)
-    scaffold_cli.register(subcommands, derive_kinds=_derive_kinds)
+    scaffold_cli.register(
+        subcommands, derive_kinds=_derive_kinds, source_factory=_template_sources
+    )
     diagnostics_cli.register(subcommands)
     return parser
 

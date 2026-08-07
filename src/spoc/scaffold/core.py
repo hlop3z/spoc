@@ -12,6 +12,7 @@ which is exactly the contract the template specs require. Its
 rendering.
 """
 
+import re
 from string import Template
 
 from ..core.identity import validate_segment
@@ -20,9 +21,17 @@ from .errors import (
     PathConflictError,
     PathEscapeError,
     UndeclaredValueError,
+    UnrecognizedReferenceError,
     UnsatisfiedValueError,
 )
-from .plan import GenerationPlan, PlannedFile, TemplateSet, Values
+from .plan import (
+    GenerationPlan,
+    PlannedFile,
+    Reference,
+    ReferenceKind,
+    TemplateSet,
+    Values,
+)
 
 #: Names that must never appear in a path segment the user supplies. Traversal
 #: is rejected here, in the pure layer, so it cannot depend on a filesystem
@@ -33,6 +42,119 @@ _UNSAFE_FRAGMENTS = ("..", "/", "\\", ":")
 #: declared substitution value like any other, but it is supplied by the
 #: repetition rather than by the caller — so validation counts it as satisfied.
 PER_KIND_VALUE = "kind"
+
+
+#: Schemes that designate content which must be retrieved. ``gh`` is a shorthand
+#: that an adapter expands into a location; the grammar only has to know it names
+#: something remote. Anything else spelled with a scheme is refused rather than
+#: guessed at, so a typo never falls through to being treated as a path.
+REMOTE_SCHEMES = ("gh", "https", "http", "git+https", "git+http", "git+ssh")
+
+#: Stated back to the caller when a reference matches no form. This is the whole
+#: grammar, in one place, so the error and the parser can never drift apart.
+RECOGNIZED_FORMS = (
+    "a set name, e.g. 'default'",
+    "a directory path, e.g. './mytemplates' or 'C:\\\\templates'",
+    "gh:owner/repo[@revision][#subdirectory=path]",
+    "https://host/path/to/archive.tar.gz[#subdirectory=path]",
+    "git+https://host/owner/repo[@revision][#subdirectory=path]",
+)
+
+#: A scheme per RFC 3986: a letter, then letters, digits, and ``+ - .``.
+_SCHEME = re.compile(r"^([A-Za-z][A-Za-z0-9+.\-]*):")
+
+#: A drive-qualified Windows path. Checked *before* the scheme, because
+#: ``C:\templates`` satisfies the scheme grammar too and losing that race would
+#: make every absolute Windows path an unrecognized scheme.
+_DRIVE = re.compile(r"^[A-Za-z]:[\\/]")
+
+#: The fragment parameter PEP 508 uses to name a path inside retrieved content.
+_SUBDIRECTORY = "subdirectory="
+
+
+def parse_reference(reference: str) -> Reference:
+    """
+    Parse a template set reference into the form it designates.
+
+    Total and pure: every input either yields a :class:`Reference` or raises.
+    Nothing here consults a filesystem or a network, so what a reference *means*
+    never depends on what happens to exist — which is what stops a mistyped
+    scheme from being reported as a missing directory.
+
+    The grammar is pip's direct-reference shape (PEP 508): ``@revision`` pins,
+    ``#subdirectory=`` names a path within the content.
+
+    Raises:
+        UnrecognizedReferenceError: The reference matches no known form.
+    """
+    raw = reference.strip()
+    if not raw:
+        raise UnrecognizedReferenceError(reference, "it is empty", RECOGNIZED_FORMS)
+
+    # A drive letter is a path, not a scheme. This ordering is the whole reason
+    # the check exists; see _DRIVE.
+    if _DRIVE.match(raw):
+        return Reference(kind=ReferenceKind.PATH, raw=raw, scheme="", location=raw)
+
+    matched = _SCHEME.match(raw)
+    if matched:
+        scheme = matched.group(1).lower()
+        rest = raw[matched.end() :]
+        if scheme not in REMOTE_SCHEMES:
+            raise UnrecognizedReferenceError(
+                raw, f"{scheme!r} is not a recognized scheme", RECOGNIZED_FORMS
+            )
+        # A scheme with nothing after it named no location at all.
+        body, subdirectory = _split_fragment(rest)
+        body, revision = _split_revision(body)
+        if not body.strip("/"):
+            raise UnrecognizedReferenceError(
+                raw, f"the {scheme!r} scheme names no location", RECOGNIZED_FORMS
+            )
+        return Reference(
+            kind=ReferenceKind.REMOTE,
+            raw=raw,
+            scheme=scheme,
+            location=body,
+            revision=revision,
+            subdirectory=subdirectory,
+        )
+
+    # No scheme: a separator makes it a path, anything else is a bare name. A
+    # bare name never silently resolves to a same-named local directory.
+    if "/" in raw or "\\" in raw:
+        return Reference(kind=ReferenceKind.PATH, raw=raw, scheme="", location=raw)
+
+    return Reference(kind=ReferenceKind.NAME, raw=raw, scheme="", location=raw)
+
+
+def _split_fragment(text: str) -> tuple[str, str | None]:
+    """Split off ``#subdirectory=``, which is stripped before anything else.
+
+    Order matters: a fragment can contain ``/`` and ``@``, so leaving it attached
+    would corrupt every later split.
+    """
+    body, _, fragment = text.partition("#")
+    if not fragment:
+        return body, None
+    for part in fragment.split("&"):
+        if part.startswith(_SUBDIRECTORY):
+            value = part[len(_SUBDIRECTORY) :].strip("/")
+            return body, value or None
+    return body, None
+
+
+def _split_revision(text: str) -> tuple[str, str | None]:
+    """Split off a trailing ``@revision``.
+
+    Only an ``@`` after the final ``/`` counts, so the userinfo in
+    ``git+ssh://git@host/owner/repo`` is not mistaken for a revision.
+    """
+    marker = text.rfind("@")
+    if marker == -1 or marker < text.rfind("/"):
+        return text, None
+    revision = text[marker + 1 :]
+    return text[:marker], revision or None
 
 
 def validate_name(segment_name: str, value: str) -> str:

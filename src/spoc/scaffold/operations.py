@@ -14,6 +14,7 @@ from string import Template
 from .core import build_plan, detect_conflicts, validate_name
 from .errors import IncompleteTemplateSetError, TargetNotEmptyError
 from .plan import GenerationPlan, PlannedFile, ProjectSink, TemplateSource
+from .provenance import Origin, describe_divergence
 
 #: What a project gets when the caller does not say otherwise. Two kinds, so the
 #: generated project shows a registry with more than one facet in it. No
@@ -71,6 +72,12 @@ def init_project(
         "kind_decorators": "\n".join(
             f'{kind} = framework.kind("{kind}")' for kind in kinds
         ),
+        # The origin record's values. Supplied for every generation, whatever the
+        # set's origin, so the comparison a later `add_app` makes is always
+        # possible rather than possible only for remote sets.
+        "template_reference": loaded.reference or template_set,
+        "template_revision": loaded.revision,
+        "template_set_name": loaded.name,
     }
 
     plan = build_plan(loaded, values, kinds)
@@ -92,11 +99,15 @@ APP_MARKER = "$app_name"
 @dataclass(frozen=True)
 class AddedApp:
     """What `add_app` did: the files written (paths relative to `app_dir`),
-    where the app landed, and the dotted reference that installs it."""
+    where the app landed, the dotted reference that installs it, and anything
+    the caller should be told about the project it landed in."""
 
     plan: GenerationPlan
     app_dir: str
     config_reference: str
+    divergence: str | None = None
+    """Set when the rendered template set differs from the project's recorded
+    origin, or when the project records none. Never a reason to fail."""
 
 
 def add_app(
@@ -106,6 +117,7 @@ def add_app(
     app_name: str,
     kinds: tuple[str, ...],
     template_set: str = "default",
+    read_origin: Callable[[], Origin | None] | None = None,
 ) -> AddedApp:
     """
     Generate one additional app into an existing project.
@@ -174,10 +186,27 @@ def add_app(
         )
     )
 
+    # Compared before writing so the report describes what is about to happen,
+    # but never able to prevent it: a project may legitimately draw from more
+    # than one template set.
+    divergence = (
+        describe_divergence(
+            read_origin(),
+            Origin(
+                reference=loaded.reference or template_set,
+                revision=loaded.revision,
+                set_name=loaded.name,
+            ),
+        )
+        if read_origin is not None
+        else None
+    )
+
     sink = sink_factory(app_dir)
     sink.commit(rebased)  # refuses a non-empty destination itself
     return AddedApp(
         plan=rebased,
         app_dir=app_dir,
         config_reference=app_dir.replace("/", "."),
+        divergence=divergence,
     )

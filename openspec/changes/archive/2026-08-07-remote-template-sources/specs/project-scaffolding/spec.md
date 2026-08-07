@@ -1,8 +1,5 @@
-# project-scaffolding Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change project-scaffolder. Update Purpose after archive.
-## Requirements
 ### Requirement: Generating a runnable project
 
 A single scaffolding operation MUST produce a complete project that starts successfully
@@ -49,81 +46,6 @@ runnable if it is removed.
 
 - **WHEN** the origin record is deleted from a generated project and the project is started
 - **THEN** start succeeds unchanged
-
-### Requirement: Generation never destroys existing content
-
-The scaffolding operation MUST refuse to overwrite content it did not create. On refusal it
-MUST name the conflicting path. An operation that fails partway MUST NOT leave content in a
-state where some files were written and others were not.
-
-#### Scenario: Conflicting target
-
-- **WHEN** generation targets a location holding an existing file the plan would write
-- **THEN** the operation fails naming that path, and the existing content is unchanged
-
-#### Scenario: Failure leaves nothing behind
-
-- **WHEN** a scaffolding operation fails after some content would have been written
-- **THEN** the target contains no partially written files from that operation
-
-### Requirement: Names are validated before writing
-
-Project and app names supplied by the user MUST be validated against the same identity grammar
-the kernel enforces for object names, and MUST be rejected before any content is written. A
-name that would escape the target directory MUST be rejected.
-
-Escape detection MUST cover every path form the host platform resolves: relative
-traversal spelled with either separator, absolute paths, and drive- or root-qualified
-forms. The rejection happens in the validation step, before any filesystem operation —
-not only at a final write barrier — and it applies equally to paths supplied by a
-template set, so a third-party template cannot name a target outside the directory
-being generated.
-
-#### Scenario: Invalid name rejected
-
-- **WHEN** generation is requested with a name that does not satisfy the identity grammar
-- **THEN** the operation fails naming the offending value and the grammar it must satisfy, and
-  nothing is written
-
-#### Scenario: Traversal rejected
-
-- **WHEN** a name is supplied that would resolve outside the target directory
-- **THEN** the operation fails and nothing is written outside that directory
-
-#### Scenario: Traversal with the platform's alternate separator is rejected
-
-- **WHEN** a template entry or name spells parent-directory traversal with the host
-  platform's alternate separator (for example a backslash)
-- **THEN** validation rejects it before any filesystem operation, and nothing is written
-
-#### Scenario: Drive- or root-qualified targets are rejected
-
-- **WHEN** a template entry or name designates an absolute, drive-qualified, or
-  root-qualified location
-- **THEN** validation rejects it before any filesystem operation, and nothing is written
-  outside the target directory
-
-### Requirement: The scaffolder does not alter the kernel's dependency footprint
-
-The scaffolder MUST NOT cause the kernel to acquire any dependency, and the kernel MUST NOT
-depend on the scaffolder at runtime. The dependency direction MUST run one way, so removing the
-scaffolder leaves the kernel intact.
-
-#### Scenario: Install footprint unchanged
-
-- **WHEN** the kernel is installed
-- **THEN** the acquired dependency set is unchanged from the kernel's stated guarantee, whether
-  or not the scaffolder is present
-
-#### Scenario: Kernel does not reference the scaffolder
-
-- **WHEN** a project is started
-- **THEN** no scaffolding capability is imported or referenced at runtime
-
-#### Scenario: Scaffolder is removable
-
-- **WHEN** the scaffolder is removed from the distribution
-- **THEN** the kernel continues to start projects and pass its own suite unchanged
 
 ### Requirement: Adding an app to an existing project
 
