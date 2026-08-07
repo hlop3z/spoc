@@ -55,6 +55,11 @@ on its own.
 The library behind `spoc init` and `spoc app`, callable from your own code —
 a downstream framework can ship its own templates and entry point.
 
+The operations take their ports as arguments, so generation is callable without
+argv and testable without a filesystem or a network. `InstalledTemplateSources`
+resolves a reference by its form; pass it a `RemoteTemplateSource` to enable
+retrieval, or leave it out and only local sets resolve.
+
 ::: spoc.scaffold
     options:
       show_root_heading: false
@@ -66,10 +71,23 @@ a downstream framework can ship its own templates and entry point.
         - PlannedFile
         - TemplateSet
         - TemplateFile
+        - Reference
+        - ReferenceKind
         - TemplateSource
+        - EnumerableSource
         - ProjectSink
+        - RevisionResolver
+        - Fetcher
+        - Cache
         - DirectorySink
         - InstalledTemplateSources
+        - RemoteTemplateSource
+        - HttpRevisionResolver
+        - HttpFetcher
+        - DirectoryCache
+        - extract_archive
+        - Origin
+        - read_origin
 
 ## `spoc.diagnostics`
 
