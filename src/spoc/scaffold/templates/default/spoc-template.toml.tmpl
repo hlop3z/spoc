@@ -1,0 +1,11 @@
+# Where this project came from.
+#
+# Written once, by `spoc init`. Nothing reads it at runtime — deleting this file
+# leaves a project that still starts. `spoc app` reads it to notice when the
+# template set it is about to render differs from the one that generated the
+# project, so a mismatched app shape is never emitted silently.
+
+[template]
+reference = "$template_reference"
+revision = "$template_revision"
+set = "$template_set_name"
