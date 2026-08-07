@@ -95,6 +95,41 @@ The last row is why layer 4 exists at all. The tests for it stub layers 1 and 2
 to pass everything, so they exercise containment rather than the standard
 library's filter.
 
+## How the plan is composed
+
+A generation plan has two contributors, and only one of them is the template set.
+
+```mermaid
+flowchart TB
+    set["<b>TemplateSet</b><br/><i>whoever authored it</i>"]
+    values["values<br/>project_name · app_name<br/>kinds_args · kind_decorators · kind"]
+    render["<b>build_plan</b><br/>substitute · reject escapes<br/><b>reject reserved destinations</b>"]
+    rendered["rendered files"]
+
+    origin["<b>Origin</b><br/><i>how the reference resolved</i>"]
+    record["<b>record_file</b><br/>provenance.py<br/><i>json, not substitution</i>"]
+
+    plan["<b>GenerationPlan</b>"]
+    checks["is_empty · detect_conflicts"]
+    commit["sink.commit<br/><i>all, or none</i>"]
+
+    set --> render
+    values --> render
+    render --> rendered --> plan
+    origin --> record --> plan
+    plan --> checks --> commit
+```
+
+The record's values never enter `values`, so no substitution path reaches them —
+a set cannot supply what the record says. `.spoc-template.json` is a reserved
+destination, so a set cannot claim it either, and the refusal happens in the pure
+core before anything is written. The record joins the plan *before* the checks,
+so it inherits never-overwrite and all-or-nothing like any rendered file.
+
+`spoc app` renders app-shaped files through the same `build_plan` but contributes
+no record: it adds to a project that already has one, and never edits what the
+author owns.
+
 ## Dependency direction
 
 ```mermaid
@@ -102,6 +137,7 @@ flowchart LR
     subgraph core ["core — pure"]
         plan["plan<br/>Reference · TemplateSet · GenerationPlan<br/><i>ports declared here</i>"]
         corefns["core<br/>parse_reference · build_plan · validation"]
+        provenance["provenance<br/>Origin · record_file<br/><i>owns RECORD_NAME</i>"]
     end
 
     subgraph adapters ["adapters"]
@@ -121,6 +157,8 @@ flowchart LR
     archive --> plan
     sink --> plan
     sources --> corefns
+    provenance --> plan
+    corefns --> provenance
     cliadapter --> plan
     root --> sources
     root --> remote

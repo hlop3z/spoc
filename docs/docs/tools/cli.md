@@ -30,10 +30,16 @@ through every file. Options:
 
 If anything would collide with existing files, nothing is written at all.
 
-Every generated project also gets a `.spoc-template.toml` noting which template
-set produced it. Nothing reads it at runtime — delete it and the project still
-starts — but `spoc app` uses it to warn you when you're about to add an app from
-a different template than the rest of the project came from.
+Every generated project also gets a `.spoc-template.json` noting which template
+set produced it — whatever set you named, and whoever wrote it. Nothing reads it
+at runtime — delete it and the project still starts — but `spoc app` uses it to
+warn you when you're about to add an app from a different template than the rest
+of the project came from.
+
+SPOC writes that file itself. A template set cannot suppress it by leaving it
+out, and cannot supply what it says: a set that declares a file landing there is
+refused before anything is written. A record its own subject could author would
+tell you nothing.
 
 ## `spoc app` — one more app
 
@@ -95,6 +101,14 @@ scaffolding tools that execute template-supplied hooks by design.
 What you should still weigh: the *generated project* is code written by whoever
 wrote the template, and you're about to run it. That's the same trust decision
 as `git clone`, and no tool can make it for you.
+
+**A template set cannot write `.spoc-template.json`.** That destination is
+reserved: SPOC writes the origin record for every generation, and a manifest
+declaring a file that lands there is refused, naming it. The three values that
+used to feed the record — `template_reference`, `template_revision`, and
+`template_set_name` — are no longer part of the substitution vocabulary, so a
+set that declares one is refused as unsatisfiable. If you are writing a template
+set, don't declare the record; you get it for free.
 
 A remote reference is also the **only** thing that makes SPOC touch the network.
 No other command opens a connection.
