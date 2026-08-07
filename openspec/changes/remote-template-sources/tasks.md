@@ -102,4 +102,4 @@
 - [x] 10.3 Run the scaffold parity tests and confirm `init` and `app` still emit identical app
       shapes
 - [x] 10.4 Update `docs/architecture/` with the resolution and retrieval flow (Rule 1)
-- [ ] 10.5 Review the diff and split commits by intent, Conventional Commits, no co-author (Rule 3)
+- [x] 10.5 Review the diff and split commits by intent, Conventional Commits, no co-author (Rule 3)
