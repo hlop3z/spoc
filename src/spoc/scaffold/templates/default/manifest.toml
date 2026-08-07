@@ -13,9 +13,6 @@ values = [
     "kinds_args",
     "kind_decorators",
     "kind",
-    "template_reference",
-    "template_revision",
-    "template_set_name",
 ]
 
 # Emitted once each.
@@ -24,12 +21,9 @@ values = [
 source = "config/spoc.toml.tmpl"
 target = "config/spoc.toml"
 
-# The origin record. Emitted through the ordinary plan so it inherits
-# never-overwrite and all-or-nothing like any other generated file.
-
-[[files]]
-source = "spoc-template.toml.tmpl"
-target = ".spoc-template.toml"
+# The origin record is not here, and no set may declare it: `spoc init` writes
+# it itself, for every generation, so a set that omits it cannot suppress a
+# project's provenance and a set that declares it cannot forge one.
 
 [[files]]
 source = "framework.py.tmpl"

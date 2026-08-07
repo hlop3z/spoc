@@ -13,8 +13,8 @@ from string import Template
 
 from .core import build_plan, detect_conflicts, validate_name
 from .errors import IncompleteTemplateSetError, TargetNotEmptyError
-from .plan import GenerationPlan, PlannedFile, ProjectSink, TemplateSource
-from .provenance import Origin, describe_divergence
+from .plan import GenerationPlan, PlannedFile, ProjectSink, TemplateSet, TemplateSource
+from .provenance import Origin, describe_divergence, record_file
 
 #: What a project gets when the caller does not say otherwise. Two kinds, so the
 #: generated project shows a registry with more than one facet in it. No
@@ -23,6 +23,21 @@ from .provenance import Origin, describe_divergence
 DEFAULT_KINDS: tuple[str, ...] = ("models", "views")
 
 DEFAULT_APP_NAME = "core"
+
+
+def _origin_of(loaded: TemplateSet, requested: str) -> Origin:
+    """How a resolved template set names itself in the origin record.
+
+    Derived for every generation whatever the set's origin, so the comparison a
+    later ``add_app`` makes is always possible rather than possible only for
+    remote sets. A set that carries no reference — a built-in — is named by what
+    the caller asked for, which is the only name it has.
+    """
+    return Origin(
+        reference=loaded.reference or requested,
+        revision=loaded.revision,
+        set_name=loaded.name,
+    )
 
 
 def init_project(
@@ -72,15 +87,17 @@ def init_project(
         "kind_decorators": "\n".join(
             f'{kind} = framework.kind("{kind}")' for kind in kinds
         ),
-        # The origin record's values. Supplied for every generation, whatever the
-        # set's origin, so the comparison a later `add_app` makes is always
-        # possible rather than possible only for remote sets.
-        "template_reference": loaded.reference or template_set,
-        "template_revision": loaded.revision,
-        "template_set_name": loaded.name,
     }
 
-    plan = build_plan(loaded, values, kinds)
+    rendered = build_plan(loaded, values, kinds)
+
+    # The origin record is this operation's own contribution, not the template
+    # set's: a set that declares nothing still produces one, and no set can
+    # supply what it says. Joined to the plan before the checks below, so it is
+    # subject to never-overwrite and all-or-nothing like every rendered file.
+    plan = GenerationPlan(
+        (*rendered.files, record_file(_origin_of(loaded, template_set)))
+    )
 
     if not sink.is_empty():
         raise TargetNotEmptyError(sink.location())
@@ -190,14 +207,7 @@ def add_app(
     # but never able to prevent it: a project may legitimately draw from more
     # than one template set.
     divergence = (
-        describe_divergence(
-            read_origin(),
-            Origin(
-                reference=loaded.reference or template_set,
-                revision=loaded.revision,
-                set_name=loaded.name,
-            ),
-        )
+        describe_divergence(read_origin(), _origin_of(loaded, template_set))
         if read_origin is not None
         else None
     )

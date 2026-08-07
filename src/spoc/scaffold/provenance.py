@@ -8,15 +8,39 @@ because a project may legitimately draw from more than one set.
 
 Nothing reads this at runtime. A project whose record is deleted still starts —
 the record is a note for tooling, not configuration.
+
+**The scaffolder writes it; a template set cannot.** Both directions of the
+record's shape live here, so the writer and the reader cannot drift, and the
+values it carries never pass through template substitution — there is no
+rendering path by which a set could suppress the record or supply its content.
+:data:`RECORD_NAME` is reserved for that reason, enforced in the pure core.
+
+JSON, not TOML: a reference is whatever the author typed — ``C:\\templates\\mine``
+carries backslashes, and nothing forbids a quote — so emitting the record is
+serialization, not substitution. The standard library writes JSON and reads it;
+it has no TOML writer, and hand-rolling escaping for a standard format is the
+rule this project does not break. See the ADR in ``DECISIONS.md``.
 """
 
-import tomllib
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from .plan import PlannedFile
+
 #: Where the record lives inside a generated project. Dotted so it sits with the
 #: other tooling metadata rather than in the project's own namespace.
-RECORD_NAME = ".spoc-template.toml"
+RECORD_NAME = ".spoc-template.json"
+
+#: Carried inside the record because JSON has no comments, and a generated file
+#: that cannot say what it is for invites deletion by guesswork.
+NOTE = (
+    "Where this project came from. Written once, by `spoc init`. Nothing reads "
+    "it at runtime — deleting this file leaves a project that still starts. "
+    "`spoc app` reads it to notice when the template set it is about to render "
+    "differs from the one that generated the project, so a mismatched app shape "
+    "is never emitted silently."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +58,34 @@ class Origin:
         return self.reference or self.set_name
 
 
+def record_content(origin: Origin) -> str:
+    """Serialize an origin into the record's text.
+
+    Built as a data structure and handed to a serializer — no format is
+    assembled here, which is what keeps every value the caller can supply
+    round-trippable through :func:`read_origin`.
+    """
+    document = {
+        "note": NOTE,
+        "template": {
+            "reference": origin.reference,
+            "revision": origin.revision,
+            "set": origin.set_name,
+        },
+    }
+    return json.dumps(document, indent=2, ensure_ascii=False) + "\n"
+
+
+def record_file(origin: Origin) -> PlannedFile:
+    """The record as a plan entry.
+
+    Contributed by the generating operation rather than by the rendered template
+    set, but an ordinary :class:`PlannedFile` once contributed — so it inherits
+    never-overwrite and all-or-nothing like any other generated file.
+    """
+    return PlannedFile(path=RECORD_NAME, content=record_content(origin))
+
+
 def read_origin(project_root: Path) -> Origin | None:
     """Read a project's origin record, or None when it carries none.
 
@@ -46,11 +98,11 @@ def read_origin(project_root: Path) -> Origin | None:
         return None
 
     try:
-        data = tomllib.loads(record.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
+        data = json.loads(record.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return None
 
-    template = data.get("template")
+    template = data.get("template") if isinstance(data, dict) else None
     if not isinstance(template, dict):
         return None
 
