@@ -86,17 +86,26 @@
 
 - [x] 8.1 Run `task check` (or the `.canon/checks.md` rows individually) and report anything
       that could not be run as unverified.
-- [x] 8.2 Verify end-to-end against the live fixture — **partly verified, see below.**
-      - Verified live: `gh:hlop3z/spoc` resolved `HEAD` to `b55967ae…` (exactly `origin/main`),
-        fetched, admitted, and retained the tarball under that revision. The remote path works.
-      - Verified live: that run then failed with `UnsatisfiedValueError` naming
-        `template_reference`, writing nothing — because the *published* set still declares the
-        removed values. This is task 6.3's behaviour confirmed against real content.
-      - Verified live: a record-less third-party-shaped set on a backslash-heavy Windows path
-        produced `.spoc-template.json` with the reference round-tripped verbatim — both defects
-        fixed, end to end.
-      - **Unverified:** "a set retrieved over `gh:` produces the record" cannot be shown against
-        the live fixture until this change is on `origin/main` — the fixture is the repo itself.
-        Covered by the in-memory test in 6.2. Re-run this row after the change lands.
+- [x] 8.2 Verify end-to-end against the live fixture — **fully verified**, in two passes either
+      side of the push (the fixture is this repo, so the remote half could only close once the
+      change was on `origin/main`).
+
+      Before the push:
+      - `gh:hlop3z/spoc` resolved `HEAD` to `b55967ae…` (exactly `origin/main`), fetched,
+        admitted, and retained the tarball. The remote path works.
+      - That run then failed with `UnsatisfiedValueError` naming `template_reference`, writing
+        nothing — the *published* set still declared the removed values. Task 6.3's behaviour,
+        confirmed against real third-party-shaped content rather than a fixture.
+      - A record-less set on a backslash-heavy Windows path produced `.spoc-template.json` with
+        the reference round-tripped verbatim. Both defects fixed, end to end.
+
+      After the push (`840e52f`):
+      - `spoc init --template gh:hlop3z/spoc#subdirectory=…` generated a project whose record
+        carries `revision = 840e52f5…`, matching `origin/main` exactly.
+      - The generated project starts unedited: `Installed apps: ['apps.core']`, two components
+        registered.
+      - `spoc app billing` against the same origin reported **no divergence** — so the record a
+        real remote generation wrote was read back and compared clean. The write side and the
+        read side agree over a live reference, which is the whole point of the record.
 - [x] 8.3 Review the diff and split into commits by intent (Rule 3): the conformance fix, the
       reserved-target hardening, the error-message fix, and the docs correction.
