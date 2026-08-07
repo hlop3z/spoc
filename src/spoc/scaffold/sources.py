@@ -12,13 +12,24 @@ below, which is why an `init` command can be had without reimplementing one.
 """
 
 import tomllib
+from dataclasses import replace
 from importlib import metadata, resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
 from types import ModuleType
 
+from .archive import extract_archive
+from .core import parse_reference
 from .errors import IncompleteTemplateSetError, TemplateSetNotFoundError
-from .plan import TemplateFile, TemplateSet
+from .plan import (
+    Cache,
+    Fetcher,
+    Reference,
+    ReferenceKind,
+    RevisionResolver,
+    TemplateFile,
+    TemplateSet,
+)
 
 #: Entry-point group a downstream framework registers its template sets under.
 #: Each entry point resolves to a directory path or an importable package
@@ -110,27 +121,122 @@ def _entry_points() -> dict[str, metadata.EntryPoint]:
     return {ep.name: ep for ep in found}
 
 
+class RemoteTemplateSource:
+    """
+    Loads a template set that has to be retrieved before it can be read.
+
+    Composed of the three retrieval ports rather than doing any of their work:
+    resolve the reference to an exact revision, serve it from the cache if it is
+    retained, otherwise retrieve, admit, and retain it — then load the result as
+    an ordinary directory. Everything after ``load_from_directory`` is identical
+    to a local set, which is the point: origin buys no special treatment.
+    """
+
+    def __init__(
+        self, *, revisions: RevisionResolver, fetcher: Fetcher, cache: Cache
+    ) -> None:
+        self._revisions = revisions
+        self._fetcher = fetcher
+        self._cache = cache
+
+    def load(self, reference: Reference) -> TemplateSet:
+        revision = self._revisions.resolve(reference)
+
+        retained = self._cache.retained(revision)
+        if retained is None:
+            retained = self._cache.retain(
+                revision, lambda staging: self._populate(reference, revision, staging)
+            )
+
+        loaded = load_from_directory(_within(retained, reference))
+        # The set now knows where it came from, so provenance is a property of
+        # what was loaded rather than something the caller has to reconstruct.
+        return replace(loaded, reference=reference.raw, revision=revision)
+
+    def _populate(self, reference: Reference, revision: str, staging: Path) -> None:
+        """Retrieve and admit one revision into a staging directory."""
+        extract_archive(self._fetcher.fetch(reference, revision), staging)
+
+
+def _within(retained: Path, reference: Reference) -> Path:
+    """Resolve the subdirectory a reference named, if it named one.
+
+    Archives from a forge wrap everything in a single top-level directory whose
+    name carries the revision. That wrapper is an artifact of the transport, not
+    part of the template set, so it is stepped through rather than made the
+    author's problem.
+    """
+    root = retained
+    entries = [entry for entry in root.iterdir() if not entry.name.startswith(".")]
+    if (
+        len(entries) == 1
+        and entries[0].is_dir()
+        and not (root / MANIFEST_NAME).is_file()
+    ):
+        root = entries[0]
+
+    if reference.subdirectory:
+        candidate = root / reference.subdirectory
+        # The subdirectory came from the caller's own reference, but it still
+        # reaches the filesystem as a path, so it is contained like any other.
+        resolved = candidate.resolve()
+        if not resolved.is_relative_to(root.resolve()):
+            raise TemplateSetNotFoundError(reference.raw, ())
+        if not resolved.is_dir():
+            raise IncompleteTemplateSetError(
+                f"the subdirectory {reference.subdirectory!r} in {reference.raw!r}"
+            )
+        return resolved
+
+    return root
+
+
 class InstalledTemplateSources:
     """
-    Resolves template sets from the built-in set plus installed entry points.
+    Resolves any template set reference, dispatching on the form it designates.
 
-    Implements the :class:`~spoc.scaffold.plan.TemplateSource` port.
+    Implements the :class:`~spoc.scaffold.plan.EnumerableSource` port.
+
+    Resolution is scheme-first and total: the reference's own form decides which
+    kind of source is consulted, before anything is looked up. That ordering is
+    the contract — a reference that designates one kind must never fall through
+    to another because the first came up empty, or a mistyped scheme ends up
+    reported as a missing directory nobody named.
+
+    ``available()`` lists only what can genuinely be enumerated. A remote
+    reference has no candidate set, so none is invented for it.
     """
+
+    def __init__(self, remote: RemoteTemplateSource | None = None) -> None:
+        self._remote = remote
 
     def available(self) -> tuple[str, ...]:
         names = {BUILTIN_SET, *_entry_points()}
         return tuple(sorted(names))
 
     def load(self, name: str) -> TemplateSet:
+        reference = parse_reference(name)
+
+        match reference.kind:
+            case ReferenceKind.PATH:
+                loaded = load_from_directory(Path(reference.location))
+            case ReferenceKind.REMOTE:
+                return self._load_remote(reference)
+            case _:
+                loaded = self._load_name(reference)
+
+        # A local set cannot move, so it records the reference but no revision.
+        return replace(loaded, reference=reference.raw)
+
+    def _load_remote(self, reference: Reference) -> TemplateSet:
+        if self._remote is None:
+            raise TemplateSetNotFoundError(reference.raw, self.available())
+        return self._remote.load(reference)
+
+    def _load_name(self, reference: Reference) -> TemplateSet:
+        name = reference.location
         if name == BUILTIN_SET:
             return load_from_traversable(_builtin_traversable())
-
-        # A reference spelled as a path (it contains a separator, e.g.
-        # `./mytemplates`) designates a directory on disk. The separator is
-        # the discriminator on purpose: a bare name never silently resolves
-        # to a same-named local directory over an installed set.
-        if "/" in name or "\\" in name:
-            return load_from_directory(Path(name))
 
         entry = _entry_points().get(name)
         if entry is None:
