@@ -47,13 +47,102 @@ class PathEscapeError(ScaffoldError):
 
 
 class TemplateSetNotFoundError(ScaffoldError):
-    """Raised when a named template set cannot be resolved."""
+    """Raised when a named template set cannot be resolved.
+
+    Candidates come only from sources that can actually enumerate themselves, so
+    this never presents an invented list as the set of possibilities.
+    """
 
     def __init__(self, reference: str, candidates: tuple[str, ...]) -> None:
         self.reference = reference
         self.candidates = candidates
         listed = ", ".join(candidates) if candidates else "none installed"
         super().__init__(f"Unknown template set: {reference!r}. Available: {listed}")
+
+
+class UnrecognizedReferenceError(ScaffoldError):
+    """Raised when a reference matches no known form.
+
+    Distinct from :class:`TemplateSetNotFoundError` on purpose: that one means
+    "this named a form I understand, and it was not there", this one means "I do
+    not know what you asked for". Reporting the second as the first is how a
+    mistyped scheme ends up complaining about a missing directory nobody named.
+    """
+
+    def __init__(self, reference: str, segment: str, forms: tuple[str, ...]) -> None:
+        self.reference = reference
+        self.segment = segment
+        self.forms = forms
+        listed = "\n  ".join(forms)
+        super().__init__(
+            f"Unrecognized template reference: {reference!r} — {segment}. "
+            f"Recognized forms:\n  {listed}\nNothing was written"
+        )
+
+
+class RetrievalError(ScaffoldError):
+    """Raised when a remote reference cannot be retrieved."""
+
+    def __init__(self, reference: str, reason: str) -> None:
+        self.reference = reference
+        self.reason = reason
+        super().__init__(
+            f"Could not retrieve template set {reference!r}: {reason}. Nothing was written"
+        )
+
+
+class InsecureRedirectError(ScaffoldError):
+    """Raised when retrieval is redirected onto weaker guarantees than were asked for."""
+
+    def __init__(self, origin: str, destination: str) -> None:
+        self.origin = origin
+        self.destination = destination
+        super().__init__(
+            f"Refusing redirect from {origin!r} to {destination!r}: the destination "
+            "offers weaker guarantees than the reference supplied. Nothing was written"
+        )
+
+
+class MemberRefusedError(ScaffoldError):
+    """Raised when retrieved content carries a member that may not be materialized.
+
+    This is the trust boundary for third-party archives. It fires for traversal,
+    absolute paths, links, and special files — and it fires again, independently,
+    after a member is materialized, because the standard library's own extraction
+    filter has had a traversal bypass (CVE-2025-4517) on interpreter versions this
+    project supports.
+    """
+
+    def __init__(self, member: str, reason: str) -> None:
+        self.member = member
+        self.reason = reason
+        super().__init__(
+            f"Refusing archive member {member!r}: {reason}. Nothing was written"
+        )
+
+
+class BoundExceededError(ScaffoldError):
+    """Raised when retrieved content exceeds a declared bound."""
+
+    def __init__(self, bound_name: str, limit: int) -> None:
+        self.bound_name = bound_name
+        self.limit = limit
+        super().__init__(
+            f"Retrieved content exceeds the {bound_name} bound of {limit}. "
+            "Nothing was written"
+        )
+
+
+class RevisionUnavailableError(ScaffoldError):
+    """Raised when a revision is neither retained nor retrievable."""
+
+    def __init__(self, reference: str, reason: str) -> None:
+        self.reference = reference
+        self.reason = reason
+        super().__init__(
+            f"Template set {reference!r} is not retained locally and could not be "
+            f"retrieved ({reason}). Nothing was written"
+        )
 
 
 class IncompleteTemplateSetError(ScaffoldError):
