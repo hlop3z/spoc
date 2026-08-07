@@ -76,8 +76,14 @@ def _opener() -> urllib.request.OpenerDirector:
     return urllib.request.build_opener(_NoDowngradeRedirect)
 
 
-def _get(url: str, *, accept: str | None = None) -> bytes:
-    """Fetch a URL, bounded, reading no path-shaped metadata from the response."""
+def _get(url: str, reference: Reference, *, accept: str | None = None) -> bytes:
+    """Fetch a URL, bounded, reading no path-shaped metadata from the response.
+
+    Failures name the reference the caller supplied, with the URL this adapter
+    derived from it as detail. The caller can only correct what they typed —
+    reporting `https://api.github.com/repos/o/r/commits/HEAD` to someone who
+    wrote `gh:o/r` names something they never chose.
+    """
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     if accept:
         request.add_header("Accept", accept)
@@ -91,12 +97,16 @@ def _get(url: str, *, accept: str | None = None) -> bytes:
     except InsecureRedirectError:
         raise
     except urllib.error.HTTPError as exc:
-        raise RetrievalError(url, f"the server answered {exc.code}") from exc
+        raise RetrievalError(
+            reference.raw, f"the server answered {exc.code} for {url}"
+        ) from exc
     except OSError as exc:
-        raise RetrievalError(url, str(exc)) from exc
+        raise RetrievalError(reference.raw, f"{exc} ({url})") from exc
 
     if len(payload) > MAX_TRANSFER_BYTES:
-        raise RetrievalError(url, f"the transfer exceeds {MAX_TRANSFER_BYTES} bytes")
+        raise RetrievalError(
+            reference.raw, f"the transfer exceeds {MAX_TRANSFER_BYTES} bytes"
+        )
     return payload
 
 
@@ -127,7 +137,7 @@ class HttpRevisionResolver:
             owner, repo = _github_parts(reference)
             ref = reference.revision or "HEAD"
             url = f"https://api.github.com/repos/{owner}/{repo}/commits/{ref}"
-            payload = _get(url, accept="application/vnd.github+json")
+            payload = _get(url, reference, accept="application/vnd.github+json")
             try:
                 sha = json.loads(payload)["sha"]
             except (ValueError, KeyError, TypeError) as exc:
@@ -153,7 +163,7 @@ class HttpFetcher:
     """
 
     def fetch(self, reference: Reference, revision: str) -> bytes:
-        return _get(self._url_for(reference, revision))
+        return _get(self._url_for(reference, revision), reference)
 
     def _url_for(self, reference: Reference, revision: str) -> str:
         """Build the retrieval URL. Constructed locally, never taken from a

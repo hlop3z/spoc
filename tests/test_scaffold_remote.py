@@ -10,11 +10,14 @@ ones.
 
 import io
 import tarfile
+import email.message
+import urllib.error
 import urllib.request
 from pathlib import Path
 
 import pytest
 
+from spoc.scaffold import remote
 from spoc.scaffold.cache import DirectoryCache, default_cache_root
 from spoc.scaffold.errors import (
     IncompleteTemplateSetError,
@@ -23,7 +26,7 @@ from spoc.scaffold.errors import (
     TemplateSetNotFoundError,
     UnrecognizedReferenceError,
 )
-from spoc.scaffold.plan import Reference
+from spoc.scaffold.plan import Reference, ReferenceKind
 from spoc.scaffold.remote import HttpFetcher, _is_secure, _NoDowngradeRedirect
 from spoc.scaffold.sources import InstalledTemplateSources, RemoteTemplateSource
 
@@ -316,3 +319,63 @@ def _nested_archive() -> bytes:
             info.size = len(payload)
             archive.addfile(info, io.BytesIO(payload))
     return buffer.getvalue()
+
+
+class TestFailuresNameWhatTheCallerSupplied:
+    """A caller can only correct what they typed.
+
+    The adapter derives `https://api.github.com/repos/o/r/commits/HEAD` from
+    `gh:o/r`; naming the derived URL alone points at something the author never
+    chose and cannot act on.
+    """
+
+    @staticmethod
+    def _breaking_opener(error: Exception) -> object:
+        class Opener:
+            def open(self, request: object, timeout: float | None = None) -> object:
+                raise error
+
+        return lambda: Opener()
+
+    def test_http_error_names_the_reference(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            remote,
+            "_opener",
+            self._breaking_opener(
+                urllib.error.HTTPError(
+                    "https://api.github.com/repos/o/r/commits/HEAD",
+                    404,
+                    "Not Found",
+                    email.message.Message(),
+                    None,
+                )
+            ),
+        )
+        reference = Reference(
+            kind=ReferenceKind.REMOTE, raw="gh:o/r", scheme="gh", location="o/r"
+        )
+        with pytest.raises(RetrievalError) as caught:
+            remote.HttpRevisionResolver().resolve(reference)
+
+        message = str(caught.value)
+        assert "'gh:o/r'" in message
+        assert "404" in message
+        assert not message.startswith("Could not retrieve template set 'https://")
+
+    def test_transport_error_names_the_reference(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            remote, "_opener", self._breaking_opener(OSError("name resolution failed"))
+        )
+        reference = Reference(
+            kind=ReferenceKind.REMOTE, raw="gh:o/r", scheme="gh", location="o/r"
+        )
+        with pytest.raises(RetrievalError) as caught:
+            remote.HttpFetcher().fetch(reference, "abc123")
+
+        message = str(caught.value)
+        assert "'gh:o/r'" in message
+        assert "name resolution failed" in message
