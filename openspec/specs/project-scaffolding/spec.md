@@ -7,9 +7,13 @@ TBD - created by archiving change project-scaffolder. Update Purpose after archi
 
 A single scaffolding operation MUST produce a complete project that starts successfully
 without any edit to the generated content. The generated project MUST include the declarative
-configuration file, the framework declaration, one app, and an entry point, and the names used
-across them MUST agree: every kind named in the declaration has a corresponding module in the
-generated app, and the app named in the configuration exists on disk.
+configuration file, the framework declaration, one app, an entry point, and a record of the
+template set it was generated from, and the names used across them MUST agree: every kind named
+in the declaration has a corresponding module in the generated app, and the app named in the
+configuration exists on disk.
+
+The origin record MUST NOT affect whether the generated project starts, so a project remains
+runnable if it is removed.
 
 #### Scenario: Generated project starts unedited
 
@@ -34,6 +38,17 @@ generated app, and the app named in the configuration exists on disk.
 
 - **WHEN** a project is generated into a directory that already contains content
 - **THEN** the operation fails naming the directory, and no file is created or modified
+
+#### Scenario: Generation records its origin
+
+- **WHEN** a project is generated from any template set reference
+- **THEN** the generated project includes a record of that reference, listed among the generated
+  files like any other
+
+#### Scenario: Removing the origin record leaves a runnable project
+
+- **WHEN** the origin record is deleted from a generated project and the project is started
+- **THEN** start succeeds unchanged
 
 ### Requirement: Generation never destroys existing content
 
@@ -124,6 +139,10 @@ framework declaration, so the author never restates what the project already dec
 stated kinds override derivation. If neither stated kinds nor a locatable declaration
 exist, the operation MUST fail actionably, naming both paths.
 
+The operation MUST compare the template set it renders against the project's recorded origin and
+report any divergence, so an app whose shape will not match the rest of the project is never
+emitted silently. Divergence MUST NOT by itself prevent the operation from proceeding.
+
 #### Scenario: Generated app matches the project shape
 
 - **WHEN** an app is added to a project whose declaration states a set of kinds
@@ -153,3 +172,14 @@ exist, the operation MUST fail actionably, naming both paths.
   located
 - **THEN** the operation fails stating both how to state kinds and how the declaration
   is located
+
+#### Scenario: Divergent template set is reported and proceeds
+
+- **WHEN** an app is added rendering a template set that differs from the project's recorded
+  origin
+- **THEN** the operation reports the divergence naming both, and then generates the app
+
+#### Scenario: Matching template set is not reported
+
+- **WHEN** an app is added rendering the same template set the project records as its origin
+- **THEN** the operation generates the app and reports no divergence
