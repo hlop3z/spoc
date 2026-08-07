@@ -16,6 +16,8 @@ from collections.abc import Callable
 from pathlib import Path
 
 from .operations import DEFAULT_APP_NAME, DEFAULT_KINDS, add_app, init_project
+from .plan import TemplateSource
+from .provenance import read_origin
 from .sink import DirectorySink
 from .sources import BUILTIN_SET, InstalledTemplateSources
 
@@ -24,13 +26,17 @@ __all__ = ["register"]
 #: How the composition root supplies kind derivation: project root → kinds.
 DeriveKinds = Callable[[Path], tuple[str, ...]]
 
+#: How the composition root supplies template resolution. Defaulted so a caller
+#: mounting this surface without wiring retrieval still gets local template sets.
+SourceFactory = Callable[[], TemplateSource]
 
-def _run_init(args: argparse.Namespace) -> int:
+
+def _run_init(args: argparse.Namespace, sources: SourceFactory) -> int:
     destination = args.path if args.path is not None else Path.cwd() / args.name
     kinds = tuple(k.strip() for k in args.kinds.split(",") if k.strip())
 
     plan = init_project(
-        source=InstalledTemplateSources(),
+        source=sources(),
         sink=DirectorySink(destination),
         project_name=args.name,
         app_name=args.app,
@@ -41,11 +47,39 @@ def _run_init(args: argparse.Namespace) -> int:
     print(f"Created {destination}")
     for planned in plan:
         print(f"  {planned.path}")
+
+    # Read back from the record rather than from the resolution, so what is
+    # reported is exactly what the project will claim about itself later.
+    origin = read_origin(destination)
+    if origin is not None and origin.revision:
+        print(
+            f"\nGenerated from {origin.reference} at revision {origin.revision}.\n"
+            f"Reproduce this exact project with:\n"
+            f"  --template {_pinned(origin.reference, origin.revision)}"
+        )
+
     print(f"\nNext:\n  cd {destination}\n  python main.py")
     return 0
 
 
-def _run_app(args: argparse.Namespace, derive_kinds: DeriveKinds | None) -> int:
+def _pinned(reference: str, revision: str) -> str:
+    """The same reference, pinned to the revision it resolved to.
+
+    Stated so a moving reference can be turned into a reproducible one by
+    copying a line, rather than by the author working out the syntax.
+    """
+    base, _, _ = reference.partition("#")
+    base = base.rpartition("@")[0] if "@" in base.rpartition("/")[2] else base
+    fragment = reference.partition("#")[2]
+    pinned = f"{base}@{revision}"
+    return f"{pinned}#{fragment}" if fragment else pinned
+
+
+def _run_app(
+    args: argparse.Namespace,
+    derive_kinds: DeriveKinds | None,
+    sources: SourceFactory,
+) -> int:
     if args.kinds is not None:
         kinds = tuple(k.strip() for k in args.kinds.split(",") if k.strip())
     elif derive_kinds is not None:
@@ -57,13 +91,16 @@ def _run_app(args: argparse.Namespace, derive_kinds: DeriveKinds | None) -> int:
         )
 
     added = add_app(
-        source=InstalledTemplateSources(),
+        source=sources(),
         sink_factory=lambda app_dir: DirectorySink(args.path / app_dir),
         app_name=args.name,
         kinds=kinds,
         template_set=args.template,
+        read_origin=lambda: read_origin(args.path),
     )
 
+    if added.divergence:
+        print(f"note: {added.divergence}\n")
     print(f"Created {args.path / added.app_dir}")
     for planned in added.plan:
         print(f"  {added.app_dir}/{planned.path}")
@@ -75,15 +112,31 @@ def _run_app(args: argparse.Namespace, derive_kinds: DeriveKinds | None) -> int:
     return 0
 
 
+#: Stated in `--template` help on both subcommands. One definition, because a
+#: help text that lists different forms than the parser accepts is a defect.
+_TEMPLATE_HELP = (
+    "Template set to render (default: {default}). One of: an installed set's "
+    "name; a directory path (./mytemplates, C:\\templates); gh:owner/repo"
+    "[@revision][#subdirectory=path]; an https:// archive URL; or "
+    "git+https://host/owner/repo[@revision]. A remote reference is the only "
+    "thing that causes spoc to access the network."
+)
+
+
 def register(
     subcommands: argparse._SubParsersAction,
     derive_kinds: DeriveKinds | None = None,
+    source_factory: SourceFactory | None = None,
 ) -> None:
     """Mount ``init`` and ``app`` on the composed ``spoc`` parser.
 
-    ``derive_kinds`` is injected by the composition root — the scaffold never
-    imports the surface that can locate a framework declaration.
+    ``derive_kinds`` and ``source_factory`` are injected by the composition root
+    — the scaffold never imports the surface that can locate a framework
+    declaration, and never decides for itself which sources exist. Without a
+    factory it resolves local template sets only, so mounting this surface never
+    silently acquires a network path.
     """
+    sources: SourceFactory = source_factory or InstalledTemplateSources
     init = subcommands.add_parser(
         "init",
         help="Generate a new project that starts unedited.",
@@ -116,13 +169,9 @@ def register(
     init.add_argument(
         "--template",
         default=BUILTIN_SET,
-        help=(
-            f"Template set to render (default: {BUILTIN_SET}). An installed "
-            "set's name, or a directory path (contains a separator, e.g. "
-            "./mytemplates)."
-        ),
+        help=_TEMPLATE_HELP.format(default=BUILTIN_SET),
     )
-    init.set_defaults(handler=_run_init)
+    init.set_defaults(handler=lambda args: _run_init(args, sources))
 
     app = subcommands.add_parser(
         "app",
@@ -149,6 +198,6 @@ def register(
     app.add_argument(
         "--template",
         default=BUILTIN_SET,
-        help=f"Template set whose app shape to render (default: {BUILTIN_SET}).",
+        help=_TEMPLATE_HELP.format(default=BUILTIN_SET),
     )
-    app.set_defaults(handler=lambda args: _run_app(args, derive_kinds))
+    app.set_defaults(handler=lambda args: _run_app(args, derive_kinds, sources))
