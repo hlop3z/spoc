@@ -5,6 +5,10 @@ No filesystem, no argv, no imports beyond the standard library and the kernel's
 own identity grammar. Everything here is a function from values to a plan, which
 is what lets the whole operation be checked before a byte is written.
 
+The one intra-package import is a *name*: :data:`RESERVED_TARGETS` takes the
+record's destination from the module that defines it. A name is not a
+capability — nothing here reads or writes the record.
+
 Substitution uses :class:`string.Template`, deliberately. It performs name
 substitution and nothing else — no expressions, no conditionals, no evaluation —
 which is exactly the contract the template specs require. Its
@@ -20,6 +24,7 @@ from .errors import (
     IncompleteTemplateSetError,
     PathConflictError,
     PathEscapeError,
+    ReservedTargetError,
     UndeclaredValueError,
     UnrecognizedReferenceError,
     UnsatisfiedValueError,
@@ -32,11 +37,17 @@ from .plan import (
     TemplateSet,
     Values,
 )
+from .provenance import RECORD_NAME
 
 #: Names that must never appear in a path segment the user supplies. Traversal
 #: is rejected here, in the pure layer, so it cannot depend on a filesystem
 #: check that a symlink could defeat.
 _UNSAFE_FRAGMENTS = ("..", "/", "\\", ":")
+
+#: Destinations the generating operation writes itself, so no template set may
+#: declare one. Sourced from the module that owns each — a reserved name has one
+#: definition, and the reader of the record is what defines it.
+RESERVED_TARGETS = frozenset({RECORD_NAME})
 
 #: The value bound once per kind while rendering a ``per_kind`` template. It is a
 #: declared substitution value like any other, but it is supplied by the
@@ -261,6 +272,7 @@ def build_plan(
         for binding in bindings:
             path = _render(file.target, binding)
             _reject_escape(path)
+            _reject_reserved(path)
             planned.append(
                 PlannedFile(path=path, content=_render(file.content, binding))
             )
@@ -281,6 +293,19 @@ def _reject_escape(path: str) -> None:
     drive_qualified = len(path) >= 2 and path[1] == ":"
     if path.startswith(("/", "\\")) or drive_qualified or ".." in segments:
         raise PathEscapeError(path)
+
+
+def _reject_reserved(path: str) -> None:
+    """Refuse a rendered destination the operation writes itself.
+
+    Checked on the rendered path rather than the declared target, so no spelling
+    of a substitution reaches a reserved destination by a route the declaration
+    did not show. Like :func:`_reject_escape` this is a trust boundary, not a
+    typo check: a set able to write the origin record could describe its own
+    provenance, which is the one thing the record must not allow.
+    """
+    if path.replace("\\", "/") in RESERVED_TARGETS:
+        raise ReservedTargetError(path)
 
 
 def detect_conflicts(plan: GenerationPlan, existing: tuple[str, ...]) -> None:

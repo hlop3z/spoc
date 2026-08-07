@@ -26,6 +26,7 @@ from .errors import (
     MemberRefusedError,
     PathConflictError,
     PathEscapeError,
+    ReservedTargetError,
     RetrievalError,
     RevisionUnavailableError,
     ScaffoldError,
@@ -56,7 +57,14 @@ from .plan import (
     TemplateSet,
     TemplateSource,
 )
-from .provenance import RECORD_NAME, Origin, describe_divergence, read_origin
+from .provenance import (
+    RECORD_NAME,
+    Origin,
+    describe_divergence,
+    read_origin,
+    record_content,
+    record_file,
+)
 from .remote import HttpFetcher, HttpRevisionResolver
 from .sink import DirectorySink
 from .sources import ENTRY_POINT_GROUP, InstalledTemplateSources, RemoteTemplateSource
@@ -96,6 +104,8 @@ __all__ = [
     "MAX_MEMBERS",
     # Provenance
     "Origin",
+    "record_content",
+    "record_file",
     "read_origin",
     "describe_divergence",
     "RECORD_NAME",
@@ -109,6 +119,7 @@ __all__ = [
     "IncompleteTemplateSetError",
     "UnsatisfiedValueError",
     "UndeclaredValueError",
+    "ReservedTargetError",
     "RetrievalError",
     "InsecureRedirectError",
     "MemberRefusedError",

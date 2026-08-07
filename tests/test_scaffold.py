@@ -22,6 +22,7 @@ from spoc.scaffold import (
     PathConflictError,
     PathEscapeError,
     PlannedFile,
+    ReservedTargetError,
     TargetNotEmptyError,
     TemplateSetNotFoundError,
     UndeclaredValueError,
@@ -35,6 +36,7 @@ from spoc.scaffold.core import (
     validate_template_set,
 )
 from spoc.scaffold.plan import TemplateFile, TemplateSet
+from spoc.scaffold.provenance import RECORD_NAME
 from spoc.scaffold.sources import BUILTIN_SET, load_from_directory
 
 
@@ -61,6 +63,21 @@ def generate(destination: Path, **kwargs) -> GenerationPlan:
 
 def fake_set(*files: TemplateFile, values: tuple[str, ...] = ()) -> TemplateSet:
     return TemplateSet(name="fake", values=values, files=files)
+
+
+class _OneSet:
+    """A source holding exactly one set — what a downstream framework mounts."""
+
+    def __init__(self, loaded: TemplateSet) -> None:
+        self._loaded = loaded
+
+    def available(self) -> tuple[str, ...]:
+        return (self._loaded.name,)
+
+    def load(self, name: str) -> TemplateSet:
+        if name != self._loaded.name:
+            raise TemplateSetNotFoundError(name, self.available())
+        return self._loaded
 
 
 # ── Generating a runnable project ─────────────────────────────────────────
@@ -419,18 +436,9 @@ def test_downstream_template_set_is_used(tmp_path):
         '[[files]]\nsource = "only.py.tmpl"\ntarget = "only.py"\n'
     )
 
-    class OneSetSource:
-        def available(self):
-            return ("downstream",)
-
-        def load(self, name):
-            if name != "downstream":
-                raise TemplateSetNotFoundError(name, self.available())
-            return load_from_directory(root)
-
     destination = tmp_path / "proj"
     init_project(
-        source=OneSetSource(),
+        source=_OneSet(load_from_directory(root)),
         sink=DirectorySink(destination),
         project_name="demo",
         template_set="downstream",
@@ -477,6 +485,47 @@ def test_unsatisfiable_substitution_named(tmp_path):
     with pytest.raises(UnsatisfiedValueError) as exc:
         validate_template_set(template, {})
     assert "needed" in str(exc.value)
+
+
+def test_reserved_destination_is_refused():
+    """A set may not claim the destination the operation writes itself."""
+    template = fake_set(
+        TemplateFile(source="forge.tmpl", target=RECORD_NAME, content="forged"),
+        values=(),
+    )
+    with pytest.raises(ReservedTargetError) as exc:
+        build_plan(template, {}, ("models",))
+    assert RECORD_NAME in str(exc.value)
+
+
+def test_reserved_destination_is_refused_however_it_is_spelled():
+    """Checked on the rendered path, so substitution is not a way around it."""
+    template = fake_set(
+        TemplateFile(source="forge.tmpl", target="$sneaky", content="forged"),
+        values=("sneaky",),
+    )
+    with pytest.raises(ReservedTargetError):
+        build_plan(template, {"sneaky": RECORD_NAME}, ("models",))
+
+
+def test_reserved_destination_is_refused_end_to_end(tmp_path):
+    """And nothing is written when it is — a forgery attempt is not partial."""
+    root = tmp_path / "set"
+    root.mkdir()
+    (root / "forge.tmpl").write_text("forged\n")
+    (root / "manifest.toml").write_text(
+        '[template_set]\nname = "forger"\nvalues = []\n\n'
+        f'[[files]]\nsource = "forge.tmpl"\ntarget = "{RECORD_NAME}"\n'
+    )
+    destination = tmp_path / "proj"
+    with pytest.raises(ReservedTargetError):
+        init_project(
+            source=_OneSet(load_from_directory(root)),
+            sink=DirectorySink(destination),
+            project_name="demo",
+            template_set="forger",
+        )
+    assert not destination.exists()
 
 
 def test_undeclared_placeholder_rejected():

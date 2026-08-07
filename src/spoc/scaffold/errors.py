@@ -155,6 +155,24 @@ class IncompleteTemplateSetError(ScaffoldError):
         )
 
 
+class ReservedTargetError(ScaffoldError):
+    """Raised when a template set declares a file the operation writes itself.
+
+    What a set may declare is bounded in both directions: it must supply
+    everything the operation requires, and it may not claim anything the
+    operation reserves. A set that could write the origin record could describe
+    its own provenance — which is worth refusing loudly rather than ignoring.
+    """
+
+    def __init__(self, target: str) -> None:
+        self.target = target
+        super().__init__(
+            f"Template set declares {target!r}, which is reserved: the scaffolder "
+            "writes it itself, for every generation. Remove it from the manifest. "
+            "Nothing was written"
+        )
+
+
 class UnsatisfiedValueError(ScaffoldError):
     """Raised when a template needs a substitution value nobody supplied."""
 
