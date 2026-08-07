@@ -297,3 +297,74 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   treatment formats got: a contained subpackage behind extras, its boundary pinned
   by tests. Re-splitting is not an open option to revisit; it would take a new
   owner decision superseding this one.
+
+### Decision: Archive member admission — Adopt the standard library filter, Extend with our own containment
+
+- **Status**: approved
+- **Why**: Standard-format parsing is on the never-hand-roll list, and `tarfile`'s PEP 706
+  `filter="data"` is the maintained answer — PEP 721 has pip extracting sdists with it. But it
+  cannot be the *sole* control: CVE-2025-4517 (CVSS 9.4) is arbitrary filesystem write via path
+  traversal in `filter="data"` itself, patched only in 3.12.11 / 3.13.4, while this project
+  requires `>=3.12` and cannot control a user's patch level. Re-verifying each materialized path
+  with `resolve().is_relative_to()` makes that CVE — and any future filter bypass — inert, at a
+  cost of about six lines against a predicate the sink already uses.
+- **Considered**: the filter alone with the floor raised to a patched interpreter (excludes
+  3.12.0–3.12.10 users, and makes the next filter CVE ours with no fallback); hand-written
+  admission with no filter (hard reject — this is precisely what produced Django's
+  CVE-2021-3281 and CVE-2025-59682 in the same feature).
+- **Isolation**: the admission step of the remote resolver, behind the `Fetcher` port.
+
+### Decision: Expanded-size and member-count bounds — Build (thin), no dependency
+
+- **Status**: approved
+- **Why**: No standard-library API bounds *expanded* size — PEP 706 explicitly does not cover
+  it — and the only OSS candidate covers zip but not tar, so adopting it would still leave the
+  tar path hand-written while breaking the empty-dependency invariant. Descending to Build is
+  justified here because no viable option exists under the stated constraint, not because the
+  problem is special: it is a streaming counter that halts at a bound.
+- **Considered**: `sunzip` (zip-only, narrow community, and pays a dependency for partial
+  coverage); shipping without bounds (leaves a documented denial-of-service vector in a feature
+  whose premise is retrieving content from strangers).
+- **Isolation**: one function in the retrieval adapter, with each bound a named constant beside
+  the concept it bounds. Flagged in `design.md` as the likeliest defect site in this change.
+
+### Decision: Retrieval transport and redirect policy — Adopt the standard library, Extend the redirect handler
+
+- **Status**: approved
+- **Why**: Transport is never hand-rolled, and the empty-dependency invariant rules out `httpx`
+  and `requests` for a shipped surface. `urllib.request` is the adopted transport; refusing a
+  scheme-downgrade redirect is a handler subclass of about a dozen lines. The policy would be
+  roughly that size under any client, so a dependency buys ergonomics rather than safety.
+- **Considered**: `httpx` behind an extra (reintroduces the two-step install this change exists
+  to remove); following redirects with default policy (makes any scheme guarantee decorative,
+  since any reference can be redirected onto a weaker location).
+- **Isolation**: the `Fetcher` port. Tests run against an in-memory fake and never open a socket.
+
+### Decision: Template reference grammar — Adopt the pip / PEP 508 direct-reference shape
+
+- **Status**: approved
+- **Why**: Rule 9 — a reference grammar is an identifier scheme, and inventing one where a
+  recognized one applies is a defect. PEP 508 direct references are already fluent to a Python
+  audience, and it is the only candidate expressing both an archive reference and a
+  revision-pinned VCS reference in one published vocabulary (`@ref` for the pin,
+  `#subdirectory=` for the path within). `gh:` is sugar expanding to that shape, not a parallel
+  scheme.
+- **Considered**: Terraform's `//sub` + `?ref=` (more readable, but foreign to this audience and
+  would need its own documentation); giget's `#ref` (closest prior art for this exact feature,
+  but no Python-side familiarity).
+- **Isolation**: `parse_reference` in the pure core — a total function over strings, tested
+  without network or filesystem.
+
+### Decision: Cache location — Build (thin) on the platform conventions
+
+- **Status**: approved
+- **Why**: `platformdirs` is the mature answer and there is no standard-library equivalent, but
+  taking it as a dependency breaks the invariant, and taking it as an extra reintroduces exactly
+  the two-step install this change exists to eliminate. Reading `XDG_CACHE_HOME`,
+  `LOCALAPPDATA`, and `~/Library/Caches` directly is about fifteen lines: this adopts the
+  platform *conventions*, declining only the library that wraps them.
+- **Considered**: `platformdirs` behind a `remote` extra (correct but self-defeating for this
+  feature); caching inside the generated project (no platform logic, but no reuse across
+  projects, so every new project re-fetches).
+- **Isolation**: the `Cache` port. Keyed by exact revision, so retained content is never stale
+  for the revision it is held under; swapping to `platformdirs` later changes one adapter.
