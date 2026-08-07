@@ -8,33 +8,25 @@ copyright: Copyright © hlop3z
 # Navigation
 nav:
   - SPOC:
-      - Introduction: index.md
+      - Welcome: index.md
       - Getting Started:
-          - Installation: getting-started/installation.md
-          - Quick Start: getting-started/quick-start.md
-          - Configuration: getting-started/configuration.md
-      - Command Line: cli.md
-      - Core Concepts:
-          - Framework: core/framework.md
-          - App System: core/app-system.md
-          - Components: core/components.md
-          - Loader: core/loader.md
-          - Dependency Management: core/dependencies.md
-      - Advanced Usage:
-          - Plugins: advanced/plugins.md
-          - Lifecycle Hooks: advanced/lifecycle.md
-          - Data & Formats: advanced/data-formats.md
-          - Testing Your App: advanced/testing.md
+          - Install: getting-started/installation.md
+          - Your First Project: getting-started/quick-start.md
+          - The Settings File: getting-started/configuration.md
+      - Learn:
+          - The Framework Object: learn/framework.md
+          - Name Tags & the Registry: learn/names-and-registry.md
+          - Apps & Modes: learn/apps.md
+          - Start & Stop: learn/lifecycle.md
+          - Plugins: learn/plugins.md
+      - Tools:
+          - The Command Line: tools/cli.md
+          - Testing Your Project: tools/testing.md
+          - Reading Data Files: tools/formats.md
       - API Reference:
-          - Public Surface: api/public.md
-          - Framework: api/framework.md
-          - Registry: api/registry.md
-          - Declaration: api/components.md
-          - Loader: api/loader.md
-          - Core Utilities: api/core-utils.md
-          - Scaffold & Diagnostics: api/tooling.md
-      - Examples:
-          - Basic Example: examples/basic.md
+          - The Kernel: api/public.md
+          - The Toolbox: api/tooling.md
+      - The Storefront Example: examples.md
   # One home: CONTRIBUTING.md lives at the repo root, where GitHub surfaces it in the
   # issue and PR flows. It links into .canon/ and openspec/, which the site does not publish.
   - Contributing: https://github.com/hlop3z/spoc/blob/main/CONTRIBUTING.md

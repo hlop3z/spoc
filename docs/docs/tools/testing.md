@@ -1,0 +1,91 @@
+# Testing Your Project
+
+`spoc.testing` ships with SPOC and gives you three pieces: build a throwaway
+project, boot it in isolation, and try different modes. Nothing here touches
+the kernel — and nothing you boot in a test leaks into the next one.
+
+!!! note "One extra needed"
+    The tree builder and mode switcher *write* TOML, which needs
+    `pip install "spoc[toml]"`. If it's missing, the error says exactly that.
+
+## Build a throwaway project: `ProjectTree`
+
+Describe a project as a dict — apps, modules, source — and materialize it in a
+temp folder:
+
+```python
+from spoc.testing import ProjectTree
+
+MODELS = """
+from spoc.core.declaration import component
+
+@component(kind="models")
+class Post:
+    pass
+"""
+
+tree = ProjectTree(apps={"blog": {"models": MODELS}})
+base = tree.build(tmp_path)     # writes config/spoc.toml, blog/, __init__.py...
+```
+
+Every declared app is auto-installed under the `development` mode; pass
+`config={...}` to override any part of the `[spoc]` table.
+
+!!! note "Why `component` and not a decorator from `framework.py`?"
+    A test tree has no `framework.py` — the test itself constructs the
+    framework. The `component` marker puts the same name tag on a block
+    without importing one, which is exactly what a throwaway app needs.
+
+## Boot it safely: `isolated`
+
+A context manager that boots a framework against a folder and — success or
+failure — shuts it down and restores `sys.path` and `sys.modules`:
+
+```python
+from spoc.testing import ProjectTree, isolated
+
+base = ProjectTree(apps={"blog": {"models": MODELS}}).build(tmp_path)
+
+with isolated(base, "models") as fw:
+    record = fw.resolve("models:blog.post")
+    assert record.namespace == "blog"
+# outside the block: framework stopped, imports restored, nothing leaked
+```
+
+Pass kinds and the scope builds the framework, or hand it a prebuilt one when
+the declaration needs hooks or `KindSpec` details:
+`isolated(base, framework=my_framework)`. Use `start=False` to get an inert
+framework when the thing you're testing *is* the boot.
+
+## Try another mode: `mode`
+
+```python
+from spoc.testing import isolated, mode
+
+with mode(base, "production"):          # temporarily rewrites spoc.toml
+    with isolated(base, "models") as fw:
+        assert fw.config.project["mode"] == "production"
+# the file's original bytes are back
+```
+
+## With pytest: the fixtures
+
+Install SPOC and the fixtures are just *there* — no plugin registration, no
+conftest:
+
+```python
+def test_blog_registers_a_post(spoc_framework):
+    fw = spoc_framework("models", apps={"blog": {"models": MODELS}})
+    assert fw.resolve("models:blog.post").object_name == "post"
+```
+
+| Fixture          | What it gives you                                          |
+| ---------------- | ---------------------------------------------------------- |
+| `spoc_tree`      | `ProjectTree(...).build(...)` under this test's `tmp_path` |
+| `spoc_isolated`  | The `isolated` scope, as a factory                         |
+| `spoc_framework` | Both at once: build a tree, get a started framework        |
+
+Teardown always runs, even when the test fails — the next test starts from a
+clean world.
+
+Next: [reading data files](formats.md).

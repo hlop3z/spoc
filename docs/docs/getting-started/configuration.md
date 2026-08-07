@@ -1,153 +1,96 @@
-# Configuration
+# The Settings File
 
-The kernel reads exactly one declarative file: **`config/spoc.toml`** (or
-`spoc.toml` at the project root). `start(base_dir)` uses `base_dir` only to
-locate this file and the `.env` directories. Nothing else is required or
-consulted — a `settings.py`, if you keep one, is yours alone and SPOC never
-imports it.
+SPOC reads exactly **one** file: `spoc.toml`. It looks for it in two places,
+in this order:
 
-## spoc.toml
+1. `<project>/config/spoc.toml` ← what `spoc init` creates
+2. `<project>/spoc.toml`
 
-```toml
+Anything else in your `config/` folder — a `settings.py`, your own constants —
+is **yours**. SPOC never imports it.
+
+## The five keys
+
+The `[spoc]` table has exactly five keys. Use a key outside this set and SPOC
+refuses to start, naming the typo — your project never silently boots with
+defaults it didn't ask for.
+
+```toml title="config/spoc.toml"
 [spoc]
-mode = "development"      # must name a mode in the effective set
-debug = true
+mode = "development"   # which mode to boot in
+debug = true           # yours to read from framework.config.project
 
-[spoc.apps]
-production  = ["apps.auth"]
-staging     = ["apps.reports"]
-development = ["apps.sandbox"]
+[spoc.apps]            # which apps to install, per mode
+production = ["apps.core"]
+staging = []
+development = ["apps.blog"]
 
-[spoc.plugins]
-middleware = ["extras.middleware"]
-hooks      = ["extras.hook"]
+[spoc.plugins]         # extra components declared by reference (see Learn → Plugins)
+
+[spoc.modes]           # optional: your own modes (see below)
 ```
 
-Each `[spoc.apps]` entry is a dotted module path, imported through Python's
-normal import system exactly as written. The final segment is the app's
-namespace (`apps.auth` → `auth`), validated against `^[a-z][a-z0-9_]*$`.
-An app path that cannot be imported fails start with `AppNotFoundError`
-naming the declared path.
+Every key is optional. A missing key falls back to a sensible default; a
+missing file boots an empty project in `development` mode.
 
-Every key is optional. Absent keys fall back to defaults:
+## Modes: one project, different outfits
 
-| Key | Default |
-| --- | --- |
-| `mode` | `"development"` |
-| `debug` | `false` |
-| `apps` | `{}` |
-| `modes` | the default triple (see [Declaring modes](#declaring-modes)) |
-| `plugins` | `{}` |
+A **mode** is the answer to "which apps should boot?" The three built-in modes
+*cascade* — each one includes the ones to its right:
 
-The `[spoc]` table is a **closed** key set. An unknown key is a typo, and a
-typo that merged silently would boot the project on defaults it never asked
-for — so it fails start with `ConfigurationError` naming the key and the
-valid set:
+| Mode          | Boots the apps listed under…            |
+| ------------- | --------------------------------------- |
+| `production`  | `production`                            |
+| `staging`     | `staging`, then `production`            |
+| `development` | `development`, `staging`, `production`  |
 
-```
-Invalid SPOC configuration: Unknown key 'spoc.aps'.
-Valid keys: mode, debug, apps, plugins, modes
-```
+So an app listed under `production` boots in **every** mode, and an app listed
+under `development` boots only while you develop. Order is kept, duplicates
+load once.
 
-A missing `spoc.toml` starts the framework with all defaults. Like every
-other configuration warning — an absent `.env` directory, a mode with no
-environment file — the warning naming the expected locations is logged only
-when the framework is constructed with `echo=True`; a quiet framework stays
-quiet.
-
-## The mode cascade
-
-Apps are declared per mode, and each mode names the cascade of app lists it
-loads. The default triple:
-
-| mode | apps loaded |
-| --- | --- |
-| `production` | production |
-| `staging` | staging, then production |
-| `development` | development, then staging, then production |
-
-Order is preserved; duplicates keep their first position. With the file
-above, `development` loads `apps.sandbox, apps.reports, apps.auth`.
-
-Because lower modes include higher ones, registering alternative
-implementations as *different apps* makes the cascade select adapters —
-a `fake_engine` app in `development` and the real one in `production`,
-with no `if mode == ...` branching anywhere.
-
-## Declaring modes
-
-`[spoc.modes]` maps a mode name to its cascade list:
+Need your own mode? Declare it under `[spoc.modes]` — your entries merge over
+the defaults, so you never restate the built-in three:
 
 ```toml
 [spoc.modes]
-test = ["test", "production"]
+test = ["test", "production"]   # "test" boots test apps plus production apps
 
 [spoc.apps]
+production = ["apps.core"]
 test = ["apps.fakes"]
-```
-
-Declared modes **merge over** the default triple — adding a mode never
-requires restating `production`, `staging`, or `development`. A declared
-name that collides with a default replaces that entry.
-
-The active `mode`, every `[spoc.apps]` key, and every cascade entry must
-name a mode in the effective set; a violation fails start with
-`ConfigurationError` naming the valid modes.
-
-## Plugins
-
-`[spoc.plugins]` groups loadable references, each a dotted
-`module.attribute` path importable exactly as written. Each group names a
-**declared kind**, and every loaded object registers in the same flat
-registry as discovered components, under the same grammar — the segment
-before the module is the namespace, so `extras.hook` yields
-`hooks:extras.hook` and `apps.demo.extras.hook` yields `hooks:demo.hook`
-(see [Plugins](../advanced/plugins.md)). A reference
-that cannot be resolved, a group that is not a declared kind, or a group
-naming a kind that declares a `metadata` contract — which a name in a file
-has no way to supply — fails start, naming the offender:
-
-```python
-framework.start(BASE_DIR)
-framework.resolve("hooks:extras.hook").object   # the loaded object
 ```
 
 ## Per-mode environment values
 
-Environment values live in TOML files under `config/.env/` (or `.env/`),
-one file per mode, under an `[env]` table:
+Beside the settings file, SPOC loads one small TOML file per mode from
+`config/.env/` (or `.env/` at the project root):
 
 ```
-config/.env/
-├── development.toml
-├── production.toml
-└── default.toml        # fallback when no mode-specific file exists
+config/
+├── spoc.toml
+└── .env/
+    ├── development.toml
+    ├── production.toml
+    └── default.toml      # fallback when the mode has no file
 ```
 
-```toml
-# config/.env/development.toml
+Each file holds an `[env]` table with whatever you want in it:
+
+```toml title="config/.env/development.toml"
 [env]
-DATABASE_URL = "sqlite:///dev.db"
-API_KEY = "dev-key"
+database_url = "sqlite:///dev.db"
 ```
 
-Loading order: the mode-specific file wins; `default.toml` is the fallback;
-neither existing yields empty values. The loaded mapping is available as
-`framework.config.environment`.
+## Reading your settings back
 
-!!! note "Secrets are not config"
-    Reference secrets by key and inject them at runtime — never commit them
-    to environment TOML files.
-
-## Your own settings
-
-Anything that needs Python — computed constants, conditional logic — goes in
-a module you own (conventionally `config/settings.py`) and is imported by
-*your* code, never by SPOC:
+After `start()`, everything is on `framework.config`:
 
 ```python
-# config/settings.py — yours; the kernel never touches it
-import os
+framework.start(BASE_DIR)
 
-DEBUG_TOOLBAR = os.environ.get("DEBUG_TOOLBAR") == "1"
+framework.config.project["debug"]           # True — the [spoc] table
+framework.config.environment["database_url"]  # from the active mode's env file
+framework.installed_apps                    # ['apps.core', 'apps.blog']
 ```
+
+Next: [the framework object](../learn/framework.md).

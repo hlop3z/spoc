@@ -1,72 +1,56 @@
-# The Public Surface
+# API Reference — The Kernel
 
-Everything a framework author needs is importable from `spoc` directly — the
-package's `__all__` is the contract. The `spoc.core.*` paths that appear on
-the reference pages are where the objects live; they are reachable for anyone
-extending the kernel, but they are not how the surface is meant to be
-imported.
+Everything on this page is importable from `spoc` directly. This is the whole
+public surface of the kernel — if it isn't here, a framework author doesn't
+need it.
 
-```python
-import spoc
+## Framework
 
-framework = spoc.Framework("models", spoc.KindSpec("views", depends_on=("models",)))
-ident = spoc.parse("models:blog.post")
-```
+::: spoc.Framework
+
+::: spoc.Config
 
 ## Declaration
 
-| Symbol | Documented on |
-| --- | --- |
-| `spoc.Framework` | [Framework API](framework.md) |
-| `spoc.KindSpec` | [Declaration API](components.md) |
-| `spoc.Config` | [Framework API](framework.md) |
+::: spoc.KindSpec
 
 ## Registry
 
-| Symbol | Documented on |
-| --- | --- |
-| `spoc.Registry` | [Registry API](registry.md) |
-| `spoc.Component` | [Registry API](registry.md) |
+::: spoc.Registry
+
+::: spoc.Component
 
 ## Identity
 
-| Symbol | Documented on |
-| --- | --- |
-| `spoc.Identifier` | [Registry API](registry.md#identifier-grammar) |
-| `spoc.parse` | [Registry API](registry.md#identifier-grammar) |
-| `spoc.compose` | [Registry API](registry.md#identifier-grammar) |
+::: spoc.Identifier
+
+::: spoc.parse
+
+::: spoc.compose
 
 ## Exceptions
 
-All sixteen errors are direct subclasses of `spoc.SpocError`, so one
-`except spoc.SpocError` catches everything the kernel raises. Identifier and
-registry errors are documented on the
-[Registry API](registry.md#resolution-errors) page; the rest on
-[Core Utilities](core-utils.md).
+Every error SPOC raises is a subclass of `SpocError`, so one `except` catches
+them all — and each one names precisely what failed.
 
-```text
-AppNotFoundError            MissingModuleError
-CircularDependencyError     ConfigurationError
-MalformedIdentifierError    InvalidSegmentError
-UnknownKindError            UnknownNamespaceError
-UnknownObjectError          UnresolvedReferenceError
-DuplicateComponentError     IdentityDivergenceError
-ComponentKindMismatchError  MissingNameError
-UnmarkableObjectError       MetadataContractError
-```
-
-## Package
-
-`spoc.__version__` — the installed version string.
-
-## Opt-in subpackages
-
-Not part of `spoc.__all__` — imported explicitly when wanted, and the kernel
-never imports them:
-
-- **`spoc.formats`** — reading, writing, and querying data files
-  ([Data & Formats](../advanced/data-formats.md))
-- **`spoc.testing`** — isolation scopes for tests
-  ([Testing Your App](../advanced/testing.md))
-- **`spoc.scaffold`** and **`spoc.diagnostics`** — the library form of the
-  CLI's operations ([Scaffold & Diagnostics](tooling.md))
+::: spoc.core.exceptions
+    options:
+      show_root_heading: false
+      members:
+        - SpocError
+        - ConfigurationError
+        - AppNotFoundError
+        - MissingModuleError
+        - CircularDependencyError
+        - MalformedIdentifierError
+        - InvalidSegmentError
+        - UnknownKindError
+        - UnknownNamespaceError
+        - UnknownObjectError
+        - UnresolvedReferenceError
+        - DuplicateComponentError
+        - IdentityDivergenceError
+        - ComponentKindMismatchError
+        - MissingNameError
+        - UnmarkableObjectError
+        - MetadataContractError

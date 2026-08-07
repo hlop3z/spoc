@@ -1,68 +1,87 @@
-# Scaffold & Diagnostics API Reference
+# API Reference — The Toolbox
 
-Every `spoc` subcommand is a thin adapter over one of these library calls —
-`spoc.scaffold` generates ([`spoc init`](../cli.md#spoc-init) /
-[`spoc app`](../cli.md#spoc-app)), `spoc.diagnostics` validates and reads
-([`spoc check`](../cli.md#spoc-check) / [`spoc list`](../cli.md#spoc-list) /
-[`spoc explain`](../cli.md#spoc-explain)). Code that never touches argv —
-a downstream framework's own entry point, a build script — calls the same
-operations. The kernel imports neither package; importing `spoc` loads
-neither.
+The contained subpackages: data formats, the test harness, scaffolding, and
+diagnostics. The kernel imports none of them; each is usable — or removable —
+on its own.
 
-## Scaffold operations
+## `spoc.formats`
 
-The operations take their ports (template source, output sink) as arguments;
-`spoc.scaffold` also exports the concrete adapters the CLI wires in —
-`InstalledTemplateSources` and `DirectorySink`.
-
-::: spoc.scaffold.operations.init_project
+::: spoc.formats
     options:
-      show_root_heading: true
-      show_source: false
+      show_root_heading: false
+      members:
+        - loads
+        - dumps
+        - read
+        - write
+        - collect
+        - pointer
+        - query
+        - supported
+        - FormatSupport
+        - Collection
 
-::: spoc.scaffold.operations.add_app
+### Errors
+
+::: spoc.formats.errors
     options:
-      show_root_heading: true
-      show_source: false
+      show_root_heading: false
+      members:
+        - FormatError
+        - UnknownFormatError
+        - MissingDependencyError
+        - UnsupportedDirectionError
+        - DecodeError
+        - EncodeError
+        - CollectionError
+        - DuplicateEntryError
+        - MalformedAddressError
+        - PointerResolutionError
 
-::: spoc.scaffold.operations.AddedApp
+## `spoc.testing`
+
+::: spoc.testing
     options:
-      show_root_heading: true
-      show_source: false
+      show_root_heading: false
+      members:
+        - ProjectTree
+        - isolated
+        - mode
+        - import_state
+        - MissingDependencyError
 
-## Diagnostic operations
+## `spoc.scaffold`
 
-Each operation is an isolated dry boot — no framework state, loaded app
-modules, or import-path changes outlive a call.
+The library behind `spoc init` and `spoc app`, callable from your own code —
+a downstream framework can ship its own templates and entry point.
 
-::: spoc.diagnostics.core.check
+::: spoc.scaffold
     options:
-      show_root_heading: true
-      show_source: false
+      show_root_heading: false
+      members:
+        - init_project
+        - add_app
+        - AddedApp
+        - GenerationPlan
+        - PlannedFile
+        - TemplateSet
+        - TemplateFile
+        - TemplateSource
+        - ProjectSink
+        - DirectorySink
+        - InstalledTemplateSources
 
-::: spoc.diagnostics.core.list_records
+## `spoc.diagnostics`
+
+The library behind `spoc check`, `spoc list`, and `spoc explain`.
+
+::: spoc.diagnostics.core
     options:
-      show_root_heading: true
-      show_source: false
-
-::: spoc.diagnostics.core.explain
-    options:
-      show_root_heading: true
-      show_source: false
-
-## Diagnostic results
-
-::: spoc.diagnostics.core.CheckReport
-    options:
-      show_root_heading: true
-      show_source: false
-
-::: spoc.diagnostics.core.Finding
-    options:
-      show_root_heading: true
-      show_source: false
-
-::: spoc.diagnostics.core.RecordInfo
-    options:
-      show_root_heading: true
-      show_source: false
+      show_root_heading: false
+      members:
+        - check
+        - list_records
+        - explain
+        - CheckReport
+        - Finding
+        - RecordInfo
