@@ -185,7 +185,11 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 
 ### Decision: TOML writing — not needed, dissolved by scope
 
-- **Status**: approved
+- **Status**: superseded by "Origin record serialization — Adopt the standard library (`json`)"
+- **Superseded because**: the premise below — that the scaffolder only emits fresh TOML by plain
+  text substitution — stopped holding when the origin record was added. The record interpolates
+  arbitrary caller-supplied strings into TOML, which is serialization, not substitution, and it
+  was already producing unparseable output for any reference containing a backslash or a quote.
 - **Why**: Stdlib `tomllib` is read-only, and comment-preserving edits require `tomlkit` — but
   only when *editing* an existing file. Dropping the scaffolder's `add app` operation left only
   emission of a fresh `spoc.toml` from a template, which is plain text substitution. The
@@ -368,3 +372,44 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   projects, so every new project re-fetches).
 - **Isolation**: the `Cache` port. Keyed by exact revision, so retained content is never stale
   for the revision it is held under; swapping to `platformdirs` later changes one adapter.
+
+### Decision: Origin record serialization — Adopt the standard library (`json`)
+
+- **Status**: approved
+- **Why**: The record interpolates arbitrary caller-supplied strings — a reference may be
+  `C:\templates\mine` or carry a quote — and TOML has no standard-library writer, so emitting it
+  as TOML means hand-rolling escaping for a format on the never-hand-roll list. That was not
+  hypothetical: the template-substituted TOML record already failed to parse for any
+  backslash-bearing reference, and `read_origin` swallows the parse error as "no record", so the
+  defect was invisible. `json` in the standard library is a complete serializer for exactly the
+  scalar shape this record holds, costs no dependency, and keeps `dependencies = []` intact.
+- **Considered**: adopt `tomli-w` 1.2.0 (MIT, zero-dependency, correct — but a base runtime
+  dependency for one advisory file overturns the one-distribution/extras-are-feature-flags rule,
+  and it cannot write comments either, so the file's explanatory header is lost regardless);
+  hand-roll a TOML string escaper (~10 lines, rejected on the never-hand-roll rule — which exists
+  for precisely the bug found here).
+- **Trade-off accepted**: the record diverges from the repo's TOML idiom, and the comment header
+  becomes a `note` field. The divergence tracks a real line — TOML is what a human authors here
+  (`spoc.toml`, `manifest.toml`), JSON is what the scaffolder writes and reads for itself.
+- **Isolation**: `spoc.scaffold.provenance` — it owns both directions of the record's shape, so
+  the writer and `read_origin` cannot drift. Nothing else in the codebase constructs or parses it.
+
+### Decision: Origin record integrity — Build by construction
+
+- **Status**: approved
+- **Why**: The record describes a template set to a later operation, so the set must not be able
+  to author it. The mechanism is structural rather than defensive: the record's values leave the
+  substitution vocabulary entirely, so no rendering path exists through which a set — retrieved
+  from anywhere, written by anyone — can reach it. The reserved-destination check is defense in
+  depth that makes an attempt *visible*, not the thing that makes it impossible. This is control
+  flow inside a scaffolder already decided as Build (thin) on the standard library, and adopting
+  anything here would mean adopting a template engine, which the specs forbid outright.
+- **Considered**: adopt Copier or cookiecutter wholesale (Copier is the positive precedent —
+  it writes `.copier-answers.yml` unconditionally and lets templates only customize it — but
+  replacing the scaffolder relitigates an approved decision and adds a runtime dependency to a
+  zero-dependency distribution); require every template set to declare the record (fixes
+  suppression, not forgery, and taxes every third-party author with a file they did not ask to
+  own).
+- **Isolation**: `init_project` contributes the record to the plan after `build_plan` has
+  rendered the set; the reserved-destination check lives in `validate_template_set` in the pure
+  core, beside `_reject_escape`, sourcing the name from `provenance.RECORD_NAME`.
