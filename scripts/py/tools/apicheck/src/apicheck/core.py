@@ -24,7 +24,16 @@ class Kind(StrEnum):
     UNDECLARED = "undeclared"
     ABSENT = "absent"
     UNMARKED = "unmarked-provisional"
+    UNRESOLVED = "unresolved-tier"
     UNVERIFIABLE = "unverifiable"
+
+
+class Tier(StrEnum):
+    """The three promises. Ordered strongest to weakest."""
+
+    PUBLIC = "public"
+    PROVISIONAL = "provisional"
+    INTERNAL = "internal"
 
 
 @dataclass(frozen=True, order=True)
@@ -91,6 +100,96 @@ class Observation:
     elements: frozenset[str]
     documented: frozenset[str]
     verified_kinds: frozenset[str]
+
+
+@dataclass(frozen=True, order=True)
+class Exposure:
+    """How the artifact exposes one importable element.
+
+    The two facts the rules need, and nothing else. An adapter supplies these by
+    reading the source; this module never learns where they came from.
+    """
+
+    element: str
+
+    from_package: bool | None
+    """Whether the module exposing it is a package rather than a plain module.
+
+    `None` means the observer could not tell — which is not the same as `False`,
+    and must not be silently read as one. An element it cannot place has no
+    derivable tier, and the check says so rather than guessing `internal`.
+    """
+
+    documented: bool
+    """Whether its own documentation carries `PROVISIONAL_NOTICE`."""
+
+
+def derive_tier(exposure: Exposure) -> Tier | None:
+    """The tier the rules assign, or `None` when they cannot resolve one.
+
+    The whole policy, in one place:
+
+    - exposed from a plain module, not a package -> `internal`. The object's
+      public location is the package that re-exports it; the deeper path is the
+      definition site, and reaching it is not a promotion.
+    - carries the provisional notice -> `provisional`.
+    - anything else exposed from a package -> `public`.
+
+    Total over the facts it is given, so no element falls through to an implied
+    tier. The one gap is an unplaceable element, which returns `None` and is
+    reported rather than assumed.
+    """
+    if exposure.from_package is None:
+        return None
+    if not exposure.from_package:
+        return Tier.INTERNAL
+    return Tier.PROVISIONAL if exposure.documented else Tier.PUBLIC
+
+
+def derive_contract(exposures: list[Exposure]) -> tuple[Contract, list[Finding]]:
+    """Build the contract the rules imply, naming everything they could not place.
+
+    Returns the contract alongside its findings rather than raising: a single
+    unplaceable element should not cost the run its report on the other several
+    hundred.
+    """
+    tiers: dict[Tier, set[str]] = {tier: set() for tier in Tier}
+    findings: list[Finding] = []
+
+    for exposure in sorted(exposures):
+        tier = derive_tier(exposure)
+        if tier is None:
+            findings.append(
+                Finding(
+                    Kind.UNRESOLVED,
+                    exposure.element,
+                    "exposed, but the observer could not tell whether it comes "
+                    "from a package, so no tier follows",
+                )
+            )
+            continue
+        tiers[tier].add(exposure.element)
+
+    contract = Contract(
+        public=frozenset(tiers[Tier.PUBLIC]),
+        provisional=frozenset(tiers[Tier.PROVISIONAL]),
+        internal=frozenset(tiers[Tier.INTERNAL]),
+    )
+    return contract, findings
+
+
+def merge(derived: Contract, declared: Contract) -> Contract:
+    """The full contract: rules for importable names, declaration for the rest.
+
+    The two never overlap by construction — the derivation only ever sees
+    importable elements, and the declaration only ever holds the kinds no static
+    observer can attribute a tier to.
+    """
+    return Contract(
+        public=derived.public | declared.public,
+        provisional=derived.provisional | declared.provisional,
+        internal=derived.internal | declared.internal,
+    )
 
 
 def kind_of(element: str) -> str:
