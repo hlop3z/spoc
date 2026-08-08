@@ -8,13 +8,18 @@ canonical identifier: ``kind:namespace.object_name``. External surfaces (HTTP, C
 workers) are built on top by enumerating the registry — the kernel describes, it never
 executes.
 
-What follows is the whole public surface. The declaration layer, the module loader, and
-the configuration adapter are reachable under ``spoc.core`` for anyone extending the
-kernel, but they are not part of what a framework author needs.
+What follows is the whole public surface. ``spoc.core`` is **internal** — it holds the
+declaration layer, the module loader, and the configuration adapter, and nothing in it
+carries a stability promise, however reachable it happens to be. Anything a framework
+author legitimately needs is re-exported here; if something you need is only reachable
+under ``spoc.core``, that is a gap to report, not an API to import.
+
+Tiers for every name below are declared in ``[tool.spoc.stability]`` in ``pyproject.toml``
+and enforced by ``apicheck``. See the stability policy in the docs.
 """
 
 from .__about__ import __version__
-from .core.declaration import KindSpec
+from .core.declaration import KindSpec, component
 from .core.exceptions import (
     AppNotFoundError,
     CircularDependencyError,
@@ -45,6 +50,7 @@ __all__ = [
     "Framework",
     "KindSpec",
     "Config",
+    "component",
     # Registry
     "Registry",
     "Component",

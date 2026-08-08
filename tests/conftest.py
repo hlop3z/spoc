@@ -16,7 +16,7 @@ import pytest
 from spoc.testing import ProjectTree, import_state
 
 MODELS_BODY = """
-    from spoc.core.declaration import component
+    from spoc import component
 
     @component(kind="models")
     class Post:

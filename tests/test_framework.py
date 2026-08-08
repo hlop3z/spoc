@@ -859,11 +859,17 @@ def test_removed_api_is_absent():
         "load_configuration",
         "DependencyGraph",
         "Importer",
-        "component",
         "case_style",
         "inject_apps",
     ):
         assert not hasattr(spoc, gone), gone
+
+    # `component` was on this list because the pre-collapse `spoc.components`
+    # module was deleted. The marker itself survived in `spoc.core.declaration`,
+    # and the docs told readers to import it from there — an internal path the
+    # stability contract now forbids. It is public at the top level instead,
+    # beside `KindSpec`, which is the same declaration layer.
+    assert spoc.component is not None
     fw = Framework("models")
     assert not hasattr(fw, "get_component")
     assert not hasattr(fw, "importer")

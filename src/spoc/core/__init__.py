@@ -1,5 +1,8 @@
 """
-The kernel's internals, reachable for anyone extending it.
+The kernel's internals. **Internal** under the stability contract: nothing here carries
+a promise, and any name may change or disappear in a patch release. Being importable is
+not a guarantee — if you need something from this layer, it should be re-exported from
+``spoc`` instead, so say so rather than reaching in.
 
 The top-level ``spoc`` package is the surface a framework author needs. This layer
 sits under it, one module per concern, and nothing here imports anything above it:
