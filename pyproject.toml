@@ -11,6 +11,10 @@ authors = [
 requires-python = ">=3.12"
 keywords = ["framework", "kernel", "registry", "modular-monolith", "plugins"]
 classifiers = [
+    # Tracks the stability policy, not a mood: Beta for as long as the pre-1.0
+    # allowance stands (a public element may still break in a minor). It becomes
+    # "5 - Production/Stable" in the same release that cuts 1.0, and only once the
+    # criteria in [tool.spoc.stability] and the docs' Stability page all hold.
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
@@ -67,6 +71,190 @@ path = "src/spoc/__about__.py"
 [tool.hatch.build.targets.sdist]
 only-include = ["src", "tests", "CHANGELOG.md"]
 
+# The stability contract. Every element of the published surface carries exactly
+# one tier, and this table is the single source of truth for which — the docs
+# page, the provisional warnings, and `apicheck` are all projections of it.
+# An element that appears nowhere here is `internal` by default: absence of a
+# promise is never read as a promise.
+#
+#   public       breaking change only in a major release, after deprecation
+#   provisional  may break in a minor release; never in a patch
+#   internal     may change or vanish in any release, including a patch
+#
+# Dotted entries are Python paths. Everything a dotted path cannot name carries a
+# `kind:` prefix — `script:`, `entry-point:`, `fixture:`, `extra:`, `schema:`,
+# `template-set:` — because a console script and a pytest fixture are things a
+# consumer depends on just as hard as an import.
+#
+# Verified by `cd scripts/py && uv run apicheck ../..` (see .canon/checks.md).
+[tool.spoc.stability]
+public = [
+  "entry-point:pytest11.spoc",
+  "extra:full",
+  "extra:query",
+  "extra:toml",
+  "extra:xml",
+  "extra:yaml",
+  "fixture:spoc_framework",
+  "fixture:spoc_isolated",
+  "fixture:spoc_tree",
+  "schema:config/spoc.toml",
+  "script:spoc",
+  "spoc.AppNotFoundError",
+  "spoc.CircularDependencyError",
+  "spoc.Component",
+  "spoc.ComponentKindMismatchError",
+  "spoc.Config",
+  "spoc.ConfigurationError",
+  "spoc.DuplicateComponentError",
+  "spoc.Framework",
+  "spoc.Identifier",
+  "spoc.IdentityDivergenceError",
+  "spoc.InvalidSegmentError",
+  "spoc.KindSpec",
+  "spoc.MalformedIdentifierError",
+  "spoc.MetadataContractError",
+  "spoc.MissingModuleError",
+  "spoc.MissingNameError",
+  "spoc.Registry",
+  "spoc.SpocError",
+  "spoc.UnknownKindError",
+  "spoc.UnknownNamespaceError",
+  "spoc.UnknownObjectError",
+  "spoc.UnmarkableObjectError",
+  "spoc.UnresolvedReferenceError",
+  "spoc.__version__",
+  "spoc.component",
+  "spoc.compose",
+  "spoc.diagnostics.CheckReport",
+  "spoc.diagnostics.DEFAULT_FRAMEWORK_REF",
+  "spoc.diagnostics.Finding",
+  "spoc.diagnostics.LocateError",
+  "spoc.diagnostics.RecordInfo",
+  "spoc.diagnostics.check",
+  "spoc.diagnostics.explain",
+  "spoc.diagnostics.list_records",
+  "spoc.formats.Codec",
+  "spoc.formats.Collection",
+  "spoc.formats.CollectionError",
+  "spoc.formats.DecodeError",
+  "spoc.formats.DuplicateEntryError",
+  "spoc.formats.EncodeError",
+  "spoc.formats.FormatError",
+  "spoc.formats.FormatRegistry",
+  "spoc.formats.FormatSupport",
+  "spoc.formats.MalformedAddressError",
+  "spoc.formats.MissingDependencyError",
+  "spoc.formats.PointerResolutionError",
+  "spoc.formats.REGISTRY",
+  "spoc.formats.UnknownFormatError",
+  "spoc.formats.UnsupportedDirectionError",
+  "spoc.formats.collect",
+  "spoc.formats.dumps",
+  "spoc.formats.loads",
+  "spoc.formats.pointer",
+  "spoc.formats.query",
+  "spoc.formats.read",
+  "spoc.formats.supported",
+  "spoc.formats.write",
+  "spoc.parse",
+  "spoc.scaffold.AddedApp",
+  "spoc.scaffold.DEFAULT_APP_NAME",
+  "spoc.scaffold.DEFAULT_KINDS",
+  "spoc.scaffold.DirectorySink",
+  "spoc.scaffold.ENTRY_POINT_GROUP",
+  "spoc.scaffold.GenerationPlan",
+  "spoc.scaffold.IncompleteTemplateSetError",
+  "spoc.scaffold.InstalledTemplateSources",
+  "spoc.scaffold.PathConflictError",
+  "spoc.scaffold.PathEscapeError",
+  "spoc.scaffold.PlannedFile",
+  "spoc.scaffold.ProjectSink",
+  "spoc.scaffold.ScaffoldError",
+  "spoc.scaffold.TargetNotEmptyError",
+  "spoc.scaffold.TemplateFile",
+  "spoc.scaffold.TemplateSet",
+  "spoc.scaffold.TemplateSetNotFoundError",
+  "spoc.scaffold.TemplateSource",
+  "spoc.scaffold.UndeclaredValueError",
+  "spoc.scaffold.UnsatisfiedValueError",
+  "spoc.scaffold.add_app",
+  "spoc.scaffold.init_project",
+  "spoc.testing.MissingDependencyError",
+  "spoc.testing.ProjectTree",
+  "spoc.testing.import_state",
+  "spoc.testing.isolated",
+  "spoc.testing.mode",
+  "template-set:default",
+]
+
+provisional = [
+  "spoc.scaffold.BoundExceededError",
+  "spoc.scaffold.Cache",
+  "spoc.scaffold.DirectoryCache",
+  "spoc.scaffold.EnumerableSource",
+  "spoc.scaffold.Fetcher",
+  "spoc.scaffold.HttpFetcher",
+  "spoc.scaffold.HttpRevisionResolver",
+  "spoc.scaffold.InsecureRedirectError",
+  "spoc.scaffold.MAX_EXPANDED_BYTES",
+  "spoc.scaffold.MAX_MEMBERS",
+  "spoc.scaffold.MemberRefusedError",
+  "spoc.scaffold.Origin",
+  "spoc.scaffold.RECORD_NAME",
+  "spoc.scaffold.Reference",
+  "spoc.scaffold.ReferenceKind",
+  "spoc.scaffold.RemoteTemplateSource",
+  "spoc.scaffold.ReservedTargetError",
+  "spoc.scaffold.RetrievalError",
+  "spoc.scaffold.RevisionResolver",
+  "spoc.scaffold.RevisionUnavailableError",
+  "spoc.scaffold.UnrecognizedReferenceError",
+  "spoc.scaffold.default_cache_root",
+  "spoc.scaffold.describe_divergence",
+  "spoc.scaffold.extract_archive",
+  "spoc.scaffold.read_origin",
+  "spoc.scaffold.record_content",
+  "spoc.scaffold.record_file",
+]
+
+internal = [
+  "spoc.cli.main",
+  "spoc.diagnostics.cli.register",
+  "spoc.diagnostics.core.CheckReport",
+  "spoc.diagnostics.core.Finding",
+  "spoc.diagnostics.core.RecordInfo",
+  "spoc.diagnostics.core.check",
+  "spoc.diagnostics.core.explain",
+  "spoc.diagnostics.core.list_records",
+  "spoc.diagnostics.locate.DEFAULT_FRAMEWORK_REF",
+  "spoc.diagnostics.locate.LocateError",
+  "spoc.diagnostics.locate.locate_framework",
+  "spoc.scaffold.cli.register",
+  "spoc.testing.core.MissingDependencyError",
+  "spoc.testing.core.import_state",
+  "spoc.testing.core.isolated",
+  "spoc.testing.core.mode",
+  "spoc.testing.plugin.spoc_framework",
+  "spoc.testing.plugin.spoc_isolated",
+  "spoc.testing.plugin.spoc_tree",
+  "spoc.testing.tree.ProjectTree",
+]
+
+# What carries no promise, even on a `public` element. Written down rather than
+# inferred, so silence is never mistaken for a guarantee.
+[tool.spoc.stability.excluded]
+# Error *types* and their hierarchy are public; the wording of any message is not.
+message-text = true
+# `--json` output is public; the human-readable prose rendering of the same
+# command is free to change.
+prose-output = true
+# An extra's name and the capability it enables are public; the versions it
+# resolves to are not.
+extra-pins = true
+# Attribute names and reprs internal to an otherwise-public type.
+internal-attributes = true
+
 # Ruff runs on an explicit rule selection, never its defaults: a toolchain bump must
 # not silently change what CI enforces (.canon/checks.md is the gate).
 # `include` is ruff's default list minus `*.md` — 0.16 began formatting Python inside
@@ -114,6 +302,24 @@ root = ["./src"]
 include = ["examples/**", "tests/**", "scripts/**", "docs/**"]
 
 [tool.ty.overrides.rules]
+unresolved-import = "ignore"
+
+# The PEP 702 fallback is deliberately dynamic: it patches `__new__`, stamps
+# `__deprecated__`, and returns a wrapper typed as the object it wraps. No gradual
+# type system models that faithfully — which is a large part of why the decorator
+# belongs in the standard library and is only hand-written here to cover 3.12.
+# `unresolved-import` is separate: `warnings.deprecated` genuinely does not exist
+# on this project's 3.12 floor, and the `try`/`except ImportError` is the point.
+# Scoped to the one file, and behind 19 tests that exercise both paths.
+[[tool.ty.overrides]]
+include = ["src/spoc/core/deprecation.py"]
+
+[tool.ty.overrides.rules]
+invalid-return-type = "ignore"
+invalid-assignment = "ignore"
+invalid-argument-type = "ignore"
+unresolved-attribute = "ignore"
+call-non-callable = "ignore"
 unresolved-import = "ignore"
 
 # The pytest plugin executes only inside pytester *subprocesses* (see
