@@ -37,10 +37,14 @@ from .errors import BoundExceededError, MemberRefusedError
 
 #: The most a retrieved archive may expand to. A template set is source text; a
 #: set that expands past this is not a template set, it is a decompression bomb.
+#:
+#: Provisional: may change incompatibly in a minor release.
 MAX_EXPANDED_BYTES = 64 * 1024 * 1024
 
 #: The most members a retrieved archive may contain. Bounds member-count
 #: exhaustion, which expands to almost nothing but still costs a syscall each.
+#:
+#: Provisional: may change incompatibly in a minor release.
 MAX_MEMBERS = 20_000
 
 #: Read granularity while expanding. Small enough that the size bound halts near
@@ -93,6 +97,8 @@ def extract_archive(
     Raises:
         MemberRefusedError: A member may not be materialized.
         BoundExceededError: The archive exceeds a declared bound.
+
+    Provisional: may change incompatibly in a minor release.
     """
     root = into.resolve()
     budget = _Budget(max_expanded, max_members)
