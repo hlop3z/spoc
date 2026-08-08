@@ -153,15 +153,4 @@ def exposures(source_root: Path, package: str = "spoc") -> list[Exposure]:
     ]
 
 
-def extract(source_root: Path, package: str = "spoc") -> tuple[set[str], set[str]]:
-    """Return (exposed dotted names, those whose docs carry the provisional notice)."""
-    observed = _observe(source_root, package)
-    documented = {
-        name
-        for name, (doc, _) in observed.items()
-        if PROVISIONAL_NOTICE.lower() in doc.lower()
-    }
-    return set(observed), documented
-
-
 VERIFIED_KIND = PYTHON

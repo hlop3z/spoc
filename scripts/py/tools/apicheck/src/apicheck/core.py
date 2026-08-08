@@ -23,7 +23,6 @@ class Kind(StrEnum):
 
     UNDECLARED = "undeclared"
     ABSENT = "absent"
-    UNMARKED = "unmarked-provisional"
     UNRESOLVED = "unresolved-tier"
     UNVERIFIABLE = "unverifiable"
 
@@ -95,10 +94,16 @@ class Observation:
     `verified_kinds` is the honest part: the observer states which kinds of
     element it was able to look at, so the core can tell "this element is gone"
     apart from "nobody looked".
+
+    There is no `documented` set here any more. It existed to catch a
+    `provisional` element whose documentation omitted the notice — a divergence
+    that cannot occur now that the notice is what *makes* an element
+    provisional. Keeping the check would have meant asking whether a fact agrees
+    with itself, and it would have fired spuriously on a declared non-import
+    element, which has no documentation to read.
     """
 
     elements: frozenset[str]
-    documented: frozenset[str]
     verified_kinds: frozenset[str]
 
 
@@ -235,16 +240,6 @@ def diff(contract: Contract, observed: Observation) -> list[Finding]:
                 "exposed by the artifact but absent from the contract",
             )
         )
-
-    for element in sorted(contract.provisional & observed.elements):
-        if element not in observed.documented:
-            findings.append(
-                Finding(
-                    Kind.UNMARKED,
-                    element,
-                    f"provisional, but its documentation omits '{PROVISIONAL_NOTICE}'",
-                )
-            )
 
     return sorted(findings)
 

@@ -93,49 +93,63 @@ def test_merge_keeps_both_halves():
 # --- the reproduction ---------------------------------------------------------
 
 
-def declared_python_tiers() -> dict[str, set[str]]:
-    """The hand-written manifest's Python half, as it stood before derivation."""
+def declared_tiers() -> dict[str, list[str]]:
+    """Whatever `[tool.spoc.stability]` still declares by hand."""
     table = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
     stability = table["tool"]["spoc"]["stability"]
     return {
-        tier: {n for n in stability.get(tier, []) if not n.partition(":")[1]}
+        tier: list(stability.get(tier, []))
         for tier in ("public", "provisional", "internal")
     }
 
 
-@pytest.mark.skipif(
+in_repo = pytest.mark.skipif(
     not (REPO / "src" / "spoc").is_dir(), reason="not running inside the spoc repo"
 )
-def test_derivation_reproduces_the_declared_manifest():
-    """The whole justification for deleting the manifest's Python entries.
-
-    Kept after the deletion by reading the tiers from git rather than the working
-    tree would be stronger still, but far more fragile; asserting against the
-    live table while it still holds these names is what makes the deletion in
-    task 3.1 a verified step rather than a leap.
-    """
-    contract, findings = derive_contract(extract.exposures(REPO / "src"))
-    assert findings == [], "every exposed element must place cleanly"
-
-    declared = declared_python_tiers()
-    if not any(declared.values()):
-        pytest.skip("manifest no longer declares Python names — see task 3.5")
-
-    for tier, got in (
-        ("public", contract.public),
-        ("provisional", contract.provisional),
-        ("internal", contract.internal),
-    ):
-        want = declared[tier]
-        assert got - want == set(), f"{tier}: derived but not declared"
-        assert want - got == set(), f"{tier}: declared but not derived"
 
 
-@pytest.mark.skipif(
-    not (REPO / "src" / "spoc").is_dir(), reason="not running inside the spoc repo"
-)
+@in_repo
 def test_every_exposed_element_places():
-    """No element of the real surface is left without a tier."""
+    """No element of the real surface is left without a tier.
+
+    This is what the reproduction test became. That one asserted the rules agreed
+    with 132 hand-written entries, which is what licensed deleting them; with the
+    entries gone there is nothing left to agree with, and an assertion that can
+    only skip is worse than none. The enduring invariant is this one: the rules
+    are total over the surface they govern.
+    """
     exposures = extract.exposures(REPO / "src")
     assert exposures, "the extractor found nothing — it is not observing the package"
+
+    contract, findings = derive_contract(exposures)
+    assert findings == [], "every exposed element must place cleanly"
     assert all(derive_tier(e) is not None for e in exposures)
+    assert contract.overlaps() == []
+    assert len(contract.declared) == len(exposures)
+
+
+@in_repo
+def test_the_manifest_declares_no_importable_names():
+    """The deletion, asserted rather than remembered.
+
+    `manifest.load_contract` refuses a dotted path outright, so this would fail
+    the whole run anyway — but failing here says *why*, and stops the table from
+    quietly regrowing the restatement this change removed.
+    """
+    for tier, names in declared_tiers().items():
+        dotted = [n for n in names if ":" not in n]
+        assert dotted == [], f"{tier} declares importable names: {dotted}"
+
+
+@in_repo
+def test_every_declared_element_is_a_kind_no_observer_can_place():
+    """What remains declared is exactly what the rules cannot reach."""
+    kinds = {n.partition(":")[0] for names in declared_tiers().values() for n in names}
+    assert kinds == {
+        "entry-point",
+        "extra",
+        "fixture",
+        "schema",
+        "script",
+        "template-set",
+    }

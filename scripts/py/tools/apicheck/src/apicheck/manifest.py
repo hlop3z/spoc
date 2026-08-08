@@ -3,6 +3,12 @@
 Uses stdlib `tomllib` and reads the file directly rather than importing the
 package it is auditing — a checker that imports its subject would be verifying
 whatever happens to be installed, not what the working tree declares.
+
+The table declares only what no static observer can attribute a tier to: the
+console script, the plugin entry point, the extras, the fixtures, the config
+schema, the template set. Importable names are not declared here — their tier
+follows from the source, via `core.derive_tier`. A dotted name appearing in this
+table is therefore a mistake, and is refused rather than merged.
 """
 
 from __future__ import annotations
@@ -10,7 +16,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from apicheck.core import Contract
+from apicheck.core import PYTHON, Contract, kind_of
 
 
 class ManifestError(RuntimeError):
@@ -28,6 +34,12 @@ def _tier(table: dict, name: str, source: Path) -> frozenset[str]:
     for value in values:
         if not isinstance(value, str):
             raise ManifestError(complaint)
+        if kind_of(value) == PYTHON:
+            raise ManifestError(
+                f"{source}: [tool.spoc.stability].{name} declares the importable "
+                f"name {value!r}. Importable tiers are derived from the source, "
+                f"not declared — expose it differently to change its tier."
+            )
         elements.add(value)
     return frozenset(elements)
 
