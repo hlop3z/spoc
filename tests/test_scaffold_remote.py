@@ -8,9 +8,9 @@ without a server, so these tests are as fast and as deterministic as the pure
 ones.
 """
 
+import email.message
 import io
 import tarfile
-import email.message
 import urllib.error
 import urllib.request
 from pathlib import Path
