@@ -90,3 +90,8 @@ jobs:
       - name: Check the API surface against the stability contract
         working-directory: scripts/py
         run: uv run apicheck ../..
+
+      # The root pytest run is pinned to tests/ and cannot reach these.
+      - name: Workshop tool tests
+        working-directory: scripts/py
+        run: uv run pytest tools/

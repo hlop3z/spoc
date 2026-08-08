@@ -16,6 +16,7 @@ moment you first discover the real command, so the next session doesn't rediscov
 | Build             | `cd scripts/go && go build -o bin/ ./...`              | Go workspace only                                                         |
 | Doc links         | `cd scripts/py && uv run mdlinks ../..`                | Fails non-zero on any broken relative Markdown link (Rule 8)              |
 | API surface       | `cd scripts/py && uv run apicheck ../..`               | Fails when the real surface and `[tool.spoc.stability]` disagree, or a `provisional` element omits its notice. Static (griffe) — needs no install of `spoc` itself. Kinds it cannot observe are reported `unverifiable`, never silently passed. |
+| Tool tests        | `cd scripts/py && uv run pytest tools/`                | The workshop tools' own suites. The Unit tests row cannot reach them — `testpaths = ["tests"]` pins it to the package suite, and the tools are a separate workspace. These test the code that gates everything else, so they get their own row. |
 | File-size review  | `tokei . --files --sort lines`                         | **Review aid, not a gate** — `tokei` always exits 0 and the thresholds in `.canon/guidelines.md` are a judgement call, so `task check` does not run it. Any language, largest first; run it as `task size`. Missing? `cd scripts/go && go run ./cmd/ensure tokei` |
 
 A row marked "not yet defined" is a real answer: that check is **unverified** and Rule 6 says
