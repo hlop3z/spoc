@@ -33,6 +33,8 @@ def default_cache_root() -> Path:
     Honours ``XDG_CACHE_HOME`` everywhere it is set, because a user who has set
     it has said where cached data goes and that answer outranks the platform
     default.
+
+    Provisional: may change incompatibly in a minor release.
     """
     override = os.environ.get("XDG_CACHE_HOME")
     if override:
@@ -58,6 +60,8 @@ class DirectoryCache:
     revision only once it completes, so an interrupted retrieval can never leave
     a half-populated revision looking retained — the same stage-then-commit shape
     :class:`~spoc.scaffold.sink.DirectorySink` uses.
+
+    Provisional: may change incompatibly in a minor release.
     """
 
     def __init__(self, root: Path | None = None) -> None:

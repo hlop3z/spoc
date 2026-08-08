@@ -17,7 +17,7 @@ temp folder:
 from spoc.testing import ProjectTree
 
 MODELS = """
-from spoc.core.declaration import component
+from spoc import component
 
 @component(kind="models")
 class Post:

@@ -14,6 +14,8 @@ need it.
 
 ::: spoc.KindSpec
 
+::: spoc.component
+
 ## Registry
 
 ::: spoc.Registry
@@ -33,7 +35,7 @@ need it.
 Every error SPOC raises is a subclass of `SpocError`, so one `except` catches
 them all — and each one names precisely what failed.
 
-::: spoc.core.exceptions
+::: spoc
     options:
       show_root_heading: false
       members:

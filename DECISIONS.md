@@ -413,3 +413,46 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: `init_project` contributes the record to the plan after `build_plan` has
   rendered the set; the reserved-destination check lives in `validate_template_set` in the pure
   core, beside `_reject_escape`, sourcing the name from `provenance.RECORD_NAME`.
+
+### Decision: Public API surface extraction — Adopt griffe
+
+- **Status**: approved
+- **Why**: Determining a Python package's true public API — `__all__` precedence, re-export
+  and alias resolution, inherited members, signature changes — is a solved problem, and it is
+  the input the stability contract's gate depends on. griffe (ISC, actively maintained, the
+  engine under mkdocstrings) does extraction *and* `griffe check` breakage classification
+  between two refs, so one adoption serves both the drift check and the release policy's
+  compatibility assertions. Its public-API rules already match ours. Verified before building
+  on it: it classified a removed export as "Public object was removed" (exit 1) and stayed
+  silent on a compatible addition (exit 0). Development-time only — `dependencies = []` holds.
+- **Considered**: hand-rolling extraction on `importlib`/`inspect`/`ast` (re-implements
+  `__all__` precedence and alias resolution, and yields no breakage classification — the
+  `loc`/tokei mistake again); snapshotting the rendered surface into a golden file (cheap and
+  does catch drift, but reports only *that* something changed, never what kind, so it cannot
+  support the version-increment assertions).
+- **Scope limit**: griffe documents that it cannot see console scripts, entry points, or
+  extras — roughly half this surface. Those are observed by `apicheck.packaging` from
+  `pyproject.toml` and an AST scan, feeding the same core. Adopting the hard part is not the
+  same as adopting everything, and the manifest declares kinds no observer covers as
+  `unverifiable` rather than passing them silently.
+- **Isolation**: `apicheck.extract`, one adapter in `scripts/py/tools/apicheck/`. The diff core
+  receives an extracted surface and knows nothing about griffe. Deliberately *not* shipped in
+  `src/spoc/`: a checker inside the package would need a tier of its own and would have to
+  police itself.
+
+### Decision: Deprecation signal — Extend PEP 702 (`warnings.deprecated` + a 3.12 fallback)
+
+- **Status**: approved
+- **Why**: PEP 702 is the standard and satisfies the release policy outright — a
+  `DeprecationWarning` consumers can suppress or escalate through normal warning filters, plus
+  static visibility for type checkers. It is stdlib from 3.13 (`warnings.deprecated`) while
+  this package's floor is 3.12, so ~40 lines bridge the gap. On 3.13+ the stdlib decorator is
+  used unchanged, and the fallback deletes itself the day the floor moves to 3.13.
+- **Considered**: adopt `typing_extensions`, the canonical backport — rejected outright, it is
+  a *runtime* dependency and `dependencies = []` is load-bearing; bump `requires-python` to
+  `>=3.13` and drop the fallback entirely (strictly cleaner code, but dropping 3.12 is a scope
+  change, not a tooling one — available later at no cost); hand-roll a bespoke decorator
+  (reinvents a standard that type checkers already understand).
+- **Isolation**: `spoc.core.deprecation` — the single import site. Call sites use the
+  decorator and never observe which implementation supplied it. Both paths are tested on every
+  interpreter, so the fallback is not left unexercised on versions CI may not run.

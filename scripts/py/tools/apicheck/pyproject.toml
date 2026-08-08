@@ -1,0 +1,16 @@
+[project]
+name = "apicheck"
+version = "0.1.0"
+description = "Check spoc's declared stability contract against its real published surface"
+requires-python = ">=3.12"
+# griffe extracts the import surface; cyclopts is the CLI layer every tool here
+# uses. Both live in this workspace only — spoc's own `dependencies` stays empty,
+# which is the whole reason the checker is a workshop tool and not a subpackage.
+dependencies = ["cyclopts>=4.0", "griffe>=2.1"]
+
+[project.scripts]
+apicheck = "apicheck.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

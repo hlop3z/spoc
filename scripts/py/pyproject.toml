@@ -10,6 +10,14 @@ dependencies = []
 [tool.uv]
 package = false
 
+# Members are installed by `uv sync --all-packages`, which is what the Taskfile and
+# CI already run — listing them here as well would duplicate the `tools/*` glob
+# below as a hand-maintained list, and it would rot the first time a tool is added.
+# pytest is the exception: it belongs to no single member, since one run covers
+# every tool's tests.
+[dependency-groups]
+dev = ["pytest>=9.0"]
+
 [tool.uv.workspace]
 members = ["tools/*"]
 # lab/ holds single-file PEP 723 scripts that carry their own inline

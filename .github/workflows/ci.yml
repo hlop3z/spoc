@@ -86,3 +86,7 @@ jobs:
       - name: Check Markdown links
         working-directory: scripts/py
         run: uv run mdlinks ../..
+
+      - name: Check the API surface against the stability contract
+        working-directory: scripts/py
+        run: uv run apicheck ../..

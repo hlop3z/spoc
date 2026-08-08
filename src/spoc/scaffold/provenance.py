@@ -30,6 +30,8 @@ from .plan import PlannedFile
 
 #: Where the record lives inside a generated project. Dotted so it sits with the
 #: other tooling metadata rather than in the project's own namespace.
+#:
+#: Provisional: may change incompatibly in a minor release.
 RECORD_NAME = ".spoc-template.json"
 
 #: Carried inside the record because JSON has no comments, and a generated file
@@ -45,7 +47,10 @@ NOTE = (
 
 @dataclass(frozen=True, slots=True)
 class Origin:
-    """The template set a project was generated from."""
+    """The template set a project was generated from.
+
+    Provisional: may change incompatibly in a minor release.
+    """
 
     reference: str
     revision: str
@@ -64,6 +69,8 @@ def record_content(origin: Origin) -> str:
     Built as a data structure and handed to a serializer — no format is
     assembled here, which is what keeps every value the caller can supply
     round-trippable through :func:`read_origin`.
+
+    Provisional: may change incompatibly in a minor release.
     """
     document = {
         "note": NOTE,
@@ -82,6 +89,8 @@ def record_file(origin: Origin) -> PlannedFile:
     Contributed by the generating operation rather than by the rendered template
     set, but an ordinary :class:`PlannedFile` once contributed — so it inherits
     never-overwrite and all-or-nothing like any other generated file.
+
+    Provisional: may change incompatibly in a minor release.
     """
     return PlannedFile(path=RECORD_NAME, content=record_content(origin))
 
@@ -92,6 +101,8 @@ def read_origin(project_root: Path) -> Origin | None:
     A malformed or partial record reads as absent rather than raising: the
     record is advisory, and failing an unrelated operation because a note is
     unparseable would make it a liability instead of a help.
+
+    Provisional: may change incompatibly in a minor release.
     """
     record = project_root / RECORD_NAME
     if not record.is_file():
@@ -119,6 +130,8 @@ def describe_divergence(recorded: Origin | None, rendering: Origin) -> str | Non
     Returns the message to report, or None when there is nothing to say. An
     absent record is reported as unknown rather than treated as agreement — the
     author should know the comparison could not be made.
+
+    Provisional: may change incompatibly in a minor release.
     """
     if recorded is None:
         return (
