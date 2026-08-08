@@ -5,6 +5,43 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — with the 0.x caveat that a
 **minor** bump is where breaking changes land until 1.0.0.
 
+What each version increment promises, and for which parts of the surface, is written
+down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
+
+## [Unreleased]
+
+### Added
+
+- **A stability contract.** Every element of the published surface — importable names,
+  the `spoc` command, the pytest plugin and its fixtures, the extras, the `spoc.toml`
+  schema, and the template set format — now carries exactly one tier: `public`,
+  `provisional`, or `internal`. The tiers are declared in `[tool.spoc.stability]` in
+  `pyproject.toml`, and the docs page, the provisional notices in docstrings, and the
+  checker are all projections of that one table.
+- **`spoc.component`.** The low-level marker was only reachable as
+  `spoc.core.declaration.component`, which the docs told you to import even though
+  `spoc.core` is internal. It is now re-exported at the top level. The old path still
+  works but is internal and carries no promise — use `from spoc import component`.
+- **`apicheck`**, a workshop tool (`cd scripts/py && uv run apicheck ../..`) that fails
+  when the surface exposes something the manifest does not declare, when the manifest
+  declares something the surface no longer exposes, or when a `provisional` element
+  fails to say so in its own docstring. It runs in the same gate as the tests.
+- **A deprecation signal** following PEP 702 — `warnings.deprecated` on 3.13+, with a
+  stdlib-only fallback on 3.12. `dependencies` stays empty.
+
+### Changed
+
+- **`spoc.core` is internal, explicitly.** Its docstring previously described it as
+  "reachable for anyone extending the kernel," which read as a promise it never made.
+  Nothing in it is stable, however reachable it is.
+- **This supersedes the 0.5.0 position below** that "no migration path is provided, and
+  none is planned." That stance was the absence of a policy rather than a policy. The
+  contract applies **to subsequent releases only and grants nothing retroactively** —
+  it does not add a migration path to 0.5.0 after the fact.
+- **The pre-1.0 allowance is unchanged and deliberate.** A `public` element may still
+  change incompatibly in a minor release until 1.0 is cut. What ends today is the
+  silence about it, not the freedom.
+
 ## [0.5.0] — 2026-08-06
 
 SPOC is rewritten around a single idea: **the kernel describes and never executes.** Every

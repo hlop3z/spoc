@@ -107,6 +107,17 @@ For detailed documentation, tutorials, and examples:
 
 **[Read the Docs](https://hlop3z.github.io/spoc/)**
 
+## Stability
+
+SPOC is pre-1.0. Every name, command, and extra carries one of three tiers —
+`public`, `provisional`, or `internal` — declared in `[tool.spoc.stability]` and
+enforced on every CI run. Until 1.0 a `public` element may still change in a minor
+release, so pin a minor if that matters: `spoc>=0.5,<0.6`.
+
+**[Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/)** — the
+tiers, what they exclude, the deprecation lifecycle, and what has to be true before
+1.0 is cut.
+
 ## Links
 
 - [PyPI](https://pypi.org/project/spoc)

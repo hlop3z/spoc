@@ -26,6 +26,7 @@ nav:
       - API Reference:
           - The Kernel: api/public.md
           - The Toolbox: api/tooling.md
+          - Stability & Versioning: api/stability.md
       - The Storefront Example: examples.md
   # One home: CONTRIBUTING.md lives at the repo root, where GitHub surfaces it in the
   # issue and PR flows. It links into .canon/ and openspec/, which the site does not publish.
