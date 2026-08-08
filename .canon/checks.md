@@ -15,6 +15,7 @@ moment you first discover the real command, so the next session doesn't rediscov
 | Integration tests | `uv run pytest tests/test_framework.py`                | Filesystem-fixture framework tests (subset of unit run)                   |
 | Build             | `cd scripts/go && go build -o bin/ ./...`              | Go workspace only                                                         |
 | Doc links         | `cd scripts/py && uv run mdlinks ../..`                | Fails non-zero on any broken relative Markdown link (Rule 8)              |
+| API surface       | `cd scripts/py && uv run apicheck ../..`               | Fails when the real surface and `[tool.spoc.stability]` disagree, or a `provisional` element omits its notice. Static (griffe) — needs no install of `spoc` itself. Kinds it cannot observe are reported `unverifiable`, never silently passed. |
 | File-size review  | `tokei . --files --sort lines`                         | Any language, largest first, against the thresholds in `.canon/guidelines.md`. Missing? `cd scripts/go && go run ./cmd/ensure tokei` |
 
 A row marked "not yet defined" is a real answer: that check is **unverified** and Rule 6 says

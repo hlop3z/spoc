@@ -103,7 +103,7 @@ tasks:
   # .github/workflows/ci.yml. Adding a check to CI without adding it here is the
   # bug this task exists to prevent.
   check:
-    desc: Run the full validation suite (format + lint + type + test + go + doc links)
+    desc: Run the full suite (format + lint + type + test + go + doc links + API surface)
     cmds:
       - task: format:check
       - task: lint
@@ -112,6 +112,7 @@ tasks:
       - task: test:fast
       - task: build:go
       - task: docs:links
+      - task: api:surface
 
   check:fix:
     desc: Fix what is auto-fixable, then run the full suite
@@ -148,6 +149,13 @@ tasks:
     cmds:
       - uv sync --all-packages
       - uv run mdlinks ../..
+
+  api:surface:
+    desc: Fail when the real surface and the declared stability contract disagree
+    dir: scripts/py
+    cmds:
+      - uv sync --all-packages
+      - uv run apicheck ../..
 
   # =============================================================================
   # Build & Release
