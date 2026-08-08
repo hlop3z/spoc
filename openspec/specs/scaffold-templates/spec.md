@@ -1,7 +1,17 @@
 # scaffold-templates Specification
 
 ## Purpose
-TBD - created by archiving change project-scaffolder. Update Purpose after archive.
+
+What a template set is and what it is allowed to do: declared data, stored in the formats it
+emits, resolved from a filesystem directory, an importable package, or a remote location by an
+explicit discriminator in the reference itself, and checked for completeness before a single
+file is written.
+
+A template set influences generation only by supplying declared substitution values. It never
+executes, and it gains no capability from its origin — a set retrieved from outside the local
+system is held to exactly the standard a built-in one is. Changing what a generated project
+looks like is therefore a change to data, never to the scaffolder's code.
+
 ## Requirements
 ### Requirement: The emitted shape is declared data
 

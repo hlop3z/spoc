@@ -1,7 +1,17 @@
 # project-scaffolding Specification
 
 ## Purpose
-TBD - created by archiving change project-scaffolder. Update Purpose after archive.
+
+What a scaffolding operation produces, and what it refuses to do. One invocation yields a
+project that starts unedited — configuration, framework declaration, app, and entry point all
+naming each other consistently — and a later invocation adds an app to an existing project on
+the same terms.
+
+The refusals carry as much weight as the output: the operation never overwrites content it did
+not create, never leaves a partly written tree behind, validates every name before the first
+file lands, and adds nothing to the kernel's dependency footprint. Generating a project is a
+convenience; generating one that quietly clobbers a directory is the failure this prevents.
+
 ## Requirements
 ### Requirement: Generating a runnable project
 
