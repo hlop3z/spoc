@@ -3,9 +3,12 @@
 What SPOC promises about its own surface, and what it deliberately does not.
 
 Every name you can import, every command you can run, every extra you can install
-carries exactly one **tier**. The tier is the promise. Tiers are declared in
-`[tool.spoc.stability]` in `pyproject.toml` — one list, checked against the real
-surface on every CI run, so this page cannot quietly drift away from the code.
+carries exactly one **tier**. The tier is the promise.
+
+For anything importable, the tier is not written down anywhere separately — it
+follows from how the name is exposed, so the code and the promise cannot drift
+apart. [The rules are three lines](#how-a-name-gets-its-tier), and CI checks that
+every exposed name resolves cleanly under them.
 
 ## The three tiers
 
@@ -33,8 +36,43 @@ the wild yet.
     something that is only available there, that is a gap worth reporting — not an
     API to import.
 
-Anything that appears nowhere in the manifest is `internal` by default. Absence of a
+Anything that does not resolve to `public` or `provisional` is `internal`. Absence of a
 promise is never a promise.
+
+## How a name gets its tier
+
+Three rules, applied to the name as the package exposes it:
+
+| If the name is… | its tier is |
+| --- | --- |
+| listed in a package's `__all__` | **`public`** |
+| …and its docstring says *"may change incompatibly in a minor release"* | **`provisional`** |
+| reachable only through a submodule, never re-exported by the package | **`internal`** |
+
+So `spoc.Framework` is public because `spoc/__init__.py` exports it.
+`spoc.testing.core.mode` is internal because you can only get at it by importing
+`spoc.testing.core` directly — the promise is on `spoc.testing`, not on the module
+underneath it. And `spoc.scaffold.Reference` is provisional because it says so:
+
+```python
+class Reference:
+    """A parsed template set reference.
+
+    ...
+
+    Provisional: may change incompatibly in a minor release.
+    """
+```
+
+That means **the way to check a tier is to read the code** — the export list and the
+docstring — rather than to look it up in a table that might be stale.
+
+!!! note "What is still declared by hand"
+    Six kinds of thing carry no importable name, so nothing can read a tier off them:
+    the `spoc` command, the pytest plugin entry point, the fixtures, the extras, the
+    `spoc.toml` schema, and the template set. Those are listed explicitly in
+    `[tool.spoc.stability]` in `pyproject.toml`. Importable names are not, and putting
+    one there is refused.
 
 ## What is not covered
 
@@ -94,7 +132,7 @@ without a warning having been available first.
 
 These are the criteria, and they are checkable rather than a matter of taste:
 
-- [ ] Every element of the surface has a tier, and `apicheck` passes.
+- [ ] Every element of the surface resolves to a tier, and `apicheck` passes.
 - [ ] Nothing intended to be `public` at 1.0 is still `provisional`.
 - [ ] The deprecation lifecycle has been exercised on a real element, not only
       documented and tested.
@@ -105,13 +143,29 @@ line: it stays pre-stable while the allowance above is in force.
 
 ## Checking the contract yourself
 
-The manifest is data, and the check is a command:
+Two commands, two questions. Both run in CI on every push.
+
+**Is the surface self-consistent right now?**
 
 ```bash
 cd scripts/py && uv run apicheck ../..
 ```
 
-It fails if the surface exposes anything the manifest does not declare, if the
-manifest declares anything the surface no longer exposes, or if a `provisional`
-element forgets to say so. Which means the table at the top of this page is not a
-description of intent — it is enforced.
+It fails if an exposed element resolves to no tier, if the manifest declares a
+non-import element the surface no longer exposes, or if the surface exposes one the
+manifest never declared. Kinds it cannot observe are reported `unverifiable` and
+counted, never silently passed.
+
+**What changed since the last release?**
+
+```bash
+cd scripts/py && uv run apidiff ../..
+```
+
+It reports every element added, removed, or moved between tiers since the last
+release tag, and every incompatible change. Until 1.0 it reports without failing —
+the allowance above permits those changes, so failing on one would contradict the
+policy. From 1.0 it fails.
+
+Which means the table at the top of this page is not a description of intent — it is
+enforced.

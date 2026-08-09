@@ -47,6 +47,8 @@ uv run scripts/py/lab/<name>.py              # inline deps, ephemeral env, no lo
 | `go/cmd/ensure`         | Go       | Install an adopted third-party CLI (currently `tokei`)  |
 | `go/cmd/ensure doctor`  | Go       | Report which language toolchains are on PATH            |
 | `py/tools/mdlinks`      | Python   | Find broken relative links in Markdown                  |
+| `py/tools/apicheck`     | Python   | Resolve every surface element to a stability tier       |
+| `py/tools/apicheck` (`apidiff`) | Python | Report surface changes since the last release tag |
 
 ## Toolchains
 

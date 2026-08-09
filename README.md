@@ -110,9 +110,12 @@ For detailed documentation, tutorials, and examples:
 ## Stability
 
 SPOC is pre-1.0. Every name, command, and extra carries one of three tiers —
-`public`, `provisional`, or `internal` — declared in `[tool.spoc.stability]` and
-enforced on every CI run. Until 1.0 a `public` element may still change in a minor
-release, so pin a minor if that matters: `spoc>=0.5,<0.6`.
+`public`, `provisional`, or `internal`. For an importable name the tier follows from
+how it is exposed: exported from a package is `public`, saying so in its own docstring
+makes it `provisional`, and reachable only through a submodule is `internal`. Both the
+tiers and every change to them since the last release are checked on every CI run.
+Until 1.0 a `public` element may still change in a minor release, so pin a minor if
+that matters: `spoc>=0.5,<0.6`.
 
 **[Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/)** — the
 tiers, what they exclude, the deprecation lifecycle, and what has to be true before
