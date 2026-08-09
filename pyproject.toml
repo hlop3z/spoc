@@ -72,19 +72,27 @@ path = "src/spoc/__about__.py"
 only-include = ["src", "tests", "CHANGELOG.md"]
 
 # The stability contract. Every element of the published surface carries exactly
-# one tier, and this table is the single source of truth for which — the docs
-# page, the provisional warnings, and `apicheck` are all projections of it.
-# An element that appears nowhere here is `internal` by default: absence of a
-# promise is never read as a promise.
+# one tier:
 #
 #   public       breaking change only in a major release, after deprecation
 #   provisional  may break in a minor release; never in a patch
 #   internal     may change or vanish in any release, including a patch
 #
-# Dotted entries are Python paths. Everything a dotted path cannot name carries a
-# `kind:` prefix — `script:`, `entry-point:`, `fixture:`, `extra:`, `schema:`,
-# `template-set:` — because a console script and a pytest fixture are things a
-# consumer depends on just as hard as an import.
+# Importable names are NOT listed here. Their tier is derived from the source,
+# because the source already says it:
+#
+#   exposed from a plain module, not a package  ->  internal
+#   documentation carries the provisional notice ->  provisional
+#   anything else exposed from a package         ->  public
+#
+# So the way to make a name public is to export it from a package's `__all__`,
+# and the way to make it provisional is to say so in its docstring. There is no
+# third place to edit, and nothing here to keep in step.
+#
+# What remains is what no static reader can attribute a tier to: a console
+# script, a plugin entry point, an extra, a pytest fixture, a config schema, a
+# template set. Each carries a `kind:` prefix. A dotted path in this table is a
+# mistake and `apicheck` refuses it.
 #
 # Verified by `cd scripts/py && uv run apicheck ../..` (see .canon/checks.md).
 [tool.spoc.stability]
@@ -100,145 +108,7 @@ public = [
   "fixture:spoc_tree",
   "schema:config/spoc.toml",
   "script:spoc",
-  "spoc.AppNotFoundError",
-  "spoc.CircularDependencyError",
-  "spoc.Component",
-  "spoc.ComponentKindMismatchError",
-  "spoc.Config",
-  "spoc.ConfigurationError",
-  "spoc.DuplicateComponentError",
-  "spoc.Framework",
-  "spoc.Identifier",
-  "spoc.IdentityDivergenceError",
-  "spoc.InvalidSegmentError",
-  "spoc.KindSpec",
-  "spoc.MalformedIdentifierError",
-  "spoc.MetadataContractError",
-  "spoc.MissingModuleError",
-  "spoc.MissingNameError",
-  "spoc.Registry",
-  "spoc.SpocError",
-  "spoc.UnknownKindError",
-  "spoc.UnknownNamespaceError",
-  "spoc.UnknownObjectError",
-  "spoc.UnmarkableObjectError",
-  "spoc.UnresolvedReferenceError",
-  "spoc.__version__",
-  "spoc.component",
-  "spoc.compose",
-  "spoc.diagnostics.CheckReport",
-  "spoc.diagnostics.DEFAULT_FRAMEWORK_REF",
-  "spoc.diagnostics.Finding",
-  "spoc.diagnostics.LocateError",
-  "spoc.diagnostics.RecordInfo",
-  "spoc.diagnostics.check",
-  "spoc.diagnostics.explain",
-  "spoc.diagnostics.list_records",
-  "spoc.formats.Codec",
-  "spoc.formats.Collection",
-  "spoc.formats.CollectionError",
-  "spoc.formats.DecodeError",
-  "spoc.formats.DuplicateEntryError",
-  "spoc.formats.EncodeError",
-  "spoc.formats.FormatError",
-  "spoc.formats.FormatRegistry",
-  "spoc.formats.FormatSupport",
-  "spoc.formats.MalformedAddressError",
-  "spoc.formats.MissingDependencyError",
-  "spoc.formats.PointerResolutionError",
-  "spoc.formats.REGISTRY",
-  "spoc.formats.UnknownFormatError",
-  "spoc.formats.UnsupportedDirectionError",
-  "spoc.formats.collect",
-  "spoc.formats.dumps",
-  "spoc.formats.loads",
-  "spoc.formats.pointer",
-  "spoc.formats.query",
-  "spoc.formats.read",
-  "spoc.formats.supported",
-  "spoc.formats.write",
-  "spoc.parse",
-  "spoc.scaffold.AddedApp",
-  "spoc.scaffold.DEFAULT_APP_NAME",
-  "spoc.scaffold.DEFAULT_KINDS",
-  "spoc.scaffold.DirectorySink",
-  "spoc.scaffold.ENTRY_POINT_GROUP",
-  "spoc.scaffold.GenerationPlan",
-  "spoc.scaffold.IncompleteTemplateSetError",
-  "spoc.scaffold.InstalledTemplateSources",
-  "spoc.scaffold.PathConflictError",
-  "spoc.scaffold.PathEscapeError",
-  "spoc.scaffold.PlannedFile",
-  "spoc.scaffold.ProjectSink",
-  "spoc.scaffold.ScaffoldError",
-  "spoc.scaffold.TargetNotEmptyError",
-  "spoc.scaffold.TemplateFile",
-  "spoc.scaffold.TemplateSet",
-  "spoc.scaffold.TemplateSetNotFoundError",
-  "spoc.scaffold.TemplateSource",
-  "spoc.scaffold.UndeclaredValueError",
-  "spoc.scaffold.UnsatisfiedValueError",
-  "spoc.scaffold.add_app",
-  "spoc.scaffold.init_project",
-  "spoc.testing.MissingDependencyError",
-  "spoc.testing.ProjectTree",
-  "spoc.testing.import_state",
-  "spoc.testing.isolated",
-  "spoc.testing.mode",
   "template-set:default",
-]
-
-provisional = [
-  "spoc.scaffold.BoundExceededError",
-  "spoc.scaffold.Cache",
-  "spoc.scaffold.DirectoryCache",
-  "spoc.scaffold.EnumerableSource",
-  "spoc.scaffold.Fetcher",
-  "spoc.scaffold.HttpFetcher",
-  "spoc.scaffold.HttpRevisionResolver",
-  "spoc.scaffold.InsecureRedirectError",
-  "spoc.scaffold.MAX_EXPANDED_BYTES",
-  "spoc.scaffold.MAX_MEMBERS",
-  "spoc.scaffold.MemberRefusedError",
-  "spoc.scaffold.Origin",
-  "spoc.scaffold.RECORD_NAME",
-  "spoc.scaffold.Reference",
-  "spoc.scaffold.ReferenceKind",
-  "spoc.scaffold.RemoteTemplateSource",
-  "spoc.scaffold.ReservedTargetError",
-  "spoc.scaffold.RetrievalError",
-  "spoc.scaffold.RevisionResolver",
-  "spoc.scaffold.RevisionUnavailableError",
-  "spoc.scaffold.UnrecognizedReferenceError",
-  "spoc.scaffold.default_cache_root",
-  "spoc.scaffold.describe_divergence",
-  "spoc.scaffold.extract_archive",
-  "spoc.scaffold.read_origin",
-  "spoc.scaffold.record_content",
-  "spoc.scaffold.record_file",
-]
-
-internal = [
-  "spoc.cli.main",
-  "spoc.diagnostics.cli.register",
-  "spoc.diagnostics.core.CheckReport",
-  "spoc.diagnostics.core.Finding",
-  "spoc.diagnostics.core.RecordInfo",
-  "spoc.diagnostics.core.check",
-  "spoc.diagnostics.core.explain",
-  "spoc.diagnostics.core.list_records",
-  "spoc.diagnostics.locate.DEFAULT_FRAMEWORK_REF",
-  "spoc.diagnostics.locate.LocateError",
-  "spoc.diagnostics.locate.locate_framework",
-  "spoc.scaffold.cli.register",
-  "spoc.testing.core.MissingDependencyError",
-  "spoc.testing.core.import_state",
-  "spoc.testing.core.isolated",
-  "spoc.testing.core.mode",
-  "spoc.testing.plugin.spoc_framework",
-  "spoc.testing.plugin.spoc_isolated",
-  "spoc.testing.plugin.spoc_tree",
-  "spoc.testing.tree.ProjectTree",
 ]
 
 # What carries no promise, even on a `public` element. Written down rather than

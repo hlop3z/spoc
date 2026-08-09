@@ -15,7 +15,7 @@ from pathlib import Path
 
 import griffe
 
-from apicheck.core import PROVISIONAL_NOTICE, PYTHON
+from apicheck.core import PROVISIONAL_NOTICE, PYTHON, Exposure
 
 # `NAME = value` / `NAME: T = value` at module level.
 _ASSIGN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=]+)?=")
@@ -89,14 +89,30 @@ def _docstring(member, comments: dict[str, str]) -> str:
     return ""
 
 
+def _is_package(module) -> bool | None:
+    """Whether this module is a package, or `None` when it cannot be told.
+
+    The distinction carries the `internal` rule, so an unknown answer must stay
+    unknown: guessing `False` would quietly demote a public element to internal
+    and the check would pass while promising nothing.
+    """
+    try:
+        return bool(module.is_package or module.is_subpackage)
+    except Exception:
+        return None
+
+
 def _walk(
-    module, path: str, elements: dict[str, str], comments: dict[str, str]
+    module, path: str, elements: dict[str, tuple[str, bool | None]], comments: dict
 ) -> None:
-    """Collect `path.name -> documentation` for every exported name, recursively."""
+    """Collect `path.name -> (documentation, from-a-package)` recursively."""
+    from_package = _is_package(module)
+
     for name in _exported_names(module):
         member = (module.members or {}).get(name)
         elements[f"{path}.{name}"] = (
-            _docstring(member, comments) if member is not None else ""
+            _docstring(member, comments) if member is not None else "",
+            from_package,
         )
 
     for name, member in sorted((module.members or {}).items()):
@@ -115,20 +131,26 @@ def _walk(
         _walk(member, f"{path}.{name}", elements, comments)
 
 
-def extract(source_root: Path, package: str = "spoc") -> tuple[set[str], set[str]]:
-    """Return (exposed dotted names, those whose docs carry the provisional notice)."""
+def _observe(source_root: Path, package: str) -> dict[str, tuple[str, bool | None]]:
+    """Every exported name mapped to its documentation and its exposing module."""
     module = griffe.load(package, search_paths=[str(source_root)])
     comments = _comment_docs(source_root, package)
 
-    elements: dict[str, str] = {}
+    elements: dict[str, tuple[str, bool | None]] = {}
     _walk(module, package, elements, comments)
+    return elements
 
-    documented = {
-        name
-        for name, doc in elements.items()
-        if PROVISIONAL_NOTICE.lower() in doc.lower()
-    }
-    return set(elements), documented
+
+def exposures(source_root: Path, package: str = "spoc") -> list[Exposure]:
+    """The facts the tier rules run on, one per exposed importable name."""
+    return [
+        Exposure(
+            element=name,
+            from_package=from_package,
+            documented=PROVISIONAL_NOTICE.lower() in doc.lower(),
+        )
+        for name, (doc, from_package) in _observe(source_root, package).items()
+    ]
 
 
 VERIFIED_KIND = PYTHON

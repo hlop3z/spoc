@@ -23,8 +23,16 @@ class Kind(StrEnum):
 
     UNDECLARED = "undeclared"
     ABSENT = "absent"
-    UNMARKED = "unmarked-provisional"
+    UNRESOLVED = "unresolved-tier"
     UNVERIFIABLE = "unverifiable"
+
+
+class Tier(StrEnum):
+    """The three promises. Ordered strongest to weakest."""
+
+    PUBLIC = "public"
+    PROVISIONAL = "provisional"
+    INTERNAL = "internal"
 
 
 @dataclass(frozen=True, order=True)
@@ -64,6 +72,22 @@ class Contract:
     def declared(self) -> frozenset[str]:
         return self.public | self.provisional | self.internal
 
+    def tiers(self) -> dict[str, Tier]:
+        """Every element mapped to its tier.
+
+        An element declared in two tiers resolves to the strongest, so a
+        contradiction never silently reads as the weaker promise. `overlaps()`
+        is what reports the contradiction itself.
+        """
+        mapping: dict[str, Tier] = {}
+        for tier, members in (
+            (Tier.INTERNAL, self.internal),
+            (Tier.PROVISIONAL, self.provisional),
+            (Tier.PUBLIC, self.public),
+        ):
+            mapping.update(dict.fromkeys(members, tier))
+        return mapping
+
     def overlaps(self) -> list[tuple[str, tuple[str, ...]]]:
         """Elements declared in more than one tier — the contract contradicting itself."""
         tiers = {
@@ -86,11 +110,173 @@ class Observation:
     `verified_kinds` is the honest part: the observer states which kinds of
     element it was able to look at, so the core can tell "this element is gone"
     apart from "nobody looked".
+
+    There is no `documented` set here any more. It existed to catch a
+    `provisional` element whose documentation omitted the notice — a divergence
+    that cannot occur now that the notice is what *makes* an element
+    provisional. Keeping the check would have meant asking whether a fact agrees
+    with itself, and it would have fired spuriously on a declared non-import
+    element, which has no documentation to read.
     """
 
     elements: frozenset[str]
-    documented: frozenset[str]
     verified_kinds: frozenset[str]
+
+
+@dataclass(frozen=True, order=True)
+class Exposure:
+    """How the artifact exposes one importable element.
+
+    The two facts the rules need, and nothing else. An adapter supplies these by
+    reading the source; this module never learns where they came from.
+    """
+
+    element: str
+
+    from_package: bool | None
+    """Whether the module exposing it is a package rather than a plain module.
+
+    `None` means the observer could not tell — which is not the same as `False`,
+    and must not be silently read as one. An element it cannot place has no
+    derivable tier, and the check says so rather than guessing `internal`.
+    """
+
+    documented: bool
+    """Whether its own documentation carries `PROVISIONAL_NOTICE`."""
+
+
+def derive_tier(exposure: Exposure) -> Tier | None:
+    """The tier the rules assign, or `None` when they cannot resolve one.
+
+    The whole policy, in one place:
+
+    - exposed from a plain module, not a package -> `internal`. The object's
+      public location is the package that re-exports it; the deeper path is the
+      definition site, and reaching it is not a promotion.
+    - carries the provisional notice -> `provisional`.
+    - anything else exposed from a package -> `public`.
+
+    Total over the facts it is given, so no element falls through to an implied
+    tier. The one gap is an unplaceable element, which returns `None` and is
+    reported rather than assumed.
+    """
+    if exposure.from_package is None:
+        return None
+    if not exposure.from_package:
+        return Tier.INTERNAL
+    return Tier.PROVISIONAL if exposure.documented else Tier.PUBLIC
+
+
+def derive_contract(exposures: list[Exposure]) -> tuple[Contract, list[Finding]]:
+    """Build the contract the rules imply, naming everything they could not place.
+
+    Returns the contract alongside its findings rather than raising: a single
+    unplaceable element should not cost the run its report on the other several
+    hundred.
+    """
+    tiers: dict[Tier, set[str]] = {tier: set() for tier in Tier}
+    findings: list[Finding] = []
+
+    for exposure in sorted(exposures):
+        tier = derive_tier(exposure)
+        if tier is None:
+            findings.append(
+                Finding(
+                    Kind.UNRESOLVED,
+                    exposure.element,
+                    "exposed, but the observer could not tell whether it comes "
+                    "from a package, so no tier follows",
+                )
+            )
+            continue
+        tiers[tier].add(exposure.element)
+
+    contract = Contract(
+        public=frozenset(tiers[Tier.PUBLIC]),
+        provisional=frozenset(tiers[Tier.PROVISIONAL]),
+        internal=frozenset(tiers[Tier.INTERNAL]),
+    )
+    return contract, findings
+
+
+def merge(derived: Contract, declared: Contract) -> Contract:
+    """The full contract: rules for importable names, declaration for the rest.
+
+    The two never overlap by construction — the derivation only ever sees
+    importable elements, and the declaration only ever holds the kinds no static
+    observer can attribute a tier to.
+    """
+    return Contract(
+        public=derived.public | declared.public,
+        provisional=derived.provisional | declared.provisional,
+        internal=derived.internal | declared.internal,
+    )
+
+
+class Change(StrEnum):
+    """How one element differs between two releases."""
+
+    ADDED = "added"
+    REMOVED = "removed"
+    RETIERED = "retiered"
+
+
+@dataclass(frozen=True, order=True)
+class SurfaceChange:
+    """One element's difference between a baseline surface and this one."""
+
+    change: Change
+    element: str
+    before: Tier | None = None
+    after: Tier | None = None
+
+    @property
+    def promises(self) -> bool:
+        """True when a stability promise is involved on either side.
+
+        An `internal` element appearing or vanishing is not a reviewable event —
+        that tier promises nothing. Growth of the *promised* surface is, which is
+        what replaced the manifest as the place a new promise gets noticed.
+        """
+        return any(
+            tier in (Tier.PUBLIC, Tier.PROVISIONAL)
+            for tier in (self.before, self.after)
+        )
+
+    def __str__(self) -> str:
+        # ASCII only: this prints to a Windows console under cp1252.
+        match self.change:
+            case Change.ADDED:
+                return f"added: {self.element} ({self.after})"
+            case Change.REMOVED:
+                return f"removed: {self.element} (was {self.before})"
+            case _:
+                return f"retiered: {self.element} ({self.before} -> {self.after})"
+
+
+def surface_delta(before: Contract, after: Contract) -> list[SurfaceChange]:
+    """Every element that appeared, vanished, or changed tier between the two.
+
+    Pure set arithmetic over two contracts. It says nothing about whether a
+    difference is *breaking* — that judgement needs signatures, not names, and
+    belongs to the adopted differ.
+    """
+    was, now = before.tiers(), after.tiers()
+
+    changes = [
+        SurfaceChange(Change.ADDED, element, after=now[element])
+        for element in now.keys() - was.keys()
+    ]
+    changes += [
+        SurfaceChange(Change.REMOVED, element, before=was[element])
+        for element in was.keys() - now.keys()
+    ]
+    changes += [
+        SurfaceChange(Change.RETIERED, element, before=was[element], after=now[element])
+        for element in was.keys() & now.keys()
+        if was[element] != now[element]
+    ]
+    return sorted(changes)
 
 
 def kind_of(element: str) -> str:
@@ -136,16 +322,6 @@ def diff(contract: Contract, observed: Observation) -> list[Finding]:
                 "exposed by the artifact but absent from the contract",
             )
         )
-
-    for element in sorted(contract.provisional & observed.elements):
-        if element not in observed.documented:
-            findings.append(
-                Finding(
-                    Kind.UNMARKED,
-                    element,
-                    f"provisional, but its documentation omits '{PROVISIONAL_NOTICE}'",
-                )
-            )
 
     return sorted(findings)
 

@@ -10,7 +10,15 @@ from typing import Annotated
 import cyclopts
 
 from apicheck import extract, packaging
-from apicheck.core import Contract, Observation, diff, exit_code
+from apicheck.core import (
+    Contract,
+    Finding,
+    Observation,
+    derive_contract,
+    diff,
+    exit_code,
+    merge,
+)
 from apicheck.manifest import ManifestError, load_contract
 
 app = cyclopts.App(
@@ -19,17 +27,24 @@ app = cyclopts.App(
 )
 
 
-def _observe(repo: Path) -> tuple[Observation, Contract]:
-    contract = load_contract(repo / "pyproject.toml")
-    names, documented = extract.extract(repo / "src")
+def _observe(repo: Path) -> tuple[Observation, Contract, list[Finding]]:
+    """The full contract and surface: rules for imports, declaration for the rest.
+
+    The two halves never overlap — `manifest` refuses an importable name and the
+    derivation only ever sees one — so the merge cannot produce a conflict, and
+    `Contract.overlaps()` still checks that rather than assuming it.
+    """
+    declared = load_contract(repo / "pyproject.toml")
+    derived, unresolved = derive_contract(extract.exposures(repo / "src"))
+
     return (
         Observation(
-            elements=frozenset(names | packaging.observe(repo)),
-            documented=frozenset(documented),
+            elements=frozenset(derived.declared | packaging.observe(repo)),
             verified_kinds=frozenset({extract.VERIFIED_KIND})
             | packaging.VERIFIED_KINDS,
         ),
-        contract,
+        merge(derived, declared),
+        unresolved,
     )
 
 
@@ -53,12 +68,12 @@ def main(
     """
     repo = repo.resolve()
     try:
-        observed, contract = _observe(repo)
+        observed, contract, unresolved = _observe(repo)
     except ManifestError as exc:
         print(f"apicheck: {exc}", file=sys.stderr)
         return 2
 
-    findings = diff(contract, observed)
+    findings = sorted(unresolved + diff(contract, observed))
 
     if as_json:
         json.dump(

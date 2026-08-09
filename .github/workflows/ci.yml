@@ -72,8 +72,13 @@ jobs:
     name: Doc links
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 for the tags. `apidiff` resolves its baseline from the
+      # latest tag and exits 2 rather than reporting a comparison it could not
+      # make, so a shallow checkout fails this job instead of passing it blind.
       - name: Checkout Repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
@@ -90,3 +95,12 @@ jobs:
       - name: Check the API surface against the stability contract
         working-directory: scripts/py
         run: uv run apicheck ../..
+
+      # The root pytest run is pinned to tests/ and cannot reach these.
+      - name: Workshop tool tests
+        working-directory: scripts/py
+        run: uv run pytest tools/
+
+      - name: Report the surface delta since the last release
+        working-directory: scripts/py
+        run: uv run apidiff ../..

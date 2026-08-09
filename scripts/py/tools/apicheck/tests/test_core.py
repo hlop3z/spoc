@@ -28,10 +28,9 @@ def contract(public=(), provisional=(), internal=()) -> Contract:
     )
 
 
-def observation(elements=(), documented=(), kinds=ALL_KINDS) -> Observation:
+def observation(elements=(), kinds=ALL_KINDS) -> Observation:
     return Observation(
         elements=frozenset(elements),
-        documented=frozenset(documented),
         verified_kinds=frozenset(kinds),
     )
 
@@ -69,21 +68,14 @@ def test_declared_but_absent_element_is_fatal():
     assert exit_code(result) == 1
 
 
-def test_provisional_without_the_notice_is_fatal():
+def test_provisional_element_is_not_second_guessed():
+    """The notice is what *makes* an element provisional, so the core no longer
+    re-checks that a provisional element carries it. Asking whether a fact agrees
+    with itself only ever produced false alarms on declared non-import elements,
+    which have no documentation to read."""
     result = diff(
         contract(provisional=["spoc.scaffold.Cache"]),
         observation(elements=["spoc.scaffold.Cache"]),
-    )
-    assert kinds_found(result) == {Kind.UNMARKED}
-    assert exit_code(result) == 1
-
-
-def test_provisional_with_the_notice_passes():
-    result = diff(
-        contract(provisional=["spoc.scaffold.Cache"]),
-        observation(
-            elements=["spoc.scaffold.Cache"], documented=["spoc.scaffold.Cache"]
-        ),
     )
     assert result == []
 
@@ -130,7 +122,29 @@ def test_findings_accumulate_across_types():
         contract(public=["spoc.Gone"], provisional=["spoc.scaffold.Cache"]),
         observation(elements=["spoc.scaffold.Cache", "spoc.Surprise"]),
     )
-    assert kinds_found(result) == {Kind.ABSENT, Kind.UNDECLARED, Kind.UNMARKED}
+    assert kinds_found(result) == {Kind.ABSENT, Kind.UNDECLARED}
+
+
+def test_undeclared_non_import_element_is_fatal():
+    """The declared half still diverges in both directions — it is the only half
+    that can, now that importable tiers are derived from the artifact itself."""
+    result = diff(
+        contract(public=["script:spoc"]),
+        observation(elements=["script:spoc", "extra:surprise"]),
+    )
+    assert kinds_found(result) == {Kind.UNDECLARED}
+    assert result[0].element == "extra:surprise"
+    assert exit_code(result) == 1
+
+
+def test_declared_but_absent_non_import_element_is_fatal():
+    result = diff(
+        contract(public=["script:spoc", "extra:gone"]),
+        observation(elements=["script:spoc"]),
+    )
+    assert kinds_found(result) == {Kind.ABSENT}
+    assert result[0].element == "extra:gone"
+    assert exit_code(result) == 1
 
 
 def test_findings_are_deterministically_ordered():

@@ -1,15 +1,4 @@
-# Public API Surface
-
-## Purpose
-
-A published artifact exposes many things a consumer can depend on: names reachable by
-import, executable commands, plugin registrations, optional dependency groups,
-configuration file schemas, and generated file contracts. This capability defines which of
-those carry a stability promise, states the promise each tier makes, requires the promise
-to be visible where the element is defined, and makes the declared surface verifiable
-against the real one so the two cannot silently diverge.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Every surface element has exactly one tier
 
@@ -72,41 +61,6 @@ be stated, so it is clear which elements the rules govern and which are declared
 - **THEN** it is determined from the artifact alone, with no list of names maintained
   outside the artifact consulted
 
-### Requirement: Each tier states a distinct guarantee
-
-The tiers MUST carry these guarantees and no others:
-
-- `public` — MAY change incompatibly only in a major release, and only after completing
-  the deprecation lifecycle.
-- `provisional` — MAY change incompatibly in a minor release without a deprecation
-  period, but MUST NOT change incompatibly in a patch release.
-- `internal` — MAY change or be removed in any release, including a patch.
-
-An element's tier MAY be raised at any time. Lowering an element's tier is itself an
-incompatible change and MUST obey the guarantee of the tier being left.
-
-#### Scenario: A public element survives a minor release
-
-- **WHEN** a minor release is published
-- **THEN** every element that was `public` in the prior release is still present and
-  compatible
-
-#### Scenario: A provisional element may break in a minor release
-
-- **WHEN** a `provisional` element changes incompatibly in a minor release
-- **THEN** the release is conformant, and no deprecation period was required
-
-#### Scenario: Raising a tier is always allowed
-
-- **WHEN** an `internal` element is promoted to `public` in a minor release
-- **THEN** the release is conformant, because the promise strengthened
-
-#### Scenario: Demotion obeys the tier being left
-
-- **WHEN** a `public` element is demoted to `provisional`
-- **THEN** the demotion is treated as an incompatible change to a `public` element and
-  requires a major release preceded by the deprecation lifecycle
-
 ### Requirement: The tier is visible where the element is defined
 
 An element's tier MUST be discoverable at its point of definition, not only in a separate
@@ -136,38 +90,6 @@ deliberate — its documentation MUST state that it may break in a minor release
 
 - **WHEN** a consumer determines the tier of any importable element, at any tier
 - **THEN** the artifact itself is sufficient, and no separate declaration file is required
-
-### Requirement: The contract states what it does not cover
-
-The contract MUST enumerate the aspects of otherwise-`public` elements that carry no
-promise, so that consumers cannot infer a guarantee from silence. The exclusions MUST
-include, at minimum:
-
-- the human-readable text of error, log, and diagnostic messages — the error *types* and
-  their hierarchy are `public`, their wording is not;
-- the human-readable prose rendering of command output — the machine-readable rendering
-  of the same command is `public`;
-- the resolved versions of dependencies inside a named optional dependency group — the
-  group's *name* and the capability it enables are `public`;
-- internal attribute names and representations of otherwise-`public` types.
-
-#### Scenario: Error type is promised, message text is not
-
-- **WHEN** a release changes the wording of a `public` error's message without changing
-  the error's type or position in the hierarchy
-- **THEN** the change is compatible and requires no major release
-
-#### Scenario: Machine output is promised, prose output is not
-
-- **WHEN** a release changes a command's human-readable prose output while leaving its
-  machine-readable output unchanged
-- **THEN** the change is compatible
-
-#### Scenario: A dependency group's name outlives its contents
-
-- **WHEN** a release changes which dependencies a named optional group installs, while the
-  group continues to enable the same capability
-- **THEN** the change is compatible
 
 ### Requirement: The declared surface is verifiable against the real surface
 
@@ -211,52 +133,3 @@ whose kind requires declaration but which is not declared.
 
 - **WHEN** the check is run against the working tree
 - **THEN** it completes without publishing or fetching a released artifact
-
-### Requirement: A coverage gap is reported, never silently passed
-
-The check MUST state which kinds of element it is able to observe. Where a declared
-element's kind is covered by no observer, the check MUST report it as unverifiable rather
-than infer anything about it, and MUST NOT fail on it — a gap in coverage is not a
-divergence.
-
-An unobserved kind MUST NOT be reported as absent. Reporting "nobody looked" as "it is
-gone" would make the check untrustworthy in exactly the direction that matters.
-
-#### Scenario: An unobserved kind is reported
-
-- **WHEN** the contract declares an element whose kind no observer covers
-- **THEN** the check reports it as unverifiable, and its outcome is not a failure
-
-#### Scenario: An unobserved kind is never mistaken for a removal
-
-- **WHEN** an element's kind is not covered by any observer and the element is not among
-  the observed elements
-- **THEN** the check reports it as unverifiable and not as absent
-
-#### Scenario: Gaps are visible in the result
-
-- **WHEN** the check completes and any declared element was unverifiable
-- **THEN** the count of unverifiable elements appears in its output, so a passing run
-  never implies coverage it did not have
-
-### Requirement: Reaching an internal element is not a promotion
-
-Reachability MUST NOT confer stability. An `internal` element that is technically
-importable, invocable, or otherwise accessible remains `internal` regardless of how it is
-reached or how many consumers reach it.
-
-Where an `internal` element is genuinely required by a legitimate extension use case, the
-resolution MUST be to expose an element at a `public` or `provisional` location — never to
-leave the consumer depending on the `internal` path.
-
-#### Scenario: Accessibility does not imply stability
-
-- **WHEN** a consumer reaches an `internal` element through a path that the artifact does
-  not prevent
-- **THEN** the element remains `internal` and may still change in a patch release
-
-#### Scenario: A real extension need is met by promotion
-
-- **WHEN** an extension use case is found to require an `internal` element
-- **THEN** an element covering that use case is exposed at a `public` or `provisional`
-  location, and the use case no longer depends on the `internal` path

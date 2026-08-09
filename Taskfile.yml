@@ -110,9 +110,11 @@ tasks:
       - task: lint:go
       - task: type
       - task: test:fast
+      - task: test:tools
       - task: build:go
       - task: docs:links
       - task: api:surface
+      - task: api:delta
 
   check:fix:
     desc: Fix what is auto-fixable, then run the full suite
@@ -156,6 +158,26 @@ tasks:
     cmds:
       - uv sync --all-packages
       - uv run apicheck ../..
+
+  # The root pytest run cannot reach these: `testpaths = ["tests"]` in
+  # pyproject.toml pins it to the package's own suite, which is correct — the
+  # workshop tools are a separate workspace with separate dependencies. They
+  # still gate the gates, so they get their own row rather than no row.
+  test:tools:
+    desc: Run the workshop tools' own test suites
+    dir: scripts/py
+    cmds:
+      - uv sync --all-packages
+      - uv run pytest tools/
+
+  # Needs tag history. A shallow checkout has none, and `apidiff` exits 2 rather
+  # than reporting an empty comparison as a clean one.
+  api:delta:
+    desc: Report every surface change since the last release tag
+    dir: scripts/py
+    cmds:
+      - uv sync --all-packages
+      - uv run apidiff ../..
 
   # =============================================================================
   # Build & Release
