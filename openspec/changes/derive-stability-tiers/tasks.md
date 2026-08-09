@@ -51,5 +51,5 @@
 - [x] 7.1 Ran every row in `.canon/checks.md`. All ten gates pass. Nothing was unverified; the one `unverifiable` finding is `schema:config/spoc.toml`, pre-existing and by design
 - [x] 7.2 Confirmed: 132 declared on `main`, 132 derived on HEAD, zero elements whose tier changed
 - [x] 7.3 Review the full diff and split commits by intent, Conventional Commits, no co-author (Rule 3)
-- [ ] 7.4 Run `/opsx:sync` to fold the delta specs into `public-api-surface` and `release-policy`
+- [x] 7.4 Run `/opsx:sync` to fold the delta specs into `public-api-surface` and `release-policy`
 - [ ] 7.5 Archive with `openspec archive -y --skip-specs`, since sync already applied the specs

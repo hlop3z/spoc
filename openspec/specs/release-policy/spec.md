@@ -26,6 +26,18 @@ A release MUST NOT be published under an increment whose assertion it violates. 
 change's compatibility is genuinely ambiguous, the project MUST choose the larger
 increment.
 
+The assertion MUST be checkable rather than asserted by hand. The project MUST provide a
+check that compares the surface of the working tree against the surface of the previously
+released artifact and reports every difference it finds, classified as compatible or
+incompatible. The check MUST run as part of standard validation, before a release is
+published, and MUST fail when a difference is incompatible with the increment being
+claimed.
+
+The check MUST report an element newly exposed at a `public` or `provisional` tier, not
+only elements removed or altered. Growth of the surface is a reviewable event: an element
+gains a stability promise the moment it is exposed, and that MUST be visible in the change
+that exposes it.
+
 #### Scenario: A compatible addition is a minor release
 
 - **WHEN** a release adds new elements and changes no existing element incompatibly
@@ -40,6 +52,23 @@ increment.
 
 - **WHEN** it cannot be established whether a change is compatible
 - **THEN** the larger version increment is chosen
+
+#### Scenario: A removed public element is caught before release
+
+- **WHEN** a `public` element present in the previous release is absent from the working
+  tree, and no major increment is being claimed
+- **THEN** the check fails and names the removed element
+
+#### Scenario: Newly exposed surface is reported
+
+- **WHEN** an element is exposed at `public` or `provisional` that was not exposed in the
+  previous release
+- **THEN** the check reports it as an addition, naming the element and its tier
+
+#### Scenario: An unchanged surface passes
+
+- **WHEN** the working tree exposes the same elements, compatibly, as the previous release
+- **THEN** the check passes and reports no difference
 
 ### Requirement: The pre-stable allowance is explicit and ends at 1.0
 
@@ -84,6 +113,11 @@ incompatibly until it has completed a deprecation lifecycle:
 An element MUST NOT be removed in the same release that first deprecated it. Nothing MUST
 be removed without a deprecation signal having been available.
 
+The lifecycle MUST be enforced by the same comparison that checks compatibility: a
+`public` element that has disappeared relative to the previous release MUST fail unless
+the record shows it was marked deprecated in an earlier release. Detection MUST NOT depend
+on a reviewer remembering the element existed.
+
 #### Scenario: Deprecation precedes removal by at least one minor release
 
 - **WHEN** a `public` element is removed in a major release
@@ -105,6 +139,12 @@ be removed without a deprecation signal having been available.
 - **WHEN** an element is deprecated and nothing replaces it
 - **THEN** its documentation states that there is no replacement, rather than omitting the
   question
+
+#### Scenario: An undeprecated removal is refused
+
+- **WHEN** a `public` element present in the previous release is absent from the working
+  tree and was never marked deprecated
+- **THEN** the check fails and names the element, whatever increment is being claimed
 
 ### Requirement: Every release records its surface changes
 
