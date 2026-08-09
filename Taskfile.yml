@@ -114,6 +114,7 @@ tasks:
       - task: build:go
       - task: docs:links
       - task: api:surface
+      - task: api:delta
 
   check:fix:
     desc: Fix what is auto-fixable, then run the full suite
@@ -168,6 +169,15 @@ tasks:
     cmds:
       - uv sync --all-packages
       - uv run pytest tools/
+
+  # Needs tag history. A shallow checkout has none, and `apidiff` exits 2 rather
+  # than reporting an empty comparison as a clean one.
+  api:delta:
+    desc: Report every surface change since the last release tag
+    dir: scripts/py
+    cmds:
+      - uv sync --all-packages
+      - uv run apidiff ../..
 
   # =============================================================================
   # Build & Release

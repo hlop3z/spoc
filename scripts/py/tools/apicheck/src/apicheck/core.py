@@ -72,6 +72,22 @@ class Contract:
     def declared(self) -> frozenset[str]:
         return self.public | self.provisional | self.internal
 
+    def tiers(self) -> dict[str, Tier]:
+        """Every element mapped to its tier.
+
+        An element declared in two tiers resolves to the strongest, so a
+        contradiction never silently reads as the weaker promise. `overlaps()`
+        is what reports the contradiction itself.
+        """
+        mapping: dict[str, Tier] = {}
+        for tier, members in (
+            (Tier.INTERNAL, self.internal),
+            (Tier.PROVISIONAL, self.provisional),
+            (Tier.PUBLIC, self.public),
+        ):
+            mapping.update(dict.fromkeys(members, tier))
+        return mapping
+
     def overlaps(self) -> list[tuple[str, tuple[str, ...]]]:
         """Elements declared in more than one tier — the contract contradicting itself."""
         tiers = {
@@ -195,6 +211,72 @@ def merge(derived: Contract, declared: Contract) -> Contract:
         provisional=derived.provisional | declared.provisional,
         internal=derived.internal | declared.internal,
     )
+
+
+class Change(StrEnum):
+    """How one element differs between two releases."""
+
+    ADDED = "added"
+    REMOVED = "removed"
+    RETIERED = "retiered"
+
+
+@dataclass(frozen=True, order=True)
+class SurfaceChange:
+    """One element's difference between a baseline surface and this one."""
+
+    change: Change
+    element: str
+    before: Tier | None = None
+    after: Tier | None = None
+
+    @property
+    def promises(self) -> bool:
+        """True when a stability promise is involved on either side.
+
+        An `internal` element appearing or vanishing is not a reviewable event —
+        that tier promises nothing. Growth of the *promised* surface is, which is
+        what replaced the manifest as the place a new promise gets noticed.
+        """
+        return any(
+            tier in (Tier.PUBLIC, Tier.PROVISIONAL)
+            for tier in (self.before, self.after)
+        )
+
+    def __str__(self) -> str:
+        # ASCII only: this prints to a Windows console under cp1252.
+        match self.change:
+            case Change.ADDED:
+                return f"added: {self.element} ({self.after})"
+            case Change.REMOVED:
+                return f"removed: {self.element} (was {self.before})"
+            case _:
+                return f"retiered: {self.element} ({self.before} -> {self.after})"
+
+
+def surface_delta(before: Contract, after: Contract) -> list[SurfaceChange]:
+    """Every element that appeared, vanished, or changed tier between the two.
+
+    Pure set arithmetic over two contracts. It says nothing about whether a
+    difference is *breaking* — that judgement needs signatures, not names, and
+    belongs to the adopted differ.
+    """
+    was, now = before.tiers(), after.tiers()
+
+    changes = [
+        SurfaceChange(Change.ADDED, element, after=now[element])
+        for element in now.keys() - was.keys()
+    ]
+    changes += [
+        SurfaceChange(Change.REMOVED, element, before=was[element])
+        for element in was.keys() - now.keys()
+    ]
+    changes += [
+        SurfaceChange(Change.RETIERED, element, before=was[element], after=now[element])
+        for element in was.keys() & now.keys()
+        if was[element] != now[element]
+    ]
+    return sorted(changes)
 
 
 def kind_of(element: str) -> str:

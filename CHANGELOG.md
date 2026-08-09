@@ -15,17 +15,24 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 - **A stability contract.** Every element of the published surface — importable names,
   the `spoc` command, the pytest plugin and its fixtures, the extras, the `spoc.toml`
   schema, and the template set format — now carries exactly one tier: `public`,
-  `provisional`, or `internal`. The tiers are declared in `[tool.spoc.stability]` in
-  `pyproject.toml`, and the docs page, the provisional notices in docstrings, and the
-  checker are all projections of that one table.
+  `provisional`, or `internal`. For an importable name the tier follows from the source:
+  exported from a package is `public`, saying "may change incompatibly in a minor
+  release" in its own docstring makes it `provisional`, and a name reachable only through
+  a submodule is `internal`. Everything that is not an import — the command, the entry
+  point, the extras, the fixtures, the schema, the template set — is listed in
+  `[tool.spoc.stability]` in `pyproject.toml`, because nothing can read a tier off it.
 - **`spoc.component`.** The low-level marker was only reachable as
   `spoc.core.declaration.component`, which the docs told you to import even though
   `spoc.core` is internal. It is now re-exported at the top level. The old path still
   works but is internal and carries no promise — use `from spoc import component`.
 - **`apicheck`**, a workshop tool (`cd scripts/py && uv run apicheck ../..`) that fails
-  when the surface exposes something the manifest does not declare, when the manifest
-  declares something the surface no longer exposes, or when a `provisional` element
-  fails to say so in its own docstring. It runs in the same gate as the tests.
+  when an exposed element resolves to no tier, when the manifest declares something the
+  surface no longer exposes, or when it declares something the surface never exposed. It
+  runs in the same gate as the tests.
+- **`apidiff`**, its companion (`cd scripts/py && uv run apidiff ../..`), which compares
+  the working tree against the last release tag and reports every element added, removed,
+  or moved between tiers, plus every incompatible change. Until 1.0 it reports without
+  failing, because the pre-1.0 allowance permits those changes; from 1.0 it fails.
 - **A deprecation signal** following PEP 702 — `warnings.deprecated` on 3.13+, with a
   stdlib-only fallback on 3.12. `dependencies` stays empty.
 
@@ -41,6 +48,18 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 - **The pre-1.0 allowance is unchanged and deliberate.** A `public` element may still
   change incompatibly in a minor release until 1.0 is cut. What ends today is the
   silence about it, not the freedom.
+
+### Removed
+
+- **`TemplateSource.available()`** — the protocol was split, and enumeration now lives on
+  `EnumerableSource`, because a remote resolver cannot answer "what template sets exist".
+  A template source that only loads by name satisfies `TemplateSource`; one that can also
+  list itself satisfies `EnumerableSource`. Both are `provisional`.
+
+  This is recorded late. The change shipped with the remote-template work and no gate
+  could see it at the time; `apidiff` found it on its first run against `v0.5.0`. The
+  pre-1.0 allowance permitted the removal, so nothing is being reverted — but the
+  contract requires every surface change to be recorded, and this one was not.
 
 ## [0.5.0] — 2026-08-06
 

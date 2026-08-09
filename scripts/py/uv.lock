@@ -16,12 +16,14 @@ source = { editable = "tools/apicheck" }
 dependencies = [
     { name = "cyclopts" },
     { name = "griffe" },
+    { name = "packaging" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "cyclopts", specifier = ">=4.0" },
     { name = "griffe", specifier = ">=2.1" },
+    { name = "packaging", specifier = ">=24.0" },
 ]
 
 [[package]]

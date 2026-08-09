@@ -3,13 +3,19 @@ name = "apicheck"
 version = "0.1.0"
 description = "Check spoc's declared stability contract against its real published surface"
 requires-python = ">=3.12"
-# griffe extracts the import surface; cyclopts is the CLI layer every tool here
-# uses. Both live in this workspace only — spoc's own `dependencies` stays empty,
+# griffe extracts the import surface and classifies breakages between refs;
+# cyclopts is the CLI layer every tool here uses; packaging parses the declared
+# version, because "is this 1.0 yet" must follow PEP 440 rather than a split on
+# dots. All live in this workspace only — spoc's own `dependencies` stays empty,
 # which is the whole reason the checker is a workshop tool and not a subpackage.
-dependencies = ["cyclopts>=4.0", "griffe>=2.1"]
+dependencies = ["cyclopts>=4.0", "griffe>=2.1", "packaging>=24.0"]
 
+# Two commands, deliberately. `apicheck` asks whether the working tree is
+# self-consistent; `apidiff` asks how it differs from the last release. Separate
+# questions, separate exit codes, separate rows in .canon/checks.md.
 [project.scripts]
 apicheck = "apicheck.cli:app"
+apidiff = "apicheck.diffcli:app"
 
 [build-system]
 requires = ["hatchling"]
