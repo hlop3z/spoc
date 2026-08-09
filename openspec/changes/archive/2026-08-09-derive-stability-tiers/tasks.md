@@ -52,4 +52,4 @@
 - [x] 7.2 Confirmed: 132 declared on `main`, 132 derived on HEAD, zero elements whose tier changed
 - [x] 7.3 Review the full diff and split commits by intent, Conventional Commits, no co-author (Rule 3)
 - [x] 7.4 Run `/opsx:sync` to fold the delta specs into `public-api-surface` and `release-policy`
-- [ ] 7.5 Archive with `openspec archive -y --skip-specs`, since sync already applied the specs
+- [x] 7.5 Archive with `openspec archive -y --skip-specs`, since sync already applied the specs
