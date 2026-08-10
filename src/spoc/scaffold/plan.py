@@ -93,8 +93,6 @@ class ReferenceKind(StrEnum):
     The kind is decided by the reference's own form, never by what happens to
     exist locally — which is what makes resolution total rather than a chain of
     attempts that fall through to each other.
-
-    Provisional: may change incompatibly in a minor release.
     """
 
     NAME = "name"
@@ -116,8 +114,6 @@ class Reference:
     disk or a network. Scheme expansion (what ``gh:`` means) is an adapter's job,
     because it constructs a location; deciding that ``gh:`` *is* a remote scheme
     is this layer's job, because it is grammar.
-
-    Provisional: may change incompatibly in a minor release.
     """
 
     kind: ReferenceKind
@@ -159,7 +155,10 @@ class EnumerableSource(TemplateSource, Protocol):
     implement this contribute candidates to a not-found error, so that error
     never lists a set of possibilities it made up.
 
-    Provisional: may change incompatibly in a minor release.
+    Provisional: may change incompatibly in a minor release. It settles when a
+    template source outside this package implements it — at which point the
+    shape is fixed by a real implementer — or is withdrawn if none appears and
+    the not-found error's candidates can be gathered without a second port.
     """
 
     def available(self) -> tuple[str, ...]:
@@ -194,8 +193,6 @@ class RevisionResolver(Protocol):
     Separate from retrieval because it runs first and unconditionally: a moving
     reference must become an immutable one *before* the cache is consulted, or
     the cache would be keyed by something that moves.
-
-    Provisional: may change incompatibly in a minor release.
     """
 
     def resolve(self, reference: Reference) -> str:
@@ -204,10 +201,7 @@ class RevisionResolver(Protocol):
 
 
 class Fetcher(Protocol):
-    """Retrieves the bytes of an exact revision.
-
-    Provisional: may change incompatibly in a minor release.
-    """
+    """Retrieves the bytes of an exact revision."""
 
     def fetch(self, reference: Reference, revision: str) -> bytes:
         """Return the archived content of that revision.
@@ -220,10 +214,7 @@ class Fetcher(Protocol):
 
 
 class Cache(Protocol):
-    """Retains retrieved revisions so a repeat generation retrieves nothing.
-
-    Provisional: may change incompatibly in a minor release.
-    """
+    """Retains retrieved revisions so a repeat generation retrieves nothing."""
 
     def retained(self, revision: str) -> Path | None:
         """The directory holding this revision, or None if it is not retained."""

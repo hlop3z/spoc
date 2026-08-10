@@ -1,39 +1,63 @@
 # SPOC — the stability contract
 
-What **is**, as of the stability contract. One table declares the tier of every
-element of the published surface; everything else that states or enforces a tier is
-a projection of that table. There is no second place where a tier is decided.
+What **is**, as of the derived stability contract. The tier of every importable
+element is a consequence of how the source exposes and documents it — there is no
+list of names to keep in step, because there is no list.
 
-This mirrors the kernel's own shape — one registry, many projections — applied to
-the package's surface rather than to a project's components.
+This mirrors the kernel's own shape — one source, many projections — applied to the
+package's surface rather than to a project's components.
 
 ## Source of truth, and what derives from it
 
-`[tool.spoc.stability]` in `pyproject.toml` is the only authority. The docs page,
-the notice in each provisional docstring, and the check all read from it; none of
-them may disagree with it, because the check compares them.
+**The source code is the authority.** Two facts decide an importable element's tier,
+and both are read off the artifact itself: whether a package re-exports the name, and
+whether its own documentation carries the provisional notice.
+
+`[tool.spoc.stability]` in `pyproject.toml` still exists, but only for the kinds no
+static observer can attribute a tier to — the command, the entry point, the fixtures,
+the extras, the config schema, the template set. An importable name there is refused.
 
 ```mermaid
 flowchart TB
-    manifest["<b>[tool.spoc.stability]</b><br/>pyproject.toml<br/><i>the only place a tier is decided</i>"]
+    subgraph authority ["The artifact — where every importable tier is decided"]
+        direction LR
+        exports["<b>__all__</b><br/>package re-export<br/><i>exposed ⇒ public</i>"]
+        notice["<b>Provisional notice</b><br/>in the element's own docstring<br/><i>+ what would settle it</i>"]
+    end
+
+    manifest["[tool.spoc.stability]<br/>pyproject.toml<br/><i>non-importable kinds only —<br/>a dotted path here is refused</i>"]
+
+    rules["<b>derive_tier</b><br/>public · provisional · internal<br/><i>total over its inputs</i>"]
 
     subgraph projections ["Projections — derived, never authored twice"]
         direction LR
         docs["docs/api/stability.md<br/>the tiers, in prose"]
-        notices["Provisional notices<br/>in each docstring"]
         gate["apicheck<br/>the enforcing gate"]
+        delta["apidiff<br/>the cross-release gate"]
     end
 
-    manifest --> docs
-    manifest --> notices
+    exports --> rules
+    notice --> rules
+    rules --> gate
     manifest --> gate
-    gate -. "fails the build when a<br/>projection drifts" .-> manifest
+    rules --> docs
+    rules --> delta
+    gate -. "fails the build when the<br/>source and the rules disagree" .-> rules
 
     classDef source fill:#1f2937,stroke:#60a5fa,stroke-width:2px,color:#f9fafb
     classDef proj fill:#111827,stroke:#4b5563,color:#e5e7eb
-    class manifest source
-    class docs,notices,gate proj
+    class exports,notice,rules source
+    class docs,gate,delta,manifest proj
 ```
+
+## What may be exposed at all
+
+The rules above say what tier follows *from* exposure. A separate rule governs the
+exposure itself, so a published namespace cannot grow without anything being broken:
+a name is re-exported only if a consumer outside the package must write it to invoke
+an operation, implement a contract the package accepts, distinguish a condition they
+can respond to differently, or supply a value the package reads. Anything that exists
+so the package can assemble itself stays in its defining module.
 
 ## How the check is wired
 
@@ -47,8 +71,8 @@ would have to police itself.
 flowchart LR
     subgraph inputs ["Adapters — the only code that reaches out"]
         direction TB
-        mf["manifest.py<br/><i>tomllib</i><br/>declared tiers"]
-        ex["extract.py<br/><i>griffe, static</i><br/>importable names"]
+        mf["manifest.py<br/><i>tomllib</i><br/>non-importable kinds"]
+        ex["extract.py<br/><i>griffe, static</i><br/>exposure + notice,<br/>per importable name"]
         pk["packaging.py<br/><i>pyproject + AST</i><br/>scripts, entry points,<br/>extras, fixtures, template sets"]
     end
 
@@ -56,7 +80,7 @@ flowchart LR
 
     subgraph out ["Findings"]
         direction TB
-        fatal["undeclared · absent<br/>unmarked-provisional<br/><b>exit 1</b>"]
+        fatal["undeclared · absent<br/>unresolved-tier · unsettled-tier<br/><b>exit 1</b>"]
         soft["unverifiable<br/><i>reported, never silent</i><br/>exit 0"]
     end
 

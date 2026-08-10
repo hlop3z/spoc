@@ -130,8 +130,6 @@ class RemoteTemplateSource:
     retained, otherwise retrieve, admit, and retain it — then load the result as
     an ordinary directory. Everything after ``load_from_directory`` is identical
     to a local set, which is the point: origin buys no special treatment.
-
-    Provisional: may change incompatibly in a minor release.
     """
 
     def __init__(

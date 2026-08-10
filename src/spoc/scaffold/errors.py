@@ -67,8 +67,6 @@ class UnrecognizedReferenceError(ScaffoldError):
     "this named a form I understand, and it was not there", this one means "I do
     not know what you asked for". Reporting the second as the first is how a
     mistyped scheme ends up complaining about a missing directory nobody named.
-
-    Provisional: may change incompatibly in a minor release.
     """
 
     def __init__(self, reference: str, segment: str, forms: tuple[str, ...]) -> None:
@@ -83,10 +81,7 @@ class UnrecognizedReferenceError(ScaffoldError):
 
 
 class RetrievalError(ScaffoldError):
-    """Raised when a remote reference cannot be retrieved.
-
-    Provisional: may change incompatibly in a minor release.
-    """
+    """Raised when a remote reference cannot be retrieved."""
 
     def __init__(self, reference: str, reason: str) -> None:
         self.reference = reference
@@ -97,10 +92,7 @@ class RetrievalError(ScaffoldError):
 
 
 class InsecureRedirectError(ScaffoldError):
-    """Raised when retrieval is redirected onto weaker guarantees than were asked for.
-
-    Provisional: may change incompatibly in a minor release.
-    """
+    """Raised when retrieval is redirected onto weaker guarantees than were asked for."""
 
     def __init__(self, origin: str, destination: str) -> None:
         self.origin = origin
@@ -119,8 +111,6 @@ class MemberRefusedError(ScaffoldError):
     after a member is materialized, because the standard library's own extraction
     filter has had a traversal bypass (CVE-2025-4517) on interpreter versions this
     project supports.
-
-    Provisional: may change incompatibly in a minor release.
     """
 
     def __init__(self, member: str, reason: str) -> None:
@@ -132,10 +122,7 @@ class MemberRefusedError(ScaffoldError):
 
 
 class BoundExceededError(ScaffoldError):
-    """Raised when retrieved content exceeds a declared bound.
-
-    Provisional: may change incompatibly in a minor release.
-    """
+    """Raised when retrieved content exceeds a declared bound."""
 
     def __init__(self, bound_name: str, limit: int) -> None:
         self.bound_name = bound_name
@@ -147,10 +134,7 @@ class BoundExceededError(ScaffoldError):
 
 
 class RevisionUnavailableError(ScaffoldError):
-    """Raised when a revision is neither retained nor retrievable.
-
-    Provisional: may change incompatibly in a minor release.
-    """
+    """Raised when a revision is neither retained nor retrievable."""
 
     def __init__(self, reference: str, reason: str) -> None:
         self.reference = reference
@@ -178,8 +162,6 @@ class ReservedTargetError(ScaffoldError):
     everything the operation requires, and it may not claim anything the
     operation reserves. A set that could write the origin record could describe
     its own provenance — which is worth refusing loudly rather than ignoring.
-
-    Provisional: may change incompatibly in a minor release.
     """
 
     def __init__(self, target: str) -> None:

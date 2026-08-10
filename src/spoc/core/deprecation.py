@@ -20,7 +20,7 @@ from __future__ import annotations
 import functools
 import warnings
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 _T = TypeVar("_T")
 
@@ -72,3 +72,37 @@ try:  # Python 3.13+
     from warnings import deprecated
 except ImportError:  # pragma: no cover - exercised only on 3.12
     deprecated = _fallback_deprecated
+
+
+def deprecated_alias[F: Callable[..., Any]](func: F, message: str, /) -> F:
+    """A deprecated second name for ``func``, leaving ``func`` itself unmarked.
+
+    Withdrawing a name from a published namespace deprecates *that spelling*,
+    not the thing it refers to: the migration is to import it from the module
+    that defines it, and that path must stay clean or the warning contradicts
+    the advice it gives.
+
+    Applying ``@deprecated`` directly cannot express this. Both the standard
+    library's decorator and the fallback above set ``__deprecated__`` on the
+    object handed to them as well as on the wrapper they return — so decorating
+    the definition marks the recommended path too, and a type checker reading
+    that attribute flags the import we are telling people to write. Forwarding
+    through a throwaway function keeps the mark on the alias, which is the only
+    thing being withdrawn.
+
+    The forwarder carries the original's name, docstring, and signature, so
+    documentation tools and ``help()`` show the real thing rather than
+    ``*args, **kwargs``. The return is typed as the original so a caller sees the
+    real signature; the cast is what a type system cannot infer through
+    ``*args, **kwargs``, not a claim the code does something else.
+    """
+
+    @functools.wraps(func)
+    def alias(*args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+
+    # functools.wraps copies __dict__ from the original onto the alias, which
+    # would carry a mark the original picked up elsewhere. Clear it first so
+    # the only __deprecated__ here is the one the decorator is about to set.
+    alias.__dict__.pop("__deprecated__", None)
+    return cast("F", deprecated(message)(alias))

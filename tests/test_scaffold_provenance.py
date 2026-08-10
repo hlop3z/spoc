@@ -16,9 +16,9 @@ from spoc.cli import main as cli_main
 from spoc.scaffold import (
     DirectorySink,
     TemplateSetNotFoundError,
-    UnsatisfiedValueError,
     init_project,
 )
+from spoc.scaffold.errors import UnsatisfiedValueError
 from spoc.scaffold.plan import TemplateFile, TemplateSet
 from spoc.scaffold.provenance import (
     RECORD_NAME,
