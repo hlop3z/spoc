@@ -274,14 +274,43 @@ notices are documentation, and the attribute hook is additive.
 
 ## Open Questions
 
-- Is `DirectorySink` public because a caller genuinely needs to construct one, or only
+- ~~Is `DirectorySink` public because a caller genuinely needs to construct one, or only
   because `init_project` currently requires a sink to be passed rather than defaulting to
   a destination path? A default would make both `DirectorySink` and `ProjectSink`
   avoidable for the common call. Not changed here — it is an operation signature change,
-  not a surface decision — but it would shrink the public set by two if taken later.
-- `AddedApp` is public as `add_app`'s return type, while `GenerationPlan` is public both
+  not a surface decision — but it would shrink the public set by two if taken later.~~
+  **Struck: the shrink is not available at a price worth paying.** Three things this
+  question did not weigh, found by reading the code rather than the archive:
+
+  `ProjectSink` cannot be demoted at all while it remains a parameter. This repository
+  already recorded the governing rule for that case when it made `TemplateSource` public
+  — "it is a parameter of `init_project`, so a caller cannot avoid naming it"
+  (CHANGELOG, remote-template entry). The same sentence decides `ProjectSink`, and it is
+  a surface rule, not a preference.
+
+  The signature change the question proposes breaks Rule 2. `operations.py` states the
+  injection as deliberate in its own module docstring — the operation takes ports rather
+  than constructing them so it stays testable without a filesystem. Any default, for
+  `sink` or `source` alike, imports an adapter (`os`, `shutil`, `tempfile`,
+  `importlib.metadata`) into the pure core and inverts the one dependency direction the
+  rule fixes. A public-name count of two does not buy that.
+
+  A facade module beside `cli.py` would keep the layering and get the DX, and was
+  rejected as speculative generality: it adds a public name, withdraws the "callable
+  from a downstream framework's own entry point" promise `operations.py` makes, and
+  duplicates the composition root the CLI already is — for an embedder that does not yet
+  exist. The call-site noise is real but falls on the embedding API, not on `spoc init`.
+
+  Nothing to do. If an external tool ever embeds the scaffolder and finds the wiring
+  costly, reopen it then with a real implementer's shape to fix, the way
+  `EnumerableSource` is written to settle.
+- ~~`AddedApp` is public as `add_app`'s return type, while `GenerationPlan` is public both
   as a return type and as the thing `AddedApp` carries. If the operations later return a
-  single result type the two would merge; nothing here depends on that.
+  single result type the two would merge; nothing here depends on that.~~ **Struck with
+  the item above**, on which it was always conditional. The two types would merge only
+  under the facade that was rejected; absent it they stay distinct because the operations
+  genuinely return different things — `init_project` reports what was written,
+  `add_app` reports what was written, where it landed, and what to tell the author.
 - ~~**Should `apicheck` report deprecated elements?** Discovered while implementing: neither
   gate models deprecation, so a `public` element that has entered the withdrawal lifecycle
   is indistinguishable from one that has not. `release-policy` requires the lifecycle and
