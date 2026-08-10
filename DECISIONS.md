@@ -508,3 +508,35 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: `apicheck.release`, unchanged in role — it reaches for published releases and
   yields facts. The lifecycle verdict itself is pure and lives in `apicheck.core`, which is
   handed an element's per-release presence and marks and knows nothing about git or tags.
+
+### Decision: Incrementing the declared version — Adopt `hatch version`
+
+- **Status**: approved
+- **Why**: The version's location is already declared once, in hatchling's own format —
+  `[tool.hatch.version] path = "src/spoc/__about__.py"` — because hatchling is the build
+  backend. `hatch version <part>` bumps through that same declaration, so adopting it adds
+  **no configuration at all** and cannot drift from what the build reads. It supersedes an
+  inline-Python regex in `Taskfile.yml` that reimplemented the increment by hand: the
+  `loc`/tokei pattern again, and it could only match `\d+\.\d+\.\d+`, so a pre-release or dev
+  segment would have crashed it. Verified before adopting: `uvx hatch version minor` took
+  0.5.0 → 0.6.0 in ~2s and left the module docstring, `__license__`, and `__author__`
+  untouched. Hatch 1.17.1 (July 2026), MIT, maintained by the PyPA.
+- **Considered**: `bump-my-version` 1.5.1 (the maintained successor to bump2version and
+  bumpversion, both dead upstream — richer, with commit and tag built in, but it pulls nine
+  runtime dependencies and needs its own `[tool.bumpversion]` block, a *second* declaration of
+  where the version lives beside `[tool.hatch.version]`, and its commit/tag feature duplicates
+  `version:release`, which already gates on `task check`); keeping the hand-rolled regex (works
+  today, installs nothing, but is the reinvention the adopt-before-build rule forbids).
+- **Ruled out before scoring**: `uv version --bump` — verified failing here, *"We cannot get or
+  set dynamic project versions in: pyproject.toml"*, since the version is declared `dynamic`.
+  `hatch-vcs` / `setuptools-scm`, which derive the version from the tag and would remove the
+  chance to mistype it entirely — **hard reject**: `apicheck.release.declared_version` reads
+  `__about__.py` statically *before* a tag exists, and `apidiff` gates the surface delta against
+  that declared increment. Deriving the version from tags would disable the deprecation
+  lifecycle enforcement.
+- **Obtaining it**: invoked as `uvx hatch`, so `uv` — already required by `task doctor` — fetches
+  it on first use. It needs no entry in `scripts/go/cmd/ensure`, which exists for tools with no
+  such self-installing runner (`tokei`).
+- **Isolation**: the single internal `version:bump` task in `Taskfile.yml`. The three
+  `version:bump:{major,minor,patch}` entry points pass a segment name and know nothing about
+  the implementation, so replacing hatch means editing one line.
