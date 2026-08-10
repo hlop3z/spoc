@@ -15,26 +15,28 @@ local set: origin buys no capability.
 The kernel does not import anything from here. The dependency runs one way, so
 this package can be deleted without touching the kernel — and nothing in it
 requires a dependency the kernel does not already have, retrieval included.
+
+**What this namespace publishes.** A name appears below only because a consumer
+outside this package must write it to do something the package offers: invoke an
+operation, implement a contract it accepts, distinguish a failure it can respond
+to differently, or supply a value it reads. Everything else — the retrieval
+ports and their adapters, archive admission, the record-writing half of
+provenance, and the error leaves that admit no distinct response — is this
+package assembling itself, and stays in its defining submodule.
+
+Those submodules remain importable, and importing from one is a normal thing to
+do. It carries no stability promise: reaching an internal element is not a
+promotion. What changed is what is promised, not what is reachable.
 """
 
-from .archive import MAX_EXPANDED_BYTES, MAX_MEMBERS, extract_archive
-from .cache import DirectoryCache, default_cache_root
+from ..core.deprecation import deprecated_alias
+from . import archive
 from .errors import (
-    BoundExceededError,
-    IncompleteTemplateSetError,
-    InsecureRedirectError,
-    MemberRefusedError,
-    PathConflictError,
-    PathEscapeError,
-    ReservedTargetError,
     RetrievalError,
-    RevisionUnavailableError,
     ScaffoldError,
     TargetNotEmptyError,
     TemplateSetNotFoundError,
-    UndeclaredValueError,
     UnrecognizedReferenceError,
-    UnsatisfiedValueError,
 )
 from .operations import (
     DEFAULT_APP_NAME,
@@ -44,30 +46,27 @@ from .operations import (
     init_project,
 )
 from .plan import (
-    Cache,
     EnumerableSource,
-    Fetcher,
     GenerationPlan,
     PlannedFile,
     ProjectSink,
-    Reference,
-    ReferenceKind,
-    RevisionResolver,
     TemplateFile,
     TemplateSet,
     TemplateSource,
 )
-from .provenance import (
-    RECORD_NAME,
-    Origin,
-    describe_divergence,
-    read_origin,
-    record_content,
-    record_file,
-)
-from .remote import HttpFetcher, HttpRevisionResolver
+from .provenance import RECORD_NAME, Origin, read_origin
 from .sink import DirectorySink
-from .sources import ENTRY_POINT_GROUP, InstalledTemplateSources, RemoteTemplateSource
+from .sources import ENTRY_POINT_GROUP, InstalledTemplateSources
+
+#: Archive admission is how retrieval is made safe, not something a consumer
+#: composes with — it belongs to the module that performs it. The name stays
+#: here, warning, for one minor release so the migration is discoverable by
+#: running the code rather than by reading a changelog.
+extract_archive = deprecated_alias(
+    archive.extract_archive,
+    "spoc.scaffold.extract_archive is deprecated; import it from "
+    "spoc.scaffold.archive instead. The re-export is removed at 1.0.",
+)
 
 __all__ = [
     # Operations
@@ -76,53 +75,28 @@ __all__ = [
     "AddedApp",
     "DEFAULT_KINDS",
     "DEFAULT_APP_NAME",
-    # Plan and ports
+    # Plan, and the ports the operations take
     "GenerationPlan",
     "PlannedFile",
     "TemplateFile",
     "TemplateSet",
-    "Reference",
-    "ReferenceKind",
     "TemplateSource",
     "EnumerableSource",
     "ProjectSink",
-    "RevisionResolver",
-    "Fetcher",
-    "Cache",
-    # Adapters
+    # The adapters that satisfy those ports without writing one
     "DirectorySink",
     "InstalledTemplateSources",
-    "RemoteTemplateSource",
-    "HttpRevisionResolver",
-    "HttpFetcher",
-    "DirectoryCache",
-    "default_cache_root",
     "ENTRY_POINT_GROUP",
-    # Archive admission
-    "extract_archive",
-    "MAX_EXPANDED_BYTES",
-    "MAX_MEMBERS",
-    # Provenance
+    # Reading a project's origin
     "Origin",
-    "record_content",
-    "record_file",
     "read_origin",
-    "describe_divergence",
     "RECORD_NAME",
-    # Errors
+    # Archive admission — deprecated here, see spoc.scaffold.archive
+    "extract_archive",
+    # Errors: the category, and the four that admit a distinct response
     "ScaffoldError",
     "TargetNotEmptyError",
-    "PathConflictError",
-    "PathEscapeError",
     "TemplateSetNotFoundError",
     "UnrecognizedReferenceError",
-    "IncompleteTemplateSetError",
-    "UnsatisfiedValueError",
-    "UndeclaredValueError",
-    "ReservedTargetError",
     "RetrievalError",
-    "InsecureRedirectError",
-    "MemberRefusedError",
-    "BoundExceededError",
-    "RevisionUnavailableError",
 ]

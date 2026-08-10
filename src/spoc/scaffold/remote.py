@@ -130,8 +130,6 @@ class HttpRevisionResolver:
     or retrieved. For a direct archive URL there is no revision to ask about: the
     URL is the whole identity, so its digest is used as the key and the retrieved
     bytes are what provenance records.
-
-    Provisional: may change incompatibly in a minor release.
     """
 
     def resolve(self, reference: Reference) -> str:
@@ -162,8 +160,6 @@ class HttpFetcher:
     """Retrieves the archived content of an exact revision.
 
     Implements the :class:`~spoc.scaffold.plan.Fetcher` port.
-
-    Provisional: may change incompatibly in a minor release.
     """
 
     def fetch(self, reference: Reference, revision: str) -> bytes:

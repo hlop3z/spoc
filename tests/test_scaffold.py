@@ -17,16 +17,10 @@ from spoc.scaffold import (
     DEFAULT_KINDS,
     DirectorySink,
     GenerationPlan,
-    IncompleteTemplateSetError,
     InstalledTemplateSources,
-    PathConflictError,
-    PathEscapeError,
     PlannedFile,
-    ReservedTargetError,
     TargetNotEmptyError,
     TemplateSetNotFoundError,
-    UndeclaredValueError,
-    UnsatisfiedValueError,
     init_project,
 )
 from spoc.scaffold.core import (
@@ -34,6 +28,14 @@ from spoc.scaffold.core import (
     declared_identifiers,
     detect_conflicts,
     validate_template_set,
+)
+from spoc.scaffold.errors import (
+    IncompleteTemplateSetError,
+    PathConflictError,
+    PathEscapeError,
+    ReservedTargetError,
+    UndeclaredValueError,
+    UnsatisfiedValueError,
 )
 from spoc.scaffold.plan import TemplateFile, TemplateSet
 from spoc.scaffold.provenance import RECORD_NAME
