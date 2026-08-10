@@ -52,14 +52,25 @@ class _Module(NamedTuple):
     source: str
 
 
-def _modules(source_root: Path, package: str) -> list[_Module]:
-    """Every source file of the package, with its dotted module path."""
+@functools.cache
+def _modules(source_root: Path, package: str) -> tuple[_Module, ...]:
+    """Every source file of the package, with its dotted module path.
+
+    The one walk of the tree. Three readers want these bytes — the syntax trees
+    below, the `#:` comment blocks, and the parse-gap report — and each asks a
+    question the others cannot answer from their own result, so they stay
+    separate readers over one read rather than one reader answering three
+    questions. Cached for the same reason `_parsed` is: re-reading the package
+    from disk per caller is waste, not independence.
+
+    A tuple, not a list, so a caller cannot mutate what every later caller gets.
+    """
     found = []
     for path in sorted((source_root / package).rglob("*.py")):
         parts = path.relative_to(source_root).with_suffix("").parts
         dotted = ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
         found.append(_Module(dotted, path, path.read_text(encoding="utf-8")))
-    return found
+    return tuple(found)
 
 
 @functools.cache
