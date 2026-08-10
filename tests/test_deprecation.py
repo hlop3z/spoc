@@ -7,12 +7,17 @@ might not run is a fallback nobody has checked.
 
 from __future__ import annotations
 
+import inspect
 import sys
 import warnings
 
 import pytest
 
-from spoc.core.deprecation import _fallback_deprecated, deprecated
+from spoc.core.deprecation import (
+    _fallback_deprecated,
+    deprecated,
+    deprecated_alias,
+)
 
 MESSAGE = "spoc.old_name is deprecated; use spoc.new_name instead"
 
@@ -129,3 +134,57 @@ def test_the_exported_decorator_is_the_stdlib_one_when_available():
         assert deprecated is warnings.deprecated
     else:  # pragma: no cover - only on 3.12
         assert deprecated is _fallback_deprecated
+
+
+def test_alias_warns_while_the_definition_stays_silent(monkeypatch, mark):
+    """The withdrawn spelling warns; the spelling being recommended does not.
+
+    Both halves matter. Without the second, the migration the message names
+    could itself be deprecated and no test would notice.
+    """
+    monkeypatch.setattr("spoc.core.deprecation.deprecated", mark)
+
+    def original(a, b):
+        return a + b
+
+    alias = deprecated_alias(original, MESSAGE)
+
+    with pytest.warns(DeprecationWarning, match="new_name"):
+        assert alias(2, 3) == 5
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        assert original(2, 3) == 5
+
+
+def test_alias_leaves_the_definition_unmarked(monkeypatch, mark):
+    """A type checker reading ``__deprecated__`` must not flag the definition.
+
+    Applying the decorator directly would: it marks the object it is given as
+    well as the wrapper it returns.
+    """
+    monkeypatch.setattr("spoc.core.deprecation.deprecated", mark)
+
+    def original():
+        return "value"
+
+    alias = deprecated_alias(original, MESSAGE)
+
+    assert getattr(alias, "__deprecated__", None) == MESSAGE
+    assert not hasattr(original, "__deprecated__")
+    assert alias is not original
+
+
+def test_alias_keeps_the_original_signature(monkeypatch, mark):
+    """Documentation and ``help()`` must show the real thing, not ``*args``."""
+    monkeypatch.setattr("spoc.core.deprecation.deprecated", mark)
+
+    def documented(a, b, *, keyword=1):
+        """A docstring that must not be lost."""
+        return a + b + keyword
+
+    alias = deprecated_alias(documented, MESSAGE)
+
+    assert alias.__name__ == "documented"
+    assert alias.__doc__ == "A docstring that must not be lost."
+    assert str(inspect.signature(alias)) == "(a, b, *, keyword=1)"
