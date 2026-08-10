@@ -44,7 +44,7 @@ def _observe(repo: Path) -> tuple[Observation, Contract, list[Finding]]:
             | packaging.VERIFIED_KINDS,
         ),
         merge(derived, declared),
-        unresolved,
+        unresolved + extract.unsanctioned_marks(repo / "src"),
     )
 
 
