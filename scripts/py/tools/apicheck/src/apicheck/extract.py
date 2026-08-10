@@ -15,7 +15,12 @@ from pathlib import Path
 
 import griffe
 
-from apicheck.core import PROVISIONAL_NOTICE, PYTHON, Exposure
+from apicheck.core import (
+    PROVISIONAL_NOTICE,
+    PYTHON,
+    Exposure,
+    states_settling_condition,
+)
 
 # `NAME = value` / `NAME: T = value` at module level.
 _ASSIGN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=]+)?=")
@@ -148,6 +153,7 @@ def exposures(source_root: Path, package: str = "spoc") -> list[Exposure]:
             element=name,
             from_package=from_package,
             documented=PROVISIONAL_NOTICE.lower() in doc.lower(),
+            settling_stated=states_settling_condition(doc),
         )
         for name, (doc, from_package) in _observe(source_root, package).items()
     ]

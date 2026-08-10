@@ -14,14 +14,35 @@ from pathlib import Path
 
 import pytest
 from apicheck import extract
-from apicheck.core import Contract, Exposure, Tier, derive_contract, derive_tier, merge
+from apicheck.core import (
+    Contract,
+    Exposure,
+    Kind,
+    Tier,
+    derive_contract,
+    derive_tier,
+    merge,
+    states_settling_condition,
+)
 
 # tests -> apicheck -> tools -> py -> scripts -> repo root
 REPO = Path(__file__).resolve().parents[5]
 
 
-def exposure(element="spoc.Thing", *, from_package=True, documented=False) -> Exposure:
-    return Exposure(element=element, from_package=from_package, documented=documented)
+def exposure(
+    element="spoc.Thing", *, from_package=True, documented=False, settling_stated=None
+) -> Exposure:
+    # A provisional element states its settling condition unless a test is
+    # specifically about that rule — otherwise every unrelated test would
+    # have to opt out of a finding it is not exercising.
+    if settling_stated is None:
+        settling_stated = documented
+    return Exposure(
+        element=element,
+        from_package=from_package,
+        documented=documented,
+        settling_stated=settling_stated,
+    )
 
 
 # --- the policy, in isolation -------------------------------------------------
@@ -153,3 +174,71 @@ def test_every_declared_element_is_a_kind_no_observer_can_place():
         "script",
         "template-set",
     }
+
+
+# --- provisional must say what would settle it --------------------------------
+
+BARE = "Provisional: may change incompatibly in a minor release."
+SETTLED = BARE + " It settles when a source outside this package implements it."
+
+
+@pytest.mark.parametrize(
+    ("doc", "expected"),
+    [
+        (SETTLED, True),
+        (BARE, False),
+        (BARE + "\n", False),
+        (BARE.replace(".", ""), False),
+        ("", False),
+        ("Some prose that is not a notice at all.", False),
+        # Case-insensitive, like the notice detection it extends.
+        (SETTLED.upper(), True),
+    ],
+)
+def test_settling_condition_is_prose_beyond_the_boilerplate(doc, expected):
+    assert states_settling_condition(doc) is expected
+
+
+def test_a_bare_hedge_is_a_finding():
+    """A tier nobody decided must not pass as one deliberately left open."""
+    contract, findings = derive_contract(
+        [exposure("spoc.Bare", documented=True, settling_stated=False)]
+    )
+    assert [(f.kind, f.element) for f in findings] == [(Kind.UNSETTLED, "spoc.Bare")]
+    assert findings[0].fatal
+    # Still provisional: the tier is what the notice says, and the finding is
+    # about the notice being incomplete rather than about the tier being wrong.
+    assert contract.provisional == frozenset({"spoc.Bare"})
+
+
+def test_a_stated_settling_condition_passes():
+    contract, findings = derive_contract(
+        [exposure("spoc.Open", documented=True, settling_stated=True)]
+    )
+    assert findings == []
+    assert contract.provisional == frozenset({"spoc.Open"})
+
+
+@pytest.mark.parametrize("from_package", [True, False])
+def test_the_rule_applies_only_to_provisional_elements(from_package):
+    """A public or internal element has no notice to be incomplete."""
+    _, findings = derive_contract(
+        [exposure("spoc.Thing", from_package=from_package, settling_stated=False)]
+    )
+    assert findings == []
+
+
+def test_an_internal_element_with_a_bare_notice_is_not_a_finding():
+    """Exposure decides the tier first; an internal element promises nothing,
+    so an unfinished notice on it is untidy rather than a contract breach."""
+    _, findings = derive_contract(
+        [
+            exposure(
+                "spoc.inner.Thing",
+                from_package=False,
+                documented=True,
+                settling_stated=False,
+            )
+        ]
+    )
+    assert findings == []

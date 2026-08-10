@@ -14,8 +14,35 @@ from enum import StrEnum
 # into it is deliberate. This is the phrase the check looks for.
 PROVISIONAL_NOTICE = "may change incompatibly in a minor release"
 
+
 # Elements a dotted Python path cannot name carry a `kind:` prefix.
 PYTHON = "python"
+
+
+def states_settling_condition(doc: str) -> bool:
+    """Whether a provisional notice says anything beyond the bare hedge.
+
+    The contract requires a `provisional` element to state what would settle its
+    tier — the open question, or the condition under which it becomes `public`
+    or is withdrawn. That distinguishes a tier deliberately left open from one
+    that was never decided, which is the failure this catches: the same
+    boilerplate sentence pasted onto everything the author had not thought about
+    yet.
+
+    **This can only detect a bare hedge.** Whether a stated condition is
+    *meaningful* is not mechanically decidable, and no amount of pattern
+    matching will make it so — "settles eventually" passes. The check is worth
+    having anyway, because the real failure mode is not a vacuous condition,
+    it is the absence of one: a notice nobody wrote a second sentence for.
+    """
+    lowered = doc.lower()
+    position = lowered.find(PROVISIONAL_NOTICE)
+    if position == -1:
+        return False
+    remainder = doc[position + len(PROVISIONAL_NOTICE) :]
+    # Strip what merely closes the boilerplate sentence, then see if anything
+    # of substance is left. A word is the bar; punctuation and whitespace are not.
+    return any(character.isalpha() for character in remainder)
 
 
 class Kind(StrEnum):
@@ -24,6 +51,7 @@ class Kind(StrEnum):
     UNDECLARED = "undeclared"
     ABSENT = "absent"
     UNRESOLVED = "unresolved-tier"
+    UNSETTLED = "unsettled-tier"
     UNVERIFIABLE = "unverifiable"
 
 
@@ -127,8 +155,8 @@ class Observation:
 class Exposure:
     """How the artifact exposes one importable element.
 
-    The two facts the rules need, and nothing else. An adapter supplies these by
-    reading the source; this module never learns where they came from.
+    Only the facts the rules need. An adapter supplies these by reading the
+    source; this module never learns where they came from.
     """
 
     element: str
@@ -143,6 +171,13 @@ class Exposure:
 
     documented: bool
     """Whether its own documentation carries `PROVISIONAL_NOTICE`."""
+
+    settling_stated: bool = False
+    """Whether that notice goes on to say what would settle the tier.
+
+    Only consulted for an element the notice made `provisional`; meaningless
+    otherwise, and left `False` there rather than given a third state.
+    """
 
 
 def derive_tier(exposure: Exposure) -> Tier | None:
@@ -189,6 +224,16 @@ def derive_contract(exposures: list[Exposure]) -> tuple[Contract, list[Finding]]
                 )
             )
             continue
+        if tier is Tier.PROVISIONAL and not exposure.settling_stated:
+            findings.append(
+                Finding(
+                    Kind.UNSETTLED,
+                    exposure.element,
+                    "provisional, but its notice does not say what would settle "
+                    "the tier - state the open question, or the condition under "
+                    "which it becomes public or is withdrawn",
+                )
+            )
         tiers[tier].add(exposure.element)
 
     contract = Contract(
