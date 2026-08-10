@@ -21,6 +21,11 @@
       "Bash(git branch -a)",
       "Bash(git branch --show-current)",
       "Bash(git remote -v)",
+      "Bash(task version)",
+      "Bash(task version:get)",
+      "Bash(task version:bump:patch)",
+      "Bash(task version:bump:minor)",
+      "Bash(task version:bump:major)",
       "PowerShell(openspec list:*)",
       "PowerShell(openspec status:*)",
       "PowerShell(openspec show:*)",
@@ -40,7 +45,12 @@
       "PowerShell(git branch)",
       "PowerShell(git branch -a)",
       "PowerShell(git branch --show-current)",
-      "PowerShell(git remote -v)"
+      "PowerShell(git remote -v)",
+      "PowerShell(task version)",
+      "PowerShell(task version:get)",
+      "PowerShell(task version:bump:patch)",
+      "PowerShell(task version:bump:minor)",
+      "PowerShell(task version:bump:major)"
     ]
   }
 }
