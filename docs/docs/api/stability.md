@@ -148,6 +148,18 @@ order:
 Nothing is ever deprecated and removed in the same release, and nothing is removed
 without a warning having been available first.
 
+None of that rests on anyone remembering it. `apidiff` reads the mark out of every
+published release behind the one being cut, so a removal has to show its own
+history: which release first marked it, and that a full minor release shipped in
+between with the element still working. A patch release does not count — the wait
+is measured in minor releases, so `0.6.1` shipping after `0.6.0` marked something
+is still one release, not two.
+
+Where that history cannot be established — an element marked as far back as the
+tags go, or no tags to read — the removal is reported `undetermined` and the run
+exits non-zero. "Nobody could tell" is never reported as "the lifecycle was
+completed".
+
 ## What has to be true before 1.0
 
 These are the criteria, and they are checkable rather than a matter of taste:
@@ -178,8 +190,12 @@ cd scripts/py && uv run apicheck ../..
 
 It fails if an exposed element resolves to no tier, if the manifest declares a
 non-import element the surface no longer exposes, or if the surface exposes one the
-manifest never declared. Kinds it cannot observe are reported `unverifiable` and
-counted, never silently passed.
+manifest never declared. It also fails if an element is marked deprecated without
+naming a replacement or saying there is none, and if a `DeprecationWarning` is
+raised anywhere outside `spoc.core.deprecation` — withdrawal has exactly one
+spelling, because the absence of a mark can only mean "not being withdrawn" if
+there is one way to write one. Kinds it cannot observe are reported `unverifiable`
+and counted, never silently passed.
 
 **What changed since the last release?**
 
@@ -188,9 +204,18 @@ cd scripts/py && uv run apidiff ../..
 ```
 
 It reports every element added, removed, or moved between tiers since the last
-release tag, and every incompatible change. Until 1.0 it reports without failing —
-the allowance above permits those changes, so failing on one would contradict the
-policy. From 1.0 it fails.
+release tag, every incompatible change, every withdrawal currently in flight, and
+for each removed element whether its deprecation lifecycle was completed. Until 1.0
+it reports without failing — the allowance above permits those changes, so failing
+on one would contradict the policy. From 1.0 it fails.
+
+From 1.0 the increment matters as well as the change. A breaking change is what a
+major release is *for*, so incompatible changes are permitted there and refused
+everywhere else; an incomplete withdrawal is refused in every increment, because
+completing the lifecycle is what earns the removal a major release is allowed to
+make. Exit `1` means it found a problem; exit `2` means it could not finish the
+comparison — an unresolvable baseline, or a withdrawal history it could not
+establish — which is deliberately never `0`.
 
 Which means the table at the top of this page is not a description of intent — it is
 enforced.
