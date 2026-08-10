@@ -245,42 +245,35 @@ tasks:
   # =============================================================================
   # Version Management
   # =============================================================================
+  # Reading and writing the version both go through hatch, so the regex that used
+  # to be restated in three places is gone. `hatch version` prints the version
+  # alone on stdout — its environment-setup chatter goes to stderr — which is what
+  # lets `version:release` capture it.
   version:
     desc: Show project version
     cmds:
-      - uv run python -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('src/spoc/__about__.py').read()).group(1))"
+      - uvx hatch version
 
   version:get:
     desc: Get current version (silent)
     silent: true
     cmds:
-      - uv run python -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('src/spoc/__about__.py').read()).group(1))"
+      - uvx hatch version
 
   # One implementation, three entry points. The only thing that differs between
   # patch, minor, and major is which segment increments, so that is the only
   # thing the callers pass.
+  #
+  # hatch rather than a hand-rolled increment (DECISIONS.md, "Incrementing the
+  # declared version"): hatchling is already the build backend, so
+  # `[tool.hatch.version] path` in pyproject.toml is the one place the version's
+  # location is declared, and this bumps through that same declaration instead of
+  # restating it as a regex. Run via `uvx` so uv fetches hatch on first use — it
+  # is not a project dependency.
   version:bump:
     internal: true
-    env:
-      PART: "{{.PART}}"
     cmds:
-      - |
-        uv run python -c "
-        import os, re
-        path = 'src/spoc/__about__.py'
-        content = open(path).read()
-        match = re.search(r'__version__ = \"(\d+)\.(\d+)\.(\d+)\"', content)
-        major, minor, patch = (int(n) for n in match.groups())
-        segments = {
-            'major': (major + 1, 0, 0),
-            'minor': (major, minor + 1, 0),
-            'patch': (major, minor, patch + 1),
-        }[os.environ['PART']]
-        new_version = '.'.join(str(n) for n in segments)
-        new_content = re.sub(r'__version__ = \"[^\"]+\"', f'__version__ = \"{new_version}\"', content)
-        open(path, 'w').write(new_content)
-        print(f'Bumped version to {new_version}')
-        "
+      - uvx hatch version {{.PART}}
 
   version:bump:patch:
     desc: Bump patch version (0.0.X)
@@ -307,7 +300,7 @@ tasks:
     desc: Create release (check, commit, tag, push)
     vars:
       VERSION:
-        sh: uv run python -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('src/spoc/__about__.py').read()).group(1))"
+        sh: uvx hatch version
     cmds:
       - task: check
       - git add src/spoc/__about__.py CHANGELOG.md
