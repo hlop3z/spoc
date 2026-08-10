@@ -282,7 +282,7 @@ notices are documentation, and the attribute hook is additive.
 - `AddedApp` is public as `add_app`'s return type, while `GenerationPlan` is public both
   as a return type and as the thing `AddedApp` carries. If the operations later return a
   single result type the two would merge; nothing here depends on that.
-- **Should `apicheck` report deprecated elements?** Discovered while implementing: neither
+- ~~**Should `apicheck` report deprecated elements?** Discovered while implementing: neither
   gate models deprecation, so a `public` element that has entered the withdrawal lifecycle
   is indistinguishable from one that has not. `release-policy` requires the lifecycle and
   requires the surface assertion to be checkable rather than asserted by hand; those two
@@ -290,7 +290,19 @@ notices are documentation, and the attribute hook is additive.
   small. Deliberately not taken here — it is a second extension to `apicheck` in a change
   that already has one, and this change's own criterion is met by the tests. It should be
   its own change before 1.0 is cut, since 1.0 is the release at which the pre-stable
-  allowance ends and the lifecycle stops being optional.
+  allowance ends and the lifecycle stops being optional.~~ **Resolved by
+  `enforce-deprecation-lifecycle`, the very next change.** The gate models deprecation as
+  `Withdrawal` on `Exposure` — deliberately not a fourth `Tier`, so a marked element keeps
+  every promise its tier makes until the release that removes it. Malformed marks are fatal
+  (`unreplaced-withdrawal`, and `unsanctioned-withdrawal` for a signal raised outside
+  `spoc.core.deprecation`); removals are judged by `lifecycle_verdict`, fatal from 1.0.
+  Two guesses here were wrong and are worth naming: it landed in **`apidiff`, not
+  `apicheck`** — `_in_flight` lists every element marked but still exposed, with its tier,
+  over the whole surface rather than the delta — because the withdrawal inventory belongs
+  beside the lifecycle enforcement, not beside the contract assertion. And the signal is
+  **PEP 702 `@deprecated` through one sanctioned module**, not griffe reading
+  `__deprecated__`; see DECISIONS.md. Nothing remains to do, and no 1.0 prerequisite
+  survives from this question.
 - **PEP 842 (Module Exports)** — draft, targeting Python 3.16, created July 2026 — proposes
   an `export` statement, an `__export__` collection, a `from … export …` re-export form,
   and an `ExportWarning` emitted when an unexported module attribute is reached. That is a
