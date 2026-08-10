@@ -456,3 +456,55 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: `spoc.core.deprecation` — the single import site. Call sites use the
   decorator and never observe which implementation supplied it. Both paths are tested on every
   interpreter, so the fallback is not left unexercised on versions CI may not run.
+
+### Decision: Reading the withdrawal mark from source — Extend griffe with a stdlib `ast` pass
+
+- **Status**: approved
+- **Why**: The gate has to know which elements have entered the deprecation lifecycle without
+  executing the package, and no adopted tool supplies that fact. Verified against the installed
+  griffe rather than assumed: `Object.deprecated` is initialized to `None` and assigned only by
+  the JSON decoder in `_internal/encoders.py` — the static visitor never sets it — and
+  `BreakageKind` has twelve members, none of them deprecation-related. So the archived
+  `decide-scaffold-surface` note that "griffe already reads `__deprecated__`" is wrong, and
+  waiting for upstream is not an option. Griffe stays the adopted extractor for the hard part
+  (`__all__` precedence, alias and re-export resolution); recognizing *our own* mark on top of
+  it is a project-specific rule with no upstream to adopt. The mark is read with `ast` because
+  the message spans implicitly concatenated string literals, which is standard-format parsing —
+  on the never-hand-roll list — and because `extract.py` already opens every source file for
+  `#:` comment blocks, so it is one more fact from a pass that already happens.
+- **Considered**: adopt `memestra` (QuantStack, BSD-3), the one purpose-built static checker for
+  deprecated decorators — hard reject on the maturity rubric: Snyk lists it Inactive, pinned at
+  0.2.1, ~827 weekly downloads, and it solves the inverse problem, finding call sites in
+  consumer code rather than enumerating a package's own marks; wait for ruff, where "warn if
+  anything marked deprecated is used" (astral-sh/ruff#14221) is an open request and not a
+  shipped feature; extend the existing `_ASSIGN` regex scan — rejected, a regex mishandles the
+  two-literal message and hand-rolls parsing of a format the standard library already parses.
+- **Isolation**: `apicheck.extract`, the adapter that already owns reaching for source. The core
+  receives `Exposure.withdrawal` as a fact and never learns how it was recovered. The mark's own
+  sanctioned form remains `spoc.core.deprecation` per the PEP 702 decision above, which is what
+  makes "any other spelling is a finding" enforceable rather than aspirational.
+
+### Decision: Reconstructing per-release history — Extend `apicheck.release`
+
+- **Status**: approved
+- **Why**: Establishing that a removal completed the lifecycle is a question about three points
+  in time — when the mark first appeared, that a full minor release shipped with the element
+  still functional, and that it is now gone — and the comparison currently holds two. The
+  adapter that answers it already exists: `release.py` materializes a ref's `src/` with
+  `git archive` and hands it to the ordinary extractor, precisely so both sides are classified
+  by the same rules. What it lacks is version-ordered tag enumeration and a backward walk, both
+  of which sit inside that boundary and need no new dependency — ordering comes from
+  `packaging.version`, already in use for `declared_version`. The walk is driven by removals and
+  stops at the first release lacking the mark, so in the ordinary case it costs nothing.
+- **Considered**: adopt griffe's `load_git` — it is publicly exported and does check out a ref,
+  but it returns a `Module` where `apicheck` needs a path to run its *own* extractor over (tier
+  derivation, `#:` comments, packaging facts), so it would introduce a second way of reading a
+  ref, which is the exact failure `release.py`'s docstring exists to prevent; it also creates a
+  worktree, taking a repository lock that `git archive` was deliberately chosen to avoid. Build
+  a committed per-release surface record, using griffe's JSON dump since it round-trips
+  `deprecated` — rejected: it is a cache of what the repository already holds, it adds an
+  artifact that can drift from its source, and its only advantage is avoiding a cost the lazy
+  walk already reduces to zero.
+- **Isolation**: `apicheck.release`, unchanged in role — it reaches for published releases and
+  yields facts. The lifecycle verdict itself is pure and lives in `apicheck.core`, which is
+  handed an element's per-release presence and marks and knows nothing about git or tags.

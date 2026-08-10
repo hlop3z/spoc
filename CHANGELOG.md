@@ -32,9 +32,28 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 - **`apidiff`**, its companion (`cd scripts/py && uv run apidiff ../..`), which compares
   the working tree against the last release tag and reports every element added, removed,
   or moved between tiers, plus every incompatible change. Until 1.0 it reports without
-  failing, because the pre-1.0 allowance permits those changes; from 1.0 it fails.
+  failing, because the pre-1.0 allowance permits those changes; from 1.0 it fails. From
+  1.0 the increment is also weighed: an incompatible change is what a major release is
+  for, so breakages are permitted there and refused in every other increment. Without
+  that, the first release able to remove a deprecated element could never pass its own
+  gate.
 - **A deprecation signal** following PEP 702 — `warnings.deprecated` on 3.13+, with a
   stdlib-only fallback on 3.12. `dependencies` stays empty.
+- **The deprecation lifecycle is now enforced by the same comparison that checks
+  compatibility**, rather than resting on a reviewer remembering that an element existed.
+  `apicheck` reads each element's withdrawal mark out of the source and fails when a
+  notice names no replacement and does not say there is none, or when a
+  `DeprecationWarning` is raised outside `spoc.core.deprecation` — withdrawal has exactly
+  one spelling, because the absence of a mark can only mean "not being withdrawn" if
+  there is one way to write one. `apidiff` establishes, for every removed element, which
+  release first marked it, by walking the published releases behind the removal. The wait
+  is counted in **minor lines, not tags**: `0.6.1` shipping after `0.6.0` marked something
+  is one release, not two. A history it cannot establish is reported `undetermined` and
+  exits non-zero — never read as a completed lifecycle.
+
+  Withdrawal is tracked **beside** the tier, never as a tier of its own: a marked element
+  keeps every promise its tier makes until the release that removes it, which is the
+  entire point of the waiting period.
 
 ### Changed
 

@@ -21,10 +21,10 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 
 from apicheck import extract
-from apicheck.core import Exposure
+from apicheck.core import Exposure, MinorLine, ReleasePresence
 
 
 class GitError(RuntimeError):
@@ -92,6 +92,93 @@ def surface_at(repo: Path, ref: str, package: str = "spoc") -> list[Exposure]:
     """The exposures of `package` as of `ref`, read through the usual extractor."""
     with source_at(repo, ref) as src:
         return extract.exposures(src, package)
+
+
+def released_tags(repo: Path) -> list[tuple[Version, str]]:
+    """Every tag that parses as a version, newest first.
+
+    Ordered by parsed version rather than creation date. `latest_tag` sorts by
+    date because "the last release cut" is a question about time; this asks
+    which releases came before which, and a retagged or back-dated release must
+    not be able to reorder that. The two orderings are kept apart on purpose.
+
+    A tag that is not a version is skipped rather than guessed at.
+    """
+    versions = []
+    for tag in _git(repo, "tag", "--list").split():
+        try:
+            versions.append((Version(tag.lstrip("v")), tag))
+        except InvalidVersion:
+            continue
+    return sorted(versions, reverse=True)
+
+
+def tag_version(ref: str) -> Version | None:
+    """The version a ref names, or `None` when it is not a released tag.
+
+    `None` is the honest answer for a branch or a commit hash, and the caller
+    must treat it as "the increment cannot be established" rather than as any
+    particular increment — guessing here would decide whether a breaking change
+    is permitted.
+    """
+    try:
+        return Version(ref.lstrip("v"))
+    except InvalidVersion:
+        return None
+
+
+def minor_line(version: Version) -> MinorLine:
+    """A version reduced to the line the waiting period is counted in.
+
+    Everything after the minor is discarded, which is what stops a patch release
+    from satisfying a period the policy measures in minor releases.
+    """
+    return (version.major, version.minor)
+
+
+def withdrawal_history(
+    repo: Path, element: str, before: MinorLine, package: str = "spoc"
+) -> list[ReleasePresence]:
+    """How the published releases behind `before` exposed one element.
+
+    Walked newest-first and stopped early: once a release is reached that does
+    not carry the mark — because the element is there unmarked, or is not there
+    at all — everything older is settled. The mark began after that release, and
+    no earlier tag can change the verdict. So a removal costs a few extractions
+    rather than one per tag, and a run with no promised removals never calls
+    this at all.
+
+    Returns as much as could be read. An empty result means nothing was
+    readable, which the verdict treats as undetermined rather than as innocent.
+    """
+    history: list[ReleasePresence] = []
+
+    for version, tag in released_tags(repo):
+        line = minor_line(version)
+        if line >= before:
+            continue
+
+        try:
+            exposures = surface_at(repo, tag, package)
+        except GitError:
+            # One unreadable ref is a gap in the record, not a reason to
+            # abandon the rest of it. An empty record is what says "nothing
+            # could be read", and that is already reported as undetermined.
+            continue
+
+        found = next((e for e in exposures if e.element == element), None)
+        history.append(
+            ReleasePresence(
+                line=line,
+                present=found is not None,
+                withdrawn=found is not None and found.withdrawal is not None,
+            )
+        )
+
+        if found is None or found.withdrawal is None:
+            break
+
+    return history
 
 
 def declared_version(repo: Path, package: str = "spoc") -> Version:

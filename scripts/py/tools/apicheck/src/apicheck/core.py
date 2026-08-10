@@ -7,12 +7,20 @@ reaching out, this module only decides).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 
 # A `provisional` element must say so in its own documentation, so that opting
 # into it is deliberate. This is the phrase the check looks for.
 PROVISIONAL_NOTICE = "may change incompatibly in a minor release"
+
+# A withdrawal notice must name what replaces the element, or say that nothing
+# does. This is the phrase that says it outright, for the second case.
+NO_REPLACEMENT_NOTICE = "no replacement"
+
+# A dotted path, which is how a withdrawal notice names a replacement.
+_DOTTED = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+")
 
 
 # Elements a dotted Python path cannot name carry a `kind:` prefix.
@@ -45,6 +53,27 @@ def states_settling_condition(doc: str) -> bool:
     return any(character.isalpha() for character in remainder)
 
 
+def states_replacement(message: str, element: str) -> bool:
+    """Whether a withdrawal notice says where to go instead.
+
+    The contract requires a withdrawal to name what replaces the element, or to
+    state that nothing does. A notice that does neither leaves a consumer with a
+    warning and nowhere to act on it, which is the failure this catches.
+
+    A replacement is named by a dotted path other than the element's own — the
+    element names itself in nearly every notice worth writing, so its own path
+    proves nothing. Saying there is no replacement is the explicit alternative.
+
+    **This can only detect a bare omission**, on exactly the reasoning
+    `states_settling_condition` records: whether a named path is the *right*
+    replacement is not mechanically decidable, and pattern matching will never
+    make it so. The failure worth catching is the notice nobody finished.
+    """
+    if NO_REPLACEMENT_NOTICE in message.lower():
+        return True
+    return any(path != element for path in _DOTTED.findall(message))
+
+
 class Kind(StrEnum):
     """What went wrong. Everything but `UNVERIFIABLE` fails the check."""
 
@@ -52,6 +81,8 @@ class Kind(StrEnum):
     ABSENT = "absent"
     UNRESOLVED = "unresolved-tier"
     UNSETTLED = "unsettled-tier"
+    UNREPLACED = "unreplaced-withdrawal"
+    UNSANCTIONED = "unsanctioned-withdrawal"
     UNVERIFIABLE = "unverifiable"
 
 
@@ -152,6 +183,23 @@ class Observation:
 
 
 @dataclass(frozen=True, order=True)
+class Withdrawal:
+    """An element's mark for withdrawal, and whether that mark is complete.
+
+    Deliberately *not* a `Tier`. A marked element keeps the tier it carried and
+    every promise that tier makes until the release that removes it — that is
+    the whole point of the waiting period, and a fourth tier would report the
+    promise as dropped a full release before it actually is.
+    """
+
+    message: str
+    """The notice a consumer sees when they reach the element."""
+
+    replacement_stated: bool = False
+    """Whether that notice names a replacement, or says there is none."""
+
+
+@dataclass(frozen=True, order=True)
 class Exposure:
     """How the artifact exposes one importable element.
 
@@ -177,6 +225,14 @@ class Exposure:
 
     Only consulted for an element the notice made `provisional`; meaningless
     otherwise, and left `False` there rather than given a third state.
+    """
+
+    withdrawal: Withdrawal | None = None
+    """Its mark for withdrawal, or `None` when it carries none.
+
+    Read beside the tier, never instead of it: `derive_tier` does not consult
+    this field, because entering the lifecycle changes nothing about what the
+    element currently promises.
     """
 
 
@@ -232,6 +288,16 @@ def derive_contract(exposures: list[Exposure]) -> tuple[Contract, list[Finding]]
                     "provisional, but its notice does not say what would settle "
                     "the tier - state the open question, or the condition under "
                     "which it becomes public or is withdrawn",
+                )
+            )
+        if exposure.withdrawal and not exposure.withdrawal.replacement_stated:
+            findings.append(
+                Finding(
+                    Kind.UNREPLACED,
+                    exposure.element,
+                    "marked for withdrawal, but its notice names no replacement "
+                    "and does not say there is none - a consumer who is warned "
+                    "needs somewhere to go",
                 )
             )
         tiers[tier].add(exposure.element)
@@ -322,6 +388,137 @@ def surface_delta(before: Contract, after: Contract) -> list[SurfaceChange]:
         if was[element] != now[element]
     ]
     return sorted(changes)
+
+
+MinorLine = tuple[int, int]
+"""A release's `(major, minor)`. The unit the waiting period is counted in.
+
+Not a version: the policy measures the wait in minor releases, so a patch
+release must not be able to satisfy it. Reducing a version to its minor line
+here is what makes that structural rather than a condition someone can forget.
+"""
+
+
+@dataclass(frozen=True, order=True)
+class ReleasePresence:
+    """How one published release exposed an element.
+
+    Supplied by the adapter that reads published releases; this module never
+    learns what a tag is.
+    """
+
+    line: MinorLine
+    present: bool
+    withdrawn: bool
+
+
+class Lifecycle(StrEnum):
+    """Whether a removal completed the withdrawal lifecycle."""
+
+    COMPLIANT = "compliant"
+    VIOLATED = "violated"
+    UNDETERMINED = "undetermined"
+
+
+@dataclass(frozen=True, order=True)
+class LifecycleVerdict:
+    """One removal, judged against the published releases behind it."""
+
+    lifecycle: Lifecycle
+    element: str
+    detail: str
+
+    @property
+    def justified(self) -> bool:
+        """True only for a removal shown to have completed the lifecycle.
+
+        `UNDETERMINED` is not justified. "Nobody could tell" must never be
+        reported as "the lifecycle was completed" — the same direction the
+        unverifiable-kind rule already protects.
+        """
+        return self.lifecycle is Lifecycle.COMPLIANT
+
+    def __str__(self) -> str:
+        # ASCII only: this prints to a Windows console under cp1252.
+        return f"{self.lifecycle.value}: {self.element} - {self.detail}"
+
+
+def lifecycle_verdict(
+    element: str, history: list[ReleasePresence], removed_in: MinorLine
+) -> LifecycleVerdict:
+    """Judge a removal against what the published releases actually show.
+
+    `history` is the element's presence at every published release older than
+    `removed_in`; order does not matter, and the caller may supply as few as it
+    could read. The three answers are deliberately distinct: a removal that
+    completed the lifecycle, one shown not to have, and one the record cannot
+    settle either way.
+
+    The rule, from the release policy: the element must have been marked in an
+    earlier release, and at least one full minor release must have shipped in
+    between with the element still functional. A release still carrying the
+    element is functional whether or not it also carries the mark, so presence
+    is the bar for the in-between release — the mark's job was done the moment
+    it first appeared.
+    """
+    if not history:
+        return LifecycleVerdict(
+            Lifecycle.UNDETERMINED,
+            element,
+            "no published release could be read, so there is no record of a "
+            "mark to check the removal against",
+        )
+
+    marked = [
+        release.line for release in history if release.present and release.withdrawn
+    ]
+    if not marked:
+        return LifecycleVerdict(
+            Lifecycle.VIOLATED,
+            element,
+            "removed, but no published release carried a mark for it",
+        )
+
+    first_marked = min(marked)
+    between = {
+        release.line
+        for release in history
+        if release.present and first_marked < release.line < removed_in
+    }
+    if between:
+        return LifecycleVerdict(
+            Lifecycle.COMPLIANT,
+            element,
+            f"marked in {_render(first_marked)}, still shipped in "
+            f"{', '.join(sorted(_render(line) for line in between))}, "
+            f"removed in {_render(removed_in)}",
+        )
+
+    # Nothing shipped in between. Whether that is a violation depends on
+    # whether the record actually reaches back past the mark: if the oldest
+    # release we could read is already marked, the mark may have appeared
+    # earlier still, and the answer is not ours to give.
+    oldest = min(release.line for release in history)
+    if first_marked <= oldest:
+        return LifecycleVerdict(
+            Lifecycle.UNDETERMINED,
+            element,
+            f"marked as far back as the record goes ({_render(oldest)}), so the "
+            "release that first marked it cannot be established",
+        )
+
+    return LifecycleVerdict(
+        Lifecycle.VIOLATED,
+        element,
+        f"marked in {_render(first_marked)} and removed in "
+        f"{_render(removed_in)}, with no full minor release in between - a "
+        "patch release does not satisfy the waiting period",
+    )
+
+
+def _render(line: MinorLine) -> str:
+    """A minor line as a reader writes it."""
+    return f"{line[0]}.{line[1]}"
 
 
 def kind_of(element: str) -> str:
