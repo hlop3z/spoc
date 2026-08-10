@@ -19,16 +19,34 @@ every exposed name resolves cleanly under them.
 | **`internal`** | yes | yes | yes |
 
 **`public`** is the bulk of the surface: everything importable from `spoc` directly,
-plus `spoc.formats`, `spoc.testing`, `spoc.diagnostics`, the stable half of
-`spoc.scaffold`, the `spoc` command, the pytest fixtures, and the extras.
+plus `spoc.formats`, `spoc.testing`, `spoc.diagnostics`, `spoc.scaffold`, the `spoc`
+command, the pytest fixtures, and the extras.
 
-**`provisional`** is public and documented, but young. It says so in its own
+**`provisional`** is public and documented, but not yet settled. It says so in its own
 docstring — if you read a docstring containing *"may change incompatibly in a minor
-release"*, that is the mark. Today this is the remote template acquisition and
-provenance surface in `spoc.scaffold`, which landed recently and has had no use in
-the wild yet.
+release"*, that is the mark. A provisional docstring also tells you *what would settle
+it*: the open question, or the condition under which the name becomes `public` or is
+withdrawn. If it only hedges and never says, that is a defect, and the surface check
+fails on it.
 
 **`internal`** is everything else, and `spoc.core` in its entirety.
+
+### What `spoc.scaffold` publishes
+
+A name is exported from `spoc.scaffold` only if you must write it to do something the
+package offers — invoke an operation, implement a contract it accepts, distinguish a
+failure you can respond to differently, or supply a value it reads.
+
+Everything else stays in the module that defines it: the retrieval ports and their
+adapters (`Fetcher`, `Cache`, `HttpFetcher`, `DirectoryCache`, `RemoteTemplateSource`),
+archive admission, the record-*writing* half of provenance, and the error leaves whose
+only distinct response is a different sentence in a message you did not write.
+
+!!! note "Withdrawn is not unreachable"
+    Those names still import fine from their own modules — `from spoc.scaffold.errors
+    import PathEscapeError` works and will keep working. What changed is what is
+    promised, not what is reachable. Reaching an internal element is not a promotion,
+    so a submodule import buys you no stability guarantee.
 
 !!! warning "Being importable is not a promise"
     `spoc.core` holds the kernel: the declaration layer, the loader, the config
@@ -52,15 +70,17 @@ Three rules, applied to the name as the package exposes it:
 So `spoc.Framework` is public because `spoc/__init__.py` exports it.
 `spoc.testing.core.mode` is internal because you can only get at it by importing
 `spoc.testing.core` directly — the promise is on `spoc.testing`, not on the module
-underneath it. And `spoc.scaffold.Reference` is provisional because it says so:
+underneath it. And `spoc.scaffold.Origin` is provisional because it says so, and says
+what would settle it:
 
 ```python
-class Reference:
-    """A parsed template set reference.
+@dataclass(frozen=True, slots=True)
+class Origin:
+    """The template set a project was generated from.
 
-    ...
-
-    Provisional: may change incompatibly in a minor release.
+    Provisional: may change incompatibly in a minor release. It settles when the
+    project decides whether the record must also carry the substitution values a
+    generation used — the project name, app name, and kinds.
     """
 ```
 
@@ -132,10 +152,15 @@ without a warning having been available first.
 
 These are the criteria, and they are checkable rather than a matter of taste:
 
-- [ ] Every element of the surface resolves to a tier, and `apicheck` passes.
-- [ ] Nothing intended to be `public` at 1.0 is still `provisional`.
+- [x] Every element of the surface resolves to a tier, and `apicheck` passes.
+- [x] Nothing intended to be `public` at 1.0 is still `provisional`. Every name
+      `spoc.scaffold` exposed has had its intended tier decided; the handful that
+      remain `provisional` are meant to stay that way past 1.0, and each says why.
 - [ ] The deprecation lifecycle has been exercised on a real element, not only
-      documented and tested.
+      documented and tested. **In progress.** `spoc.scaffold.extract_archive` is
+      deprecated and warning today — steps 1 and 2 above. Steps 3 and 4 span
+      releases: it has to survive a minor and then actually be removed, which is
+      what turns a mechanism that works into a lifecycle that ran.
 
 1.0 is cut when those hold — it is a consequence of meeting them, not a decision
 made independently of them. The `Development Status` classifier tracks the same

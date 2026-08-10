@@ -38,6 +38,23 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 ### Changed
 
+- **`spoc.scaffold` publishes 24 names instead of 49.** Every name the package exposed
+  has had its intended tier for 1.0 decided, against a stated rule rather than by taste:
+  a name is re-exported only if a consumer outside the package must write it to invoke an
+  operation, implement a contract the package accepts, distinguish a condition they can
+  respond to differently, or supply a value the package reads. The withdrawn names are
+  listed under **Removed** below; each remains importable from the module that defines
+  it, and promises nothing there.
+- **`UnrecognizedReferenceError` and `RetrievalError` are now `public`.** Both dropped
+  their provisional notice: a caller can act on each differently — correct a reference's
+  spelling, or fall back to a local template set — which is what earns a promise.
+- **A `provisional` element must now say what would settle it.** The notice alone marked
+  a tier without recording whether it was a decision or an omission. Four elements remain
+  `provisional` past 1.0, each stating its open question: `Origin`, `RECORD_NAME`, and
+  `read_origin` settle when the project decides whether a generated project's origin
+  record must also carry the substitution values a generation used; `EnumerableSource`
+  settles when a template source outside the package implements it. `apicheck` fails on a
+  notice that only hedges.
 - **`spoc.core` is internal, explicitly.** Its docstring previously described it as
   "reachable for anyone extending the kernel," which read as a promise it never made.
   Nothing in it is stable, however reachable it is.
@@ -49,12 +66,61 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   change incompatibly in a minor release until 1.0 is cut. What ends today is the
   silence about it, not the freedom.
 
+### Deprecated
+
+- **`spoc.scaffold.extract_archive`** — import it from `spoc.scaffold.archive` instead.
+  The re-export warns today and is removed at 1.0; the function itself is not going
+  anywhere, and reaching it through its own module is silent. Archive admission is how
+  retrieval is made safe rather than something a consumer composes with, so it belongs to
+  the module that performs it.
+
+  This is the element the deprecation lifecycle is being exercised on. The other 25
+  withdrawals took the pre-1.0 allowance and were removed outright; this one runs the
+  full course, because a policy that requires a lifecycle should have run one before it
+  starts being enforced.
+
 ### Removed
+
+- **25 names are no longer exported from `spoc.scaffold`.** Every one is still importable
+  from the module that defines it — what changed is what is promised, not what is
+  reachable.
+
+  Five of them were in the surface `0.5.0` published and are genuine removals:
+  `PathConflictError`, `PathEscapeError`, `IncompleteTemplateSetError`,
+  `UnsatisfiedValueError`, `UndeclaredValueError`. The other twenty were exported by work
+  that has not been released yet and are withdrawn before they ever ship — listed here
+  because the export list is what a reader will diff, not because anything depended on
+  them. Grouped by why:
+
+  - *The retrieval ports, and the vocabulary they speak* — `Reference`, `ReferenceKind`,
+    `RevisionResolver`, `Fetcher`, `Cache`. None appears in the signature of a public
+    operation; they exist to construct `RemoteTemplateSource`. Now in
+    `spoc.scaffold.plan`.
+  - *The retrieval adapters* — `HttpRevisionResolver`, `HttpFetcher` (now in
+    `spoc.scaffold.remote`), `DirectoryCache`, `default_cache_root` (now in
+    `spoc.scaffold.cache`), `RemoteTemplateSource` (now in `spoc.scaffold.sources`).
+  - *Archive admission bounds* — `MAX_EXPANDED_BYTES`, `MAX_MEMBERS`. Now in
+    `spoc.scaffold.archive`.
+  - *The record-writing half of provenance* — `record_content`, `record_file`,
+    `describe_divergence`. Reading a project's origin stays public; writing the record is
+    the generating operation's own business, and `AddedApp.divergence` already carries
+    the only comparison result a caller needs. Now in `spoc.scaffold.provenance`.
+  - *Ten error leaves whose only distinct response is different wording* —
+    `PathConflictError`, `PathEscapeError`, `IncompleteTemplateSetError`,
+    `UnsatisfiedValueError`, `UndeclaredValueError`, `ReservedTargetError`,
+    `InsecureRedirectError`, `MemberRefusedError`, `BoundExceededError`,
+    `RevisionUnavailableError`. Catch `ScaffoldError` for the category, or import the
+    leaf from `spoc.scaffold.errors`.
+
+  Permitted by the pre-1.0 allowance, which is spent at 1.0 — after which the same
+  withdrawal would cost a full deprecation cycle. That is why it happened now.
 
 - **`TemplateSource.available()`** — the protocol was split, and enumeration now lives on
   `EnumerableSource`, because a remote resolver cannot answer "what template sets exist".
   A template source that only loads by name satisfies `TemplateSource`; one that can also
-  list itself satisfies `EnumerableSource`. Both are `provisional`.
+  list itself satisfies `EnumerableSource`. `TemplateSource` is `public` — it is a
+  parameter of `init_project`, so a caller cannot avoid naming it. `EnumerableSource` is
+  `provisional` until something outside this package implements it.
 
   This is recorded late. The change shipped with the remote-template work and no gate
   could see it at the time; `apidiff` found it on its first run against `v0.5.0`. The
