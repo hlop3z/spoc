@@ -62,8 +62,8 @@ destination untouched, because the destination has not been opened yet.
 flowchart TB
     start["Reference (kind = REMOTE)"]
 
-    resolve["<b>RevisionResolver</b><br/>moving ref → exact revision<br/><i>before anything is cached</i>"]
-    cachehit{"<b>Cache</b><br/>revision retained?"}
+    resolve["<b>RevisionResolver</b><br/>moving ref → exact revision<br/><i>before anything is cached</i><br/><i>an empty revision is refused</i>"]
+    cachehit{"<b>Cache</b><br/>revision retained?<br/><i>keyed verbatim or by digest,<br/>never by a lossy filter</i>"}
     fetch["<b>Fetcher</b><br/>stdlib transport<br/>no scheme-downgrade redirect<br/><i>no response header names a path</i>"]
 
     subgraph admit ["archive — the trust boundary"]
@@ -100,6 +100,24 @@ actually happened to this exact feature elsewhere:
 The last row is why layer 4 exists at all. The tests for it stub layers 1 and 2
 to pass everything, so they exercise containment rather than the standard
 library's filter.
+
+### The revision is a path segment, so the key is total
+
+Retention is addressed by the exact revision, which is what makes it correct with no
+invalidation logic at all: a revision is immutable, so content held under one is never
+stale for it. That argument only holds if the revision names its own entry and no
+other's — and the revision reaches the cache as a directory name, so it has to survive
+being one.
+
+Filtering it down to path-safe characters is the obvious way to make it survive, and it
+breaks the argument: filtering is lossy, so `feature/x` and `featurex` address the same
+entry and one revision is served the other's content. The mapping is total instead. A
+revision already usable as a segment is used verbatim — which is every revision the
+reference grammar can produce, so nothing already retained is disturbed — and anything
+else is named by `rev-<digest>`, the same shape `RevisionResolver` already uses to key a
+direct archive URL. Injectivity is asserted as a property over arbitrary strings rather
+than over the examples someone thought to pick; the collision above survived precisely
+because nobody picked it.
 
 ## How the plan is composed
 

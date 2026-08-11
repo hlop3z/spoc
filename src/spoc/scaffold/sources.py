@@ -20,7 +20,11 @@ from types import ModuleType
 
 from .archive import extract_archive
 from .core import parse_reference
-from .errors import IncompleteTemplateSetError, TemplateSetNotFoundError
+from .errors import (
+    IncompleteTemplateSetError,
+    RetrievalError,
+    TemplateSetNotFoundError,
+)
 from .plan import (
     Cache,
     Fetcher,
@@ -145,6 +149,12 @@ class RemoteTemplateSource:
 
     def load(self, reference: Reference) -> TemplateSet:
         revision = self._revisions.resolve(reference)
+        # An empty revision designates nothing, so there is nothing to retain it
+        # under and nothing to reproduce later. Refused here rather than in the
+        # cache because this is the last layer that still knows the reference the
+        # caller typed, and that is the only part of this they can act on.
+        if not revision.strip():
+            raise RetrievalError(reference.raw, "it resolved to no revision")
 
         retained = self._cache.retained(revision)
         if retained is None:

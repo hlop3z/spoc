@@ -12,12 +12,21 @@ the kernel's empty dependency set or push this feature behind an extra — which
 would reinstate the two-step install the feature exists to remove.
 """
 
+import hashlib
 import os
+import re
 import shutil
 import sys
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
+
+#: A revision usable as a path segment exactly as it stands. Deliberately narrow:
+#: it admits the hexadecimal digests and tag-shaped names revisions actually take,
+#: and nothing that carries a separator, a wildcard, or a platform's reserved
+#: punctuation. Anything outside it is named by its digest instead — never filtered
+#: into this shape, which is what would let two revisions share one entry.
+_SAFE_SEGMENT = re.compile(r"[A-Za-z0-9._-]+")
 
 #: Directory name used under whichever platform cache root applies.
 APPLICATION_NAME = "spoc"
@@ -27,26 +36,41 @@ APPLICATION_NAME = "spoc"
 TEMPLATES_DIR = "templates"
 
 
-def default_cache_root() -> Path:
-    """The conventional per-user cache directory for this platform.
+def cache_root_for(platform: str, environ: Mapping[str, str], home: Path) -> Path:
+    """The conventional per-user cache directory, for a platform named as a value.
 
-    Honours ``XDG_CACHE_HOME`` everywhere it is set, because a user who has set
-    it has said where cached data goes and that answer outranks the platform
-    default.
+    The platform is an argument rather than a read of :data:`sys.platform` so that
+    every branch is reachable from every host. A contributor on one platform is
+    otherwise blind to the other two, and a coverage figure measured on Windows
+    reports the POSIX arms dark while the same suite on Linux reports the Windows
+    arm dark — the number becomes a property of the machine instead of the code.
+
+    Honours ``XDG_CACHE_HOME`` on every platform, not only where it is native,
+    because a user who has set it has said where cached data goes and that answer
+    outranks the platform default.
     """
-    override = os.environ.get("XDG_CACHE_HOME")
+    override = environ.get("XDG_CACHE_HOME")
     if override:
         return Path(override) / APPLICATION_NAME / TEMPLATES_DIR
 
-    if sys.platform == "win32":
-        base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
-        root = Path(base) if base else Path.home() / "AppData" / "Local"
+    if platform == "win32":
+        base = environ.get("LOCALAPPDATA") or environ.get("APPDATA")
+        root = Path(base) if base else home / "AppData" / "Local"
         return root / APPLICATION_NAME / "Cache" / TEMPLATES_DIR
 
-    if sys.platform == "darwin":
-        return Path.home() / "Library" / "Caches" / APPLICATION_NAME / TEMPLATES_DIR
+    if platform == "darwin":
+        return home / "Library" / "Caches" / APPLICATION_NAME / TEMPLATES_DIR
 
-    return Path.home() / ".cache" / APPLICATION_NAME / TEMPLATES_DIR
+    return home / ".cache" / APPLICATION_NAME / TEMPLATES_DIR
+
+
+def default_cache_root() -> Path:
+    """The conventional per-user cache directory for the running platform.
+
+    The adapter over :func:`cache_root_for`: it reads the ambient platform, the
+    environment, and the home directory, and holds no logic of its own.
+    """
+    return cache_root_for(sys.platform, os.environ, Path.home())
 
 
 class DirectoryCache:
@@ -64,14 +88,30 @@ class DirectoryCache:
         self.root = root if root is not None else default_cache_root()
 
     def _entry(self, revision: str) -> Path:
-        # The revision reaches this as a path segment, so it is confined to
-        # characters that cannot traverse. A hostile revision string is refused
-        # by never being usable as one, rather than by being sanitized into
-        # something that looks fine but names a different entry.
-        safe = "".join(c for c in revision if c.isalnum() or c in "-_.")
-        if not safe or safe in {".", ".."}:
-            safe = "invalid"
-        return self.root / safe
+        """The location holding this revision, and no other revision's content.
+
+        The revision reaches this as a path segment, so it must be confined to
+        characters that cannot traverse. Filtering it to those characters is the
+        obvious move and is wrong: filtering is lossy, so ``feature/x`` and
+        ``featurex`` both land here as ``featurex`` and one revision is served
+        the other's content — the single thing a cache keyed by an immutable
+        revision must never do.
+
+        So the mapping is total instead. A revision already usable as a segment
+        is used verbatim, which is every revision reachable through the reference
+        grammar today; anything else is named by its digest. Distinct revisions
+        therefore keep distinct entries whatever they contain, and nothing that
+        was retained before this mapping is invalidated by it.
+
+        An empty revision cannot arrive here through a load — `RemoteTemplateSource`
+        refuses it where the reference is still known, which makes for a message the
+        caller can act on — so this maps it like anything else rather than restating
+        that refusal in a place with less to say.
+        """
+        if _SAFE_SEGMENT.fullmatch(revision) and revision not in {".", ".."}:
+            return self.root / revision
+        digest = hashlib.sha256(revision.encode("utf-8")).hexdigest()
+        return self.root / f"rev-{digest[:32]}"
 
     def retained(self, revision: str) -> Path | None:
         entry = self._entry(revision)
@@ -91,10 +131,15 @@ class DirectoryCache:
             except OSError:
                 # Another process may have published the same revision first.
                 # That is a race with a correct outcome: the revision is
-                # immutable, so whichever copy landed is the right one.
-                if entry.is_dir():
-                    return entry
-                raise
+                # immutable, so whichever copy landed is the right one. If it
+                # did not land, the failure is real and must surface.
+                if not entry.is_dir():
+                    raise
+                # Losing the race leaves our staged copy redundant. It has to be
+                # removed here and not by the handler below, which only runs when
+                # this raises — nothing expires from this cache, so a directory
+                # left once is left for good.
+                shutil.rmtree(staging, ignore_errors=True)
         except BaseException:
             shutil.rmtree(staging, ignore_errors=True)
             raise

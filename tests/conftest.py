@@ -7,6 +7,7 @@ that deliberately exercise raw layouts (config edge cases, malformed trees)
 keep their explicit setup.
 """
 
+import socket
 import sys
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,33 @@ def clean_sys_path_and_modules():
     """
     with import_state():
         yield
+
+
+@pytest.fixture
+def no_sockets(monkeypatch: pytest.MonkeyPatch):
+    """Fail any test that tries to open a network connection.
+
+    The retrieval modules split into `RevisionResolver`, `Fetcher`, and `Cache`
+    precisely so the whole remote path is exercisable without a server. That
+    claim is worth enforcing rather than restating: without this, a test that
+    quietly reached the network would still pass, and would then fail in CI or
+    on a plane for reasons unrelated to what it was testing.
+
+    Not autouse: the suite builds and boots real projects, and a blanket ban
+    would be a claim about all of them rather than about the modules that make
+    it. Modules opt in with
+    ``pytestmark = pytest.mark.usefixtures("no_sockets")``.
+    """
+
+    def refuse(*args: object, **kwargs: object):
+        raise AssertionError(
+            "this test opened a socket; the remote path is meant to be "
+            "exercisable entirely against in-memory ports"
+        )
+
+    monkeypatch.setattr(socket, "socket", refuse)
+    monkeypatch.setattr(socket, "create_connection", refuse)
+    yield
 
 
 def make_project(

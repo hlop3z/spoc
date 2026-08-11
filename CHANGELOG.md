@@ -27,7 +27,35 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   document now states the narrower meaning outright so it cannot drift back into a
   claim.
 
+- **The declared platforms are now Linux, Windows, and macOS**, replacing
+  `Operating System :: OS Independent`. That classifier was a claim no gate can
+  satisfy — CI ran on Linux alone while development happened on Windows — and the
+  project now states the set it actually verifies. The validation suite runs on all
+  three, across every supported Python version, and the platform scope is recorded
+  in `.canon/checks.md`, which CI and `task check` both derive from. Nothing about
+  where SPOC *runs* changed: it remains pure Python with no dependencies. What
+  changed is which platforms it is prepared to answer for. A green local run is now
+  correctly described as evidence for one platform rather than for the pipeline.
+
 ### Fixed
+
+- **A revision could be served another revision's cached template set.** Retained
+  content is keyed by the exact revision it was retrieved for, but the key was built
+  by filtering the revision down to path-safe characters — a lossy step, so
+  `feature/x` and `featurex` both addressed one entry, as did every revision that
+  filtered away to nothing. The mapping is now total: a revision already usable as a
+  path segment is used verbatim, and anything else is named by its digest, so
+  distinct revisions keep distinct entries. An empty revision is refused outright,
+  naming the reference the caller supplied. **No revision reachable through the
+  reference grammar could trigger this** — a revision containing a separator is not
+  parsed as a revision at all — so it was reachable only from a host reporting an
+  unusual commit id, and nothing currently cached is invalidated by the new mapping.
+
+- **Losing a race to cache a revision leaked a staging directory.** When two
+  processes retrieved the same revision at once, the one that finished second
+  correctly used the copy that landed first — and left its own staged copy behind in
+  the cache root. Nothing expires from that cache by design, so every lost race cost
+  a directory permanently. The staged copy is now removed on that path.
 
 - **A kind named for a Python keyword no longer generates a project that fails to
   parse.** `spoc init shop --kinds class` emitted `class = framework.kind("class")`

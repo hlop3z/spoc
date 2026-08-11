@@ -13,12 +13,19 @@ permissions:
   contents: read
 
 jobs:
+  # The full product of the declared platforms and supported interpreters, with no
+  # exclusions — see "Platform scope" in .canon/checks.md, which this matrix is
+  # derived from. Exclusions would make the matrix stop being derivable from that
+  # statement, which is what keeps `task check` and CI the same gate.
   python:
-    name: Python checks (${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    name: Python checks (${{ matrix.os }}, ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      # Matters more with an OS dimension: a failure specific to one platform must
+      # not cancel the evidence from the others.
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.12", "3.13", "3.14"]
     steps:
       - name: Checkout Repository
