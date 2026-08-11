@@ -53,8 +53,8 @@ import spoc
 framework = spoc.Framework("models", "views")
 
 # One decorator per declared kind. Apps import these to declare components.
-models = framework.kind("models")
-views = framework.kind("views")
+model = framework.kind("models")
+view = framework.kind("views")
 ```
 
 **`apps/core/models.py` — a block.** The decorator puts a name tag on the
@@ -62,10 +62,10 @@ class. `Example` in app `core` of kind `models` becomes
 `models:core.example` — you never write that string yourself:
 
 ```python title="apps/core/models.py"
-from framework import models
+from framework import model
 
 
-@models
+@model
 class Example:
     """Registers as models:core.example."""
 ```
@@ -73,10 +73,10 @@ class Example:
 `apps/core/views.py` is the same shape for the `views` kind:
 
 ```python title="apps/core/views.py"
-from framework import views
+from framework import view
 
 
-@views
+@view
 class Example:
     """Registers as views:core.example."""
 ```
@@ -119,10 +119,10 @@ development = ["apps.blog"]
 Now give the blog a real block:
 
 ```python title="apps/blog/models.py"
-from framework import models
+from framework import model
 
 
-@models
+@model
 class Post:
     """Registers as models:blog.post."""
 ```
@@ -131,10 +131,10 @@ The generated `apps/blog/views.py` keeps its starter block — that's the
 `views:blog.example` you're about to see on the shelf:
 
 ```python title="apps/blog/views.py"
-from framework import views
+from framework import view
 
 
-@views
+@view
 class Example:
     """Registers as views:blog.example."""
 ```

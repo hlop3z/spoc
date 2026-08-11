@@ -2,11 +2,11 @@
 
 import dataclasses as dc
 
-from framework import models
+from framework import model
 
 
 @dc.dataclass
-@models
+@model
 class Item:
     """Registers as `models:$app_name.item` — PEP 8 names convert to
     snake_case identifiers automatically."""

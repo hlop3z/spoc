@@ -124,10 +124,12 @@ def test_generated_app_is_a_usable_example(tmp_path):
     destination = tmp_path / "proj"
     generate(destination, kinds=("models", "views", "tasks"))
 
-    for kind in ("models", "views", "tasks"):
+    # The module is named for the kind; the decorator it imports is named for
+    # one member of that kind — same derivation the declaration used.
+    for kind, decorator in (("models", "model"), ("views", "view"), ("tasks", "task")):
         body = (destination / "apps" / "core" / f"{kind}.py").read_text()
-        assert f"from framework import {kind}" in body
-        assert f"@{kind}" in body
+        assert f"from framework import {decorator}" in body
+        assert f"@{decorator}" in body
         assert "class Example" in body
 
 
@@ -137,9 +139,26 @@ def test_custom_kinds_are_declared_and_emitted(tmp_path):
 
     declaration = (destination / "framework.py").read_text()
     assert 'spoc.Framework("widgets")' in declaration
-    assert 'widgets = framework.kind("widgets")' in declaration
+    assert 'widget = framework.kind("widgets")' in declaration
     assert (destination / "apps" / "core" / "widgets.py").is_file()
     assert not (destination / "apps" / "core" / "models.py").exists()
+
+
+def test_decorator_falls_back_to_the_kind_when_singular_is_unsafe(tmp_path):
+    """A generated project must import; a prettier variable is worth less.
+
+    `ifs` singularizes to the keyword `if`, and `view` beside `views` would
+    make two kinds share one variable. Both fall back to the kind's own name.
+    """
+    destination = tmp_path / "proj"
+    generate(destination, kinds=("ifs", "view", "views", "status", "middleware"))
+
+    declaration = (destination / "framework.py").read_text()
+    assert 'ifs = framework.kind("ifs")' in declaration
+    assert 'view = framework.kind("view")' in declaration
+    assert 'views = framework.kind("views")' in declaration
+    assert 'status = framework.kind("status")' in declaration
+    assert 'middleware = framework.kind("middleware")' in declaration
 
 
 def test_target_directory_must_be_empty(tmp_path):

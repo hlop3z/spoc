@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from string import Template
 
-from .core import build_plan, detect_conflicts, validate_name
+from .core import build_plan, decorator_names, detect_conflicts, validate_name
 from .errors import IncompleteTemplateSetError, TargetNotEmptyError
 from .plan import GenerationPlan, PlannedFile, ProjectSink, TemplateSet, TemplateSource
 from .provenance import Origin, describe_divergence, record_file
@@ -85,7 +85,8 @@ def init_project(
         "app_name": app_name,
         "kinds_args": ", ".join(f'"{kind}"' for kind in kinds),
         "kind_decorators": "\n".join(
-            f'{kind} = framework.kind("{kind}")' for kind in kinds
+            f'{name} = framework.kind("{kind}")'
+            for kind, name in decorator_names(kinds).items()
         ),
     }
 

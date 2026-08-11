@@ -16,7 +16,9 @@ which is exactly the contract the template specs require. Its
 rendering.
 """
 
+import keyword
 import re
+from collections import Counter
 from string import Template
 
 from ..core.identity import validate_segment
@@ -49,10 +51,14 @@ _UNSAFE_FRAGMENTS = ("..", "/", "\\", ":")
 #: definition, and the reader of the record is what defines it.
 RESERVED_TARGETS = frozenset({RECORD_NAME})
 
-#: The value bound once per kind while rendering a ``per_kind`` template. It is a
-#: declared substitution value like any other, but it is supplied by the
-#: repetition rather than by the caller — so validation counts it as satisfied.
+#: The values bound once per kind while rendering a ``per_kind`` template. They
+#: are declared substitution values like any other, but they are supplied by the
+#: repetition rather than by the caller — so validation counts them as satisfied.
+#: ``kind`` is the kind's own name; ``decorator`` is the variable the generated
+#: framework binds its decorator to (see :func:`decorator_names`).
 PER_KIND_VALUE = "kind"
+PER_KIND_DECORATOR = "decorator"
+PER_KIND_VALUES = frozenset({PER_KIND_VALUE, PER_KIND_DECORATOR})
 
 
 #: Schemes that designate content which must be retrieved. ``gh`` is a shorthand
@@ -224,7 +230,7 @@ def validate_template_set(template_set: TemplateSet, values: Values) -> None:
 
     declared = set(template_set.values)
     for file in template_set.files:
-        bound = set(values) | ({PER_KIND_VALUE} if file.per_kind else set())
+        bound = set(values) | (PER_KIND_VALUES if file.per_kind else set())
         for text in (file.content, file.target):
             for name in Template(text).get_identifiers():
                 if name not in declared:
@@ -232,10 +238,48 @@ def validate_template_set(template_set: TemplateSet, values: Values) -> None:
                 if name not in bound:
                     raise UnsatisfiedValueError(name)
 
-    supplied = set(values) | {PER_KIND_VALUE}
+    supplied = set(values) | PER_KIND_VALUES
     for name in template_set.values:
         if name not in supplied:
             raise UnsatisfiedValueError(name)
+
+
+def _singular(kind: str) -> str:
+    """The kind's name as one of it — `views` → `view`, `middleware` unchanged.
+
+    A kind names a category (plural); the decorator marks one member of it
+    (singular), so `@view` reads correctly on the thing it decorates. English
+    has no total singularization rule and no library may be adopted for one —
+    the scaffolder ships inside a distribution whose `dependencies = []` is an
+    invariant — so this is deliberately conservative: it changes a name only in
+    the two cases that are unambiguous and returns the kind untouched otherwise.
+    A name it declines to change still generates working code; only the reading
+    is less pretty, and the author owns the generated file.
+    """
+    if kind.endswith("ies") and len(kind) > 4:
+        return kind[:-3] + "y"
+    if len(kind) < 2 or not kind.endswith("s") or kind.endswith(("ss", "us", "is")):
+        return kind
+    return kind[:-1]
+
+
+def decorator_names(kinds: tuple[str, ...]) -> dict[str, str]:
+    """Map each declared kind to the decorator variable generated for it.
+
+    One function, so the framework declaration and every app module derive the
+    same name from the same input and cannot disagree. Two cases fall back to
+    the kind's own name, because a pretty variable is worth less than a file
+    that imports: a singular form that collides with another kind's, and one
+    that is a Python keyword (`ifs` → `if`).
+    """
+    proposed = {kind: _singular(kind) for kind in kinds}
+    taken = Counter(proposed.values())
+    return {
+        kind: kind
+        if taken[name] > 1 or name in set(kinds) - {kind} or keyword.iskeyword(name)
+        else name
+        for kind, name in proposed.items()
+    }
 
 
 def _render(text: str, values: Values) -> str:
@@ -252,9 +296,10 @@ def build_plan(
     Render a template set into an ordered, immutable plan.
 
     A template marked ``per_kind`` is emitted once for each declared kind, with
-    ``kind`` bound to that kind for both its content and its destination path.
-    The repetition is declared by the manifest, not expressed inside a template —
-    template content stays free of logic.
+    ``kind`` bound to that kind — and ``decorator`` to the variable name the
+    framework declaration binds for it — for both its content and its
+    destination path. The repetition is declared by the manifest, not expressed
+    inside a template — template content stays free of logic.
 
     Raises:
         UndeclaredValueError / UnsatisfiedValueError: via validation.
@@ -262,10 +307,14 @@ def build_plan(
     """
     validate_template_set(template_set, values)
 
+    decorators = decorator_names(kinds)
     planned: list[PlannedFile] = []
     for file in template_set.files:
         bindings = (
-            [{**values, PER_KIND_VALUE: kind} for kind in kinds]
+            [
+                {**values, PER_KIND_VALUE: kind, PER_KIND_DECORATOR: decorators[kind]}
+                for kind in kinds
+            ]
             if file.per_kind
             else [dict(values)]
         )

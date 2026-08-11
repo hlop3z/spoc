@@ -66,16 +66,16 @@ import spoc
 
 framework = spoc.Framework("models")
 
-models = framework.kind("models")
+model = framework.kind("models")
 ```
 
 An app declares a block with one decorator:
 
 ```python title="apps/blog/models.py"
-from framework import models
+from framework import model
 
 
-@models
+@model
 class Post:
     """Registers as models:blog.post — the name tag is made for you."""
 ```

@@ -10,6 +10,19 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Generated decorators are named in the singular.** `spoc init` now emits
+  `model = framework.kind("models")` and app modules that import `model`, where both
+  previously echoed the kind name. A kind names a category (plural); the decorator
+  marks one member of it, so `@view` reads correctly on the function it sits above.
+  The name is derived conservatively — only unambiguous cases change, and a singular
+  form that would collide with another kind or shade a Python keyword falls back to
+  the kind's own name, so a generated project always imports. Both built-in template
+  sets, the storefront example, and the documentation now agree; previously the
+  example and the templates disagreed. **Affects newly generated projects only** —
+  nothing in the installed package changed, and an existing project is untouched.
+
 ### Added
 
 - **Documentation that cannot drift** (docs only — no package change). Every Python

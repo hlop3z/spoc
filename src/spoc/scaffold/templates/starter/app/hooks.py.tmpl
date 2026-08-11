@@ -6,10 +6,10 @@ contribute hooks to the same moments — that is the point of a shared
 vocabulary.
 """
 
-from framework import hooks
+from framework import hook
 
 
-@hooks
+@hook
 def announce(moment, **info):
     """Registers as `hooks:$app_name.announce`."""
     if moment == "command_finished":

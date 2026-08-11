@@ -28,10 +28,10 @@ kind's `on_shutdown` hook run in **reverse** order, then everything resets.
 Any app module may define two plain functions:
 
 ```python title="apps/blog/models.py"
-from framework import models
+from framework import model
 
 
-@models
+@model
 class Post: ...
 
 
@@ -55,7 +55,7 @@ import spoc
 
 framework = spoc.Framework("models")
 
-models = framework.kind("models")
+model = framework.kind("models")
 ```
 
 ```toml title="config/spoc.toml"

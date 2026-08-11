@@ -49,7 +49,7 @@ suite — a new error type cannot ship without a row here.
 | `ComponentKindMismatchError` | A block's declared kind doesn't match the module it lives in — layout is taxonomy. | Move the block to the kind's file (`models` block → `models.py`), or fix the decorator; see [Apps & Modes](../learn/apps.md). |
 | `MissingNameError` | An object with no `__name__` (an instance) was registered without `name=`. | Name it explicitly: `resource(Database(), name="database")`; see [The Default Vocabulary](../learn/vocabulary.md). |
 | `UnmarkableObjectError` | The object can't carry the declaration marker (e.g. a builtin or a slotted instance). | Wrap it in something markable, or register a factory/class instead. |
-| `MetadataContractError` | A block's metadata departs from what its kind's `metadata` class demands — extra, missing, or wrongly typed. | Hand in an instance of the declared class: `@views(meta=Route(path=…))`; see [The Framework Object](../learn/framework.md). |
+| `MetadataContractError` | A block's metadata departs from what its kind's `metadata` class demands — extra, missing, or wrongly typed. | Hand in an instance of the declared class: `@view(meta=Route(path=…))`; see [The Framework Object](../learn/framework.md). |
 
 `spoc.formats` has its own family under `FormatError` — those render in
 [the toolbox reference](tooling.md), and the one to catch is `FormatError`.

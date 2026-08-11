@@ -50,21 +50,23 @@ it and mark their blocks:
 import spoc
 
 framework = spoc.Framework("models")
-models = framework.kind("models")
+model = framework.kind("models")
 
 
-@models
+@model
 class UserAccount:          # → models:<app>.user_account
     ...
 
 
-@models(name="admin")       # state the name yourself instead
+@model(name="admin")       # state the name yourself instead
 class Whatever:             # → models:<app>.admin
     ...
 ```
 
-Inside an app you'd write `from framework import models` instead of the four
-setup lines — the decorator is the same object either way.
+Inside an app you'd write `from framework import model` instead of the four
+setup lines — the decorator is the same object either way. The kind is plural
+(`models` is a category); the decorator is singular, because it marks one
+thing. `spoc init` names them that way for you.
 
 A derived name is converted for you: `UserAccount` → `user_account`,
 `HTTPServer` → `http_server`. A name you *state* is used exactly as written —
@@ -87,10 +89,10 @@ class Route:
 
 
 framework = spoc.Framework(spoc.KindSpec("views", metadata=Route))
-views = framework.kind("views")
+view = framework.kind("views")
 
 
-@views(meta=Route(path="/posts"))
+@view(meta=Route(path="/posts"))
 def list_posts():
     ...
 ```

@@ -5,14 +5,14 @@ The project CLI projects these as subcommands:
     python main.py $app_name.add milk
     python main.py $app_name.items
 
-Positional arguments pass through as strings; a new @commands function
+Positional arguments pass through as strings; a new @command function
 becomes a subcommand with no edit to cli.py.
 """
 
-from framework import commands, framework
+from framework import command, framework
 
 
-@commands
+@command
 def add(name="example"):
     """Add an item to the store."""
     store = framework.resolve("resources:$app_name.store").object
@@ -20,7 +20,7 @@ def add(name="example"):
     return f"added {name!r} ({len(store.items)} total)"
 
 
-@commands
+@command
 def items():
     """List the items in the store."""
     store = framework.resolve("resources:$app_name.store").object

@@ -28,7 +28,7 @@ framework = spoc.Framework(
     spoc.KindSpec("resources", on_startup=_open, on_shutdown=_close),
 )
 
-views = framework.kind("views")
+view = framework.kind("views")
 resource = framework.kind("resources")
 ```
 
@@ -59,10 +59,10 @@ database = resource(Database(), name="database")   # → resources:core.database
 ## 3. Reach it through the registry, at call time
 
 ```python title="apps/core/views.py"
-from framework import framework, views
+from framework import framework, view
 
 
-@views
+@view
 def health():
     db = framework.resolve("resources:core.database").object
     return {"database": "up" if db.pool else "down"}

@@ -28,9 +28,11 @@ framework = spoc.Framework(
     "hooks",
 )
 
-# One decorator per declared kind. Apps import these to declare components.
-models = framework.kind("models")
-views = framework.kind("views")
-commands = framework.kind("commands")
-resources = framework.kind("resources")
-hooks = framework.kind("hooks")
+# One decorator per declared kind, named for one member of it: a kind is a
+# category (plural), a decorator marks a single thing in it (singular), so
+# `@view` reads correctly on the function it sits above.
+model = framework.kind("models")
+view = framework.kind("views")
+command = framework.kind("commands")
+resource = framework.kind("resources")
+hook = framework.kind("hooks")

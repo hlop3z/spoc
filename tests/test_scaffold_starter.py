@@ -101,7 +101,7 @@ def test_adding_a_command_extends_the_cli_without_editing_surfaces(tmp_path):
         "a", encoding="utf-8"
     ) as handle:
         handle.write(
-            "\n\n@commands\ndef ping():\n"
+            "\n\n@command\ndef ping():\n"
             '    """Answer with pong."""\n'
             '    return "pong"\n'
         )

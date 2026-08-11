@@ -19,7 +19,7 @@ Three segments, always in that order, each one lowercase snake_case
 | -------------------------------------- | ---------------------------- |
 | `class Post` in `apps/blog/models.py`  | `models:blog.post`           |
 | `class HTTPServer` in `apps/web/views.py` | `views:web.http_server`   |
-| `@models(name="admin")` in `apps/blog` | `models:blog.admin`          |
+| `@model(name="admin")` in `apps/blog`  | `models:blog.admin`          |
 
 Two rules make names predictable:
 
@@ -56,14 +56,14 @@ import spoc
 
 framework = spoc.Framework("models")
 
-models = framework.kind("models")
+model = framework.kind("models")
 ```
 
 ```python title="apps/blog/models.py"
-from framework import models
+from framework import model
 
 
-@models
+@model
 class Post: ...
 ```
 

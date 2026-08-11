@@ -13,6 +13,7 @@ values = [
     "kinds_args",
     "kind_decorators",
     "kind",
+    "decorator",
 ]
 
 # Emitted once each.

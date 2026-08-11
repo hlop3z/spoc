@@ -64,9 +64,8 @@ other**. They meet at the registry.
 
 From the storefront example that ships with SPOC — the `orders` app uses the
 `catalog` app's blocks without ever importing `apps.catalog`. This is the
-example's real file, included at build time (the storefront's own test suite
-runs it, and its `view` decorator is the storefront's naming — your
-`framework.py` picks the names):
+example's real file, included at build time, so the storefront's own test suite
+runs exactly what you read here:
 
 ```python title="apps/orders/views.py" test="skip"
 --8<-- "examples/apps/orders/views.py"

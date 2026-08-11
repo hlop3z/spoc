@@ -56,7 +56,7 @@ delete what you don't need.
 
 ## Grow it
 
-- **A new command**: add a `@commands` function to `apps/core/commands.py`. It
+- **A new command**: add a `@command` function to `apps/core/commands.py`. It
   becomes a subcommand — no edit to `cli.py`.
 - **A new app**: `spoc app billing` generates the five modules; add
   `"apps.billing"` to a mode list in `config/spoc.toml`.

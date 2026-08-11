@@ -5,10 +5,10 @@ view, and whatever transport you bind (HTTP, messaging, a worker) exposes
 it. SPOC registers views; it never calls them.
 """
 
-from framework import framework, views
+from framework import framework, view
 
 
-@views
+@view
 def list_items():
     """Registers as `views:$app_name.list_items`."""
     store = framework.resolve("resources:$app_name.store").object

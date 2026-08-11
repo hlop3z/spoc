@@ -7,7 +7,7 @@ call and close it at shutdown. Reach it with
 import time.
 """
 
-from framework import resources
+from framework import resource
 
 
 class ItemStore:
@@ -24,4 +24,4 @@ class ItemStore:
 
 
 # Instances carry no __name__, so a resource states its name explicitly.
-store = resources(ItemStore(), name="store")
+store = resource(ItemStore(), name="store")
