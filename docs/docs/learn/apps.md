@@ -69,7 +69,7 @@ runs it, and its `view` decorator is the storefront's naming — your
 `framework.py` picks the names):
 
 ```python title="apps/orders/views.py" test="skip"
---8<-- "../examples/apps/orders/views.py"
+--8<-- "examples/apps/orders/views.py"
 ```
 
 The only thing the two apps share is the name-tag grammar. Swap the catalog

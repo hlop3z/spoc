@@ -4,51 +4,23 @@ The contained subpackages: data formats, the test harness, scaffolding, and
 diagnostics. The kernel imports none of them; each is usable — or removable —
 on its own.
 
+Each listing is derived from the module's own `__all__` at build time — a new
+export appears here on the next build, with no edit to this page.
+
 ## `spoc.formats`
+
+The format errors are part of the same surface and render here alongside the
+functions — `FormatError` is the one to catch.
 
 ::: spoc.formats
     options:
       show_root_heading: false
-      members:
-        - loads
-        - dumps
-        - read
-        - write
-        - collect
-        - pointer
-        - query
-        - supported
-        - FormatSupport
-        - Collection
-
-### Errors
-
-::: spoc.formats.errors
-    options:
-      show_root_heading: false
-      members:
-        - FormatError
-        - UnknownFormatError
-        - MissingDependencyError
-        - UnsupportedDirectionError
-        - DecodeError
-        - EncodeError
-        - CollectionError
-        - DuplicateEntryError
-        - MalformedAddressError
-        - PointerResolutionError
 
 ## `spoc.testing`
 
 ::: spoc.testing
     options:
       show_root_heading: false
-      members:
-        - ProjectTree
-        - isolated
-        - mode
-        - import_state
-        - MissingDependencyError
 
 ## `spoc.scaffold`
 
@@ -63,31 +35,6 @@ retrieval, or leave it out and only local sets resolve.
 ::: spoc.scaffold
     options:
       show_root_heading: false
-      members:
-        - init_project
-        - add_app
-        - AddedApp
-        - GenerationPlan
-        - PlannedFile
-        - TemplateSet
-        - TemplateFile
-        - Reference
-        - ReferenceKind
-        - TemplateSource
-        - EnumerableSource
-        - ProjectSink
-        - RevisionResolver
-        - Fetcher
-        - Cache
-        - DirectorySink
-        - InstalledTemplateSources
-        - RemoteTemplateSource
-        - HttpRevisionResolver
-        - HttpFetcher
-        - DirectoryCache
-        - extract_archive
-        - Origin
-        - read_origin
 
 ## `spoc.diagnostics`
 
@@ -96,10 +43,3 @@ The library behind `spoc check`, `spoc list`, and `spoc explain`.
 ::: spoc.diagnostics.core
     options:
       show_root_heading: false
-      members:
-        - check
-        - list_records
-        - explain
-        - CheckReport
-        - Finding
-        - RecordInfo

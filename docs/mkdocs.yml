@@ -28,6 +28,7 @@ nav:
       - API Reference:
           - The Kernel: api/public.md
           - The Toolbox: api/tooling.md
+          - Error Index: api/errors.md
           - Stability & Versioning: api/stability.md
       - The Storefront Example: examples.md
   # One home: CONTRIBUTING.md lives at the repo root, where GitHub surfaces it in the
@@ -84,7 +85,12 @@ markdown_extensions:
   - admonition
   - tables
   - attr_list
-  - pymdownx.snippets
+  # base_path: the repo root (builds run from docs/), so pages can include the
+  # *tested* example sources verbatim; check_paths: a missing include fails the
+  # build instead of silently rendering an empty block.
+  - pymdownx.snippets:
+      base_path: [".."]
+      check_paths: true
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.superfences:

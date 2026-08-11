@@ -48,3 +48,23 @@ def define_env(env):
     @env.macro
     def acronym(text):
         return format_acronym(text)
+
+    @env.macro
+    def cli_help(*command):
+        """The real `spoc [command] --help` output, captured at build time.
+
+        Runs the shipped parser (`spoc.cli`) in a subprocess, so the CLI page
+        cannot drift from the argparse surface — a flag added or reworded in
+        the code appears here on the next build (docs-dx, DECISIONS.md:
+        "CLI reference generation").
+        """
+        import subprocess
+        import sys
+
+        result = subprocess.run(
+            [sys.executable, "-m", "spoc.cli", *command, "--help"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return f"```text\n{result.stdout.rstrip()}\n```"

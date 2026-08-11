@@ -1,15 +1,11 @@
 # The Command Line
 
 Installing SPOC gives you one command, `spoc`, with five subcommands: two that
-**generate** and three that **inspect**.
+**generate** (`init`, `app`) and three that **inspect** (`check`, `list`,
+`explain`). The help below is captured from the real command at build time, so
+it can't drift from what your terminal says:
 
-```text
-spoc init      Generate a new project that starts unedited.
-spoc app       Generate one additional app into an existing project.
-spoc check     Validate the project before runtime.
-spoc list      List every registered identifier.
-spoc explain   Describe one registered identifier.
-```
+{{ cli_help() }}
 
 ## `spoc init` — a new project
 
@@ -19,14 +15,9 @@ spoc init hello
 
 Creates `./hello` with settings, a framework declaration, one app, and an
 entry point — [the quick start](../getting-started/quick-start.md) walks
-through every file. Options:
+through every file.
 
-| Option       | Default          | Meaning                                      |
-| ------------ | ---------------- | -------------------------------------------- |
-| `--path`     | `./<name>`       | Directory to generate into                   |
-| `--app`      | `core`           | Name of the starter app                      |
-| `--kinds`    | `models,views`   | Kinds the framework declares                 |
-| `--template` | `default`        | Template set — see [templates](#templates)   |
+{{ cli_help("init") }}
 
 If anything would collide with existing files, nothing is written at all.
 
@@ -169,5 +160,7 @@ pointer to it:
 ```bash
 spoc check path/to/project --framework mypkg.setup:framework
 ```
+
+{{ cli_help("check") }}
 
 Next: [testing your project](testing.md).

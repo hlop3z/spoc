@@ -162,6 +162,30 @@ def test_page_project(page: Path, tmp_path: Path):
     )
 
 
+def test_error_index_is_complete():
+    """Every exception `spoc` exports has a row in the error index.
+
+    The index page is authored prose; only completeness is mechanical. A new
+    public exception type cannot ship without documenting what triggers it
+    (`documentation-integrity` spec).
+    """
+    import spoc
+
+    page = (DOCS_DIR / "api" / "errors.md").read_text("utf-8")
+    exported_exceptions = [
+        name
+        for name in spoc.__all__
+        if isinstance(obj := getattr(spoc, name), type)
+        and issubclass(obj, BaseException)
+    ]
+    assert exported_exceptions, "spoc exports no exception types — extraction bug?"
+    missing = [name for name in exported_exceptions if f"`{name}`" not in page]
+    assert not missing, (
+        f"exceptions missing from docs/docs/api/errors.md: {missing} — "
+        "add a trigger-and-fix row for each"
+    )
+
+
 def test_skip_ledger():
     """State 3 stays visible and bounded — silence is not an allowed state."""
     skipped = [str(ex) for ex in ALL_EXAMPLES if _is_skip(ex)]

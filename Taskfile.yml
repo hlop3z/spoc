@@ -113,6 +113,7 @@ tasks:
       - task: test:tools
       - task: build:go
       - task: docs:links
+      - task: docs:check
       - task: api:surface
       - task: api:delta
 
@@ -137,6 +138,12 @@ tasks:
     dir: "{{.DOCS_DIR}}"
     cmds:
       - uv run mkdocs build {{.CLI_ARGS}}
+
+  docs:check:
+    desc: Build the docs in strict mode — any warning is a failure (Rule 8)
+    dir: "{{.DOCS_DIR}}"
+    cmds:
+      - uv run mkdocs build --strict
 
   docs:deploy:
     desc: Deploy documentation to GitHub Pages

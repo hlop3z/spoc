@@ -56,19 +56,24 @@ content on top of them. Group 8 closes out.
 
 ## 3. Derived references (API, CLI, errors completeness)
 
-- [ ] 3.1 Drop hand-enumerated `members:` lists from `api/public.md` and
-      `api/tooling.md`; let each `::: module` directive render `__all__`-derived
-      exports; confirm the rendered member set matches the pre-change pages except
-      for intended corrections
-- [ ] 3.2 Create `docs/main.py` with the CLI help-dump macro over
-      `spoc.cli._build_parser`; replace `tools/cli.md` hand-written command/flag prose
-      with macro placeholders (keep the page's tutorial prose)
-- [ ] 3.3 Turn on mkdocs strict mode for the docs build in the validation gate; fix
-      whatever it surfaces in the existing pages
-- [ ] 3.4 Add the error-index completeness test: every exception type in
-      `spoc.__all__` must appear in `docs/docs/api/errors.md` (page authored in 5.1 —
-      test lands first and fails until then, or lands with the page; either way it is
-      in the gate by the end of group 5)
+- [x] 3.1 Hand-enumerated `members:` lists dropped from both API pages; each
+      `::: module` directive now renders its `__all__`-derived exports (verified:
+      `MetadataContractError` on public, `PointerResolutionError` on tooling).
+      `spoc.formats.errors`' separate block collapsed into `::: spoc.formats` — its
+      `__all__` already exports the error types
+- [x] 3.2 `cli_help()` macro added to the existing `docs/main.py` (it already existed
+      with three macros — extended, not created). Deviation from design D-wording:
+      the macro shells out to `python -m spoc.cli … --help` instead of importing
+      `_build_parser` — same parser, no private-attribute walking to reach subcommand
+      parsers. `tools/cli.md`: overview block, init options table, and check flags
+      are now `{{ cli_help(...) }}` placeholders
+- [x] 3.3 Strict mode wired as `task docs:check` in all three homes (checks.md row,
+      Taskfile `check` list, ci.yml `docs-build` job). It surfaced one real defect:
+      `pymdownx.snippets` was silently dropping the storefront include —
+      `base_path`/`check_paths` now configured so a broken include fails the build
+- [x] 3.4 Error-index completeness test in `tests/test_docs_examples.py` — every
+      exception type in `spoc.__all__` must have a backticked row in
+      `docs/docs/api/errors.md`; landed together with the page (5.1)
 
 ## 4. The north-star tutorial
 
@@ -84,11 +89,11 @@ content on top of them. Group 8 closes out.
 
 ## 5. Error index
 
-- [ ] 5.1 Write `docs/docs/api/errors.md`: one row per public exception — trigger,
-      one-line fix, link to the concept page; reuse the real error text already shown
-      in `names-and-registry.md` and friends
-- [ ] 5.2 Confirm the 3.4 completeness test passes and is running in the gate;
-      add the page to nav under API Reference
+- [x] 5.1 `docs/docs/api/errors.md` written: 17 rows across five concern groups —
+      trigger, fix, concept-page link each; formats' own error family pointed at
+      `FormatError` in the toolbox reference
+- [x] 5.2 Completeness test passing (23 passed total) and in the gate via the Unit
+      tests row; page in nav under API Reference before Stability
 
 ## 6. How-To section
 

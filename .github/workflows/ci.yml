@@ -68,6 +68,25 @@ jobs:
         working-directory: scripts/go
         run: go build -o bin/ ./...
 
+  docs-build:
+    name: Docs build (strict)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+
+      - name: Install Dependencies
+        run: uv sync --locked --group docs
+
+      # Strict: warnings fail. This build also *derives* reference content —
+      # API members from __all__, CLI help from the live parser (docs/main.py).
+      - name: Build docs (strict)
+        working-directory: docs
+        run: uv run mkdocs build --strict
+
   doc-links:
     name: Doc links
     runs-on: ubuntu-latest
