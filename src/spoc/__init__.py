@@ -1,11 +1,11 @@
 """
-SPOC — a registry-first runtime kernel for modular monolithic applications.
+SPOC — a component registry and lifecycle for modular monolithic applications.
 
 Declare a framework once — its kinds and their attributes — on one ``Framework`` object,
 then ``start(base_dir)``. SPOC discovers apps, loads their modules in dependency order,
 manages lifecycle, and registers every declared object in one flat registry under a
 canonical identifier: ``kind:namespace.object_name``. External surfaces (HTTP, CLI,
-workers) are built on top by enumerating the registry — the kernel describes, it never
+workers) are built on top by enumerating the registry — SPOC describes, it never
 executes.
 
 What follows is the whole public surface. ``spoc.core`` is **internal** — it holds the

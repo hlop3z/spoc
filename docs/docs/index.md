@@ -104,7 +104,7 @@ print(record.object)  # <class 'apps.blog.models.Post'>
 
 ## What SPOC is (and is not)
 
-SPOC is a **kernel**: it discovers, organizes, and hands back your blocks.
+SPOC is a **registry**: it discovers, organizes, and hands back your blocks.
 It never runs them. The web server, the CLI, the worker — those are thin
 layers *you* build by reading the shelf. That keeps SPOC small, and it keeps
 you in charge.

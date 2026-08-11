@@ -8,23 +8,25 @@
 ![PyPI](https://img.shields.io/pypi/v/spoc?color=blue)
 ![Downloads](https://img.shields.io/pypi/dm/spoc?color=darkgreen)
 
-**SPOC** is a registry-first runtime kernel for modular monolithic Python
-applications. It sits *below* your HTTP framework — FastAPI, Robyn, anything —
-managing internal resources and application objects, and registering every
-declared object in one flat registry under a canonical identifier:
+**SPOC helps you build your own framework.** Under it: a component registry
+with a total naming grammar and a dependency-ordered lifecycle, for modular
+monolithic Python applications. It sits *below* your HTTP framework — FastAPI,
+Robyn, anything — managing internal resources and application objects, and
+registering every declared object in one flat registry under a canonical
+identifier:
 
 ```
 kind:namespace.object_name        e.g.  models:blog.post
 ```
 
-Surfaces are built on top by **enumerating the registry**. The kernel
-describes; it never executes.
+Surfaces are built on top by **enumerating the registry**. SPOC describes; it
+never executes.
 
 ## Features
 
 - **App discovery** — Django-style apps declared by dotted module path and
-  imported through the normal import system; the kernel never touches
-  `sys.path` and never writes to disk
+  imported through the normal import system; SPOC never touches `sys.path`
+  and never writes to disk
 - **Dependency-ordered loading** — modules initialize in topological order,
   tear down in reverse; sync and async lifecycles (`start`/`astart`), with
   coroutine hooks awaited and refused loudly by the sync path
