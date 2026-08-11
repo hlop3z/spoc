@@ -68,8 +68,8 @@ views. Binding it to a real transport is a few lines *in your project*, using
 whatever you prefer. The worked example, with FastAPI
 (`pip install fastapi uvicorn`):
 
-```python title="http_app.py — add beside main.py"
-"""An HTTP surface over the same projection the CLI uses."""
+```python title="http_app.py" test="skip"
+"""An HTTP surface over the same projection the CLI uses — add beside main.py."""
 
 from framework import framework
 from pathlib import Path

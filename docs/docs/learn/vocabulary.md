@@ -53,12 +53,10 @@ def _close(resources):
 
 
 framework = spoc.Framework(
-    "models",
     "views",
     spoc.KindSpec("resources", on_startup=_open, on_shutdown=_close),
 )
 
-models = framework.kind("models")
 views = framework.kind("views")
 resource = framework.kind("resources")
 ```
@@ -98,6 +96,28 @@ def health():
     return {"database": "up" if db.pool else "down"}
 ```
 
+Install the app and boot it, and the whole loop shows itself:
+
+```toml title="config/spoc.toml"
+[spoc.apps]
+development = ["apps.core"]
+```
+
+```python title="main.py"
+from pathlib import Path
+
+from framework import framework
+
+BASE_DIR = Path(__file__).resolve().parent
+
+framework.start(BASE_DIR)
+
+health = framework.resolve("views:core.health").object
+print(health())   # {'database': 'up'}
+
+framework.shutdown()
+```
+
 That's the whole recipe. On `start()`, the kind's `on_startup` opens every declared
 resource before your surface takes traffic; on `shutdown()`, `on_shutdown` closes
 them in reverse module order. And because shutdown replaces the registry, resolving
@@ -121,7 +141,7 @@ Three fine points:
 A `hooks` component is a callable; *dispatching* it is your surface's job, not
 SPOC's — the kernel describes, it never executes. The pattern is one loop:
 
-```python
+```python test="skip"
 for record in framework.registry.by_kind("hooks"):
     record.object(event)          # your surface decides when, and with what
 ```

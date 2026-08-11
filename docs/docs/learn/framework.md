@@ -47,7 +47,10 @@ Declaring the same kind twice is refused — one declaration, no drift.
 it and mark their blocks:
 
 ```python
-from framework import models
+import spoc
+
+framework = spoc.Framework("models")
+models = framework.kind("models")
 
 
 @models
@@ -59,6 +62,9 @@ class UserAccount:          # → models:<app>.user_account
 class Whatever:             # → models:<app>.admin
     ...
 ```
+
+Inside an app you'd write `from framework import models` instead of the four
+setup lines — the decorator is the same object either way.
 
 A derived name is converted for you: `UserAccount` → `user_account`,
 `HTTPServer` → `http_server`. A name you *state* is used exactly as written —
@@ -93,7 +99,7 @@ The form comes back on the record: `framework.resolve("views:blog.list_posts").m
 
 ## Start, ask, stop
 
-```python
+```python test="skip"
 framework.start(BASE_DIR)        # boot: read settings, import apps, fill the shelf
 framework.started                # True
 
@@ -115,6 +121,11 @@ Want to run something once, after every block is on the shelf but before the
 project is live? Register a ready callback:
 
 ```python
+import spoc
+
+framework = spoc.Framework("models")
+
+
 @framework.on_ready
 def announce(registry):
     print(f"Ready: {len(registry)} components registered")

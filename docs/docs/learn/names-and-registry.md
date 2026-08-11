@@ -34,19 +34,54 @@ You can work with tags in code, too:
 import spoc
 
 tag = spoc.parse("models:blog.post")
-tag.kind          # "models"
-tag.namespace     # "blog"
-tag.object_name   # "post"
+print(tag.kind)
+#> models
+print(tag.namespace)
+#> blog
+print(tag.object_name)
+#> post
 
-spoc.compose("models", "blog", "post")   # "models:blog.post"
+print(spoc.compose("models", "blog", "post"))
+#> models:blog.post
 ```
 
 ## The shelf: one registry, many views
 
 After `start()`, every block is a `Component` record in
-`framework.registry` — one flat, ordered collection:
+`framework.registry` — one flat, ordered collection. The examples on this
+page run against the smallest possible project:
 
-```python
+```python title="framework.py"
+import spoc
+
+framework = spoc.Framework("models")
+
+models = framework.kind("models")
+```
+
+```python title="apps/blog/models.py"
+from framework import models
+
+
+@models
+class Post: ...
+```
+
+```toml title="config/spoc.toml"
+[spoc.apps]
+development = ["apps.blog"]
+```
+
+Boot it and ask the shelf anything:
+
+```python title="main.py"
+from pathlib import Path
+
+from framework import framework
+
+BASE_DIR = Path(__file__).resolve().parent
+framework.start(BASE_DIR)
+
 len(framework.registry)                    # how many blocks
 "models:blog.post" in framework.registry   # True
 
@@ -55,13 +90,20 @@ for component in framework.registry:       # everything, in tag order
 
 framework.registry.by_kind("models")       # just the models
 framework.registry.by_namespace("blog")    # just the blog app's blocks
-framework.registry.namespaces()            # ('blog', 'core', ...)
+framework.registry.namespaces()            # ('blog', ...)
 ```
 
 Each record carries the tag, its three segments, the block itself, and any
 metadata:
 
-```python
+```python title="main.py"
+from pathlib import Path
+
+from framework import framework
+
+BASE_DIR = Path(__file__).resolve().parent
+framework.start(BASE_DIR)
+
 record = framework.resolve("models:blog.post")
 record.identifier    # "models:blog.post"
 record.kind          # "models"
@@ -80,9 +122,21 @@ commands. No second list to keep in sync.
 Ask for a tag that isn't there and SPOC tells you **which segment** failed and
 what would have matched:
 
-```python
-framework.resolve("models:blog.pots")
-# UnknownObjectError: Unknown object_name 'pots' in models:blog. Registered: post
+```python title="main.py"
+from pathlib import Path
+
+import spoc
+
+from framework import framework
+
+BASE_DIR = Path(__file__).resolve().parent
+framework.start(BASE_DIR)
+
+try:
+    framework.resolve("models:blog.pots")
+except spoc.UnknownObjectError as error:
+    print(error)
+    # UnknownObjectError: Unknown object_name 'pots' in models:blog. Registered: post
 ```
 
 The same honesty applies when blocks go *onto* the shelf:

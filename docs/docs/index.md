@@ -36,10 +36,9 @@ Your whole framework is one declaration:
 ```python title="framework.py"
 import spoc
 
-framework = spoc.Framework("models", "views")
+framework = spoc.Framework("models")
 
 models = framework.kind("models")
-views = framework.kind("views")
 ```
 
 An app declares a block with one decorator:
@@ -53,9 +52,22 @@ class Post:
     """Registers as models:blog.post — the name tag is made for you."""
 ```
 
+Your settings say which apps to boot:
+
+```toml title="config/spoc.toml"
+[spoc.apps]
+development = ["apps.blog"]
+```
+
 And your entry point starts everything and asks the shelf:
 
 ```python title="main.py"
+from pathlib import Path
+
+from framework import framework
+
+BASE_DIR = Path(__file__).resolve().parent
+
 framework.start(BASE_DIR)
 
 record = framework.resolve("models:blog.post")

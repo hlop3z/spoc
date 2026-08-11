@@ -30,18 +30,29 @@ content on top of them. Group 8 closes out.
 
 ## 2. Existing snippets brought to green
 
-- [ ] 2.1 Complete the broken fragments into runnable state: imports and `BASE_DIR` on
+- [x] 2.1 Complete the broken fragments into runnable state: imports and `BASE_DIR` on
       `index.md`, `import spoc` on `lifecycle.md`, REPL-style attribute lists in
       `names-and-registry.md` and `configuration.md` become executable code with
-      verified output
-- [ ] 2.2 Normalize the decorator-naming drift (`views` vs `view`) across
-      `quick-start.md`, `vocabulary.md`, `apps.md` to match `examples/framework.py`
-- [ ] 2.3 Apply expected-output blocks via `--update-examples` where a snippet's value
-      is its printed result; pin the formatter config in the test module (design D3)
-- [ ] 2.4 Per-case fold-in decision for the two existing docs-mirror tests in
-      `tests/test_framework.py`: fold each into the new module if redundant, keep if
-      it pins behavior beyond execution — record the call in this file when made
-- [ ] 2.5 Full docs snippet suite green with zero unmarked skips
+      verified output. Ten pages became project pages (quick-start, index,
+      configuration, lifecycle, names-and-registry, vocabulary, plugins, formats,
+      testing) — each declares its files with `title=` and runs via `main.py`
+- [x] 2.2 Decorator-naming drift resolved: the pages were each faithful to their own
+      source — templates generate plural (`models = framework.kind("models")`), the
+      storefront example uses singular (`view`). Docs keep plural (the template
+      convention readers generate); `apps.md`'s storefront fence is now
+      build-time-included from `examples/apps/orders/views.py` with a sentence naming
+      the difference. FLAGGED out of scope (Rule 7): the residual divergence is
+      between `examples/framework.py` and the templates themselves
+- [x] 2.3 Expected-output blocks: `#> ` comments on the one printing standalone
+      snippet (parse/compose). CAUTION recorded in the test module: 0.0.18's
+      `--update-examples` writer corrupts pages on CRLF checkouts — verified; use an
+      LF checkout or copy the check-mode diff by hand
+- [x] 2.4 Fold-in decision, per case: BOTH KEPT. `test_settings_seam_docs_example_runs`
+      is the only executor of the pydantic seam (the page's pydantic `main.py` version
+      is overwritten before the tree runs); `test_resource_lifecycle_recipe_…` asserts
+      post-shutdown refusal the page project doesn't reach
+- [x] 2.5 Full docs snippet suite green: 22 passed, 5 skipped (+2 titled skips),
+      ledger 7/7 — zero unmarked
 
 ## 3. Derived references (API, CLI, errors completeness)
 

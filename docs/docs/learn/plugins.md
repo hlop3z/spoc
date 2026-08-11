@@ -33,7 +33,22 @@ def middleware():
 ```
 
 At boot, `extras.middleware` registers as `middleware:extras.middleware` and
-resolves like any other block.
+resolves like any other block:
+
+```python title="main.py"
+from pathlib import Path
+
+from framework import framework
+
+BASE_DIR = Path(__file__).resolve().parent
+
+framework.start(BASE_DIR)
+
+middleware = framework.resolve("middleware:extras.middleware").object
+middleware()   # hello from middleware
+
+framework.shutdown()
+```
 
 ## How the tag is made
 

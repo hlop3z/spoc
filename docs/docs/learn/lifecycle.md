@@ -5,7 +5,7 @@ Nothing happens by accident, and every step either finishes or fails loudly.
 
 ## What `start()` does, in order
 
-```python
+```python test="skip"
 framework.start(BASE_DIR)
 ```
 
@@ -47,12 +47,42 @@ No decorator, no registration — if the functions exist, SPOC calls them at the
 right moments. A module whose `initialize()` never completed is never asked to
 `teardown()`.
 
+Around it, the quick-start shape — rules, settings, start button — and both
+moments print on cue:
+
+```python title="framework.py"
+import spoc
+
+framework = spoc.Framework("models")
+
+models = framework.kind("models")
+```
+
+```toml title="config/spoc.toml"
+[spoc.apps]
+development = ["apps.blog"]
+```
+
+```python title="main.py"
+from pathlib import Path
+
+from framework import framework
+
+BASE_DIR = Path(__file__).resolve().parent
+
+framework.start(BASE_DIR)     # blog models are awake
+framework.shutdown()          # blog models are done
+```
+
 ## Per-kind hooks
 
 A kind can watch all its blocks come and go. The hook fires **once per app
 module**, receiving that app's blocks of the kind, in tag order:
 
 ```python
+import spoc
+
+
 def warm_up(components):
     for c in components:
         print("starting:", c)
@@ -68,7 +98,7 @@ framework = spoc.Framework(
 Everything above has an async twin. Declare coroutine hooks or an async
 `initialize()`/`teardown()`, and boot with:
 
-```python
+```python test="skip"
 await framework.astart(BASE_DIR)
 ...
 await framework.ashutdown()

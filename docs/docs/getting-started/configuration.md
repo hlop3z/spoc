@@ -71,15 +71,25 @@ kernel one.
 ```toml title="config/spoc.toml"
 [spoc]
 mode = "development"
+debug = true
 
 [myapp]                # yours: any keys, any shapes
 api_url = "https://api.example.com"
 retries = 3
 ```
 
-```python
+```python title="main.py"
+from pathlib import Path
+
+import spoc
+
+BASE_DIR = Path(__file__).resolve().parent
+
+framework = spoc.Framework()          # a settings-only project — no kinds yet
 framework.start(BASE_DIR)
+
 settings = framework.config.tables["myapp"]   # {'api_url': ..., 'retries': 3}
+print(settings["retries"])                    # 3
 ```
 
 **Validating your tables is your job**, with any schema tool you like. The
@@ -87,15 +97,25 @@ worked example uses [pydantic](https://docs.pydantic.dev) — a plain model over
 the already-parsed table (not `pydantic-settings`; SPOC has already done the
 file reading):
 
-```python
+```python title="main.py"
+from pathlib import Path
+
+import spoc
 from pydantic import BaseModel, HttpUrl
+
+BASE_DIR = Path(__file__).resolve().parent
+
 
 class MyAppSettings(BaseModel):
     api_url: HttpUrl
     retries: int = 3
 
+
+framework = spoc.Framework()
+framework.start(BASE_DIR)
+
 settings = MyAppSettings.model_validate(framework.config.tables["myapp"])
-settings.retries       # 3 — typed, defaulted, and validated at the boundary
+print(settings.retries)   # 3 — typed, defaulted, and validated at the boundary
 ```
 
 A typo inside `[spoc]` still refuses to boot, loudly. A typo inside your own
@@ -126,13 +146,20 @@ database_url = "sqlite:///dev.db"
 
 After `start()`, everything is on `framework.config`:
 
-```python
+```python title="main.py"
+from pathlib import Path
+
+import spoc
+
+BASE_DIR = Path(__file__).resolve().parent
+
+framework = spoc.Framework()
 framework.start(BASE_DIR)
 
-framework.config.project["debug"]           # True — the [spoc] table
-framework.config.environment["database_url"]  # from the active mode's env file
-framework.config.tables                     # your own top-level tables, as parsed
-framework.installed_apps                    # ['apps.core', 'apps.blog']
+print(framework.config.project["debug"])             # True — the [spoc] table
+print(framework.config.environment["database_url"])  # the active mode's env file
+print(framework.config.tables["myapp"])              # your tables, as parsed
+print(framework.installed_apps)                      # [] — none installed here
 ```
 
 Next: [the framework object](../learn/framework.md).

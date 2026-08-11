@@ -29,6 +29,10 @@ pytest-examples 0.0.18 facts, verified against the installed source
 - ``run_print_check`` fails when a snippet's prints are not mirrored by
   ``#> `` comments, so output display is enforced, not optional;
   ``run_print_update`` under ``--update-examples`` regenerates them.
+  CAUTION: on a CRLF checkout (Windows) the update writer miscomputes file
+  offsets and corrupts the page around the fence — verified against 0.0.18.
+  Until fixed upstream, run ``--update-examples`` only on an LF checkout, or
+  copy the expected ``#> `` lines from the check-mode diff by hand.
 - Examples share no state: each runs as a fresh module. Pages that need
   accumulation declare project files (state 2) instead of relying on
   fence-to-fence memory.
@@ -45,9 +49,12 @@ from pytest_examples import CodeExample, EvalExample, find_examples
 DOCS_DIR = Path(__file__).parent.parent / "docs" / "docs"
 
 # A reasoned ceiling, not an escape hatch: raising it is a visible diff the
-# review must justify (design D2). Starts at zero — every current fence either
-# runs or gets completed until it does.
-SKIP_CEILING = 0
+# review must justify (design D2). The seven: two lifecycle call-shape
+# fragments (start one-liner, await pair), framework.md's boot-shape fragment,
+# vocabulary.md's hook-dispatch loop, stability.md's source quotation,
+# apps.md's build-time-included storefront file, starter.md's transport recipe
+# (runs from the how-to section instead).
+SKIP_CEILING = 7
 
 # Entry-file convention for state 2: the fence a reader would run.
 ENTRY_TITLE = "main.py"

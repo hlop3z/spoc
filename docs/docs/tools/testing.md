@@ -11,11 +11,10 @@ the kernel — and nothing you boot in a test leaks into the next one.
 ## Build a throwaway project: `ProjectTree`
 
 Describe a project as a dict — apps, modules, source — and materialize it in a
-temp folder:
+temp folder. Every test on this page shares one app module, kept in
+`conftest.py`:
 
-```python
-from spoc.testing import ProjectTree
-
+```python title="conftest.py"
 MODELS = """
 from spoc import component
 
@@ -23,9 +22,17 @@ from spoc import component
 class Post:
     pass
 """
+```
 
-tree = ProjectTree(apps={"blog": {"models": MODELS}})
-base = tree.build(tmp_path)     # writes config/spoc.toml, blog/, __init__.py...
+```python title="test_tree.py"
+from conftest import MODELS
+from spoc.testing import ProjectTree
+
+
+def test_build_a_tree(tmp_path):
+    tree = ProjectTree(apps={"blog": {"models": MODELS}})
+    base = tree.build(tmp_path)  # writes config/spoc.toml, blog/, __init__.py...
+    assert (base / "config" / "spoc.toml").exists()
 ```
 
 Every declared app is auto-installed under the `development` mode; pass
@@ -41,15 +48,18 @@ Every declared app is auto-installed under the `development` mode; pass
 A context manager that boots a framework against a folder and — success or
 failure — shuts it down and restores `sys.path` and `sys.modules`:
 
-```python
+```python title="test_isolated.py"
+from conftest import MODELS
 from spoc.testing import ProjectTree, isolated
 
-base = ProjectTree(apps={"blog": {"models": MODELS}}).build(tmp_path)
 
-with isolated(base, "models") as fw:
-    record = fw.resolve("models:blog.post")
-    assert record.namespace == "blog"
-# outside the block: framework stopped, imports restored, nothing leaked
+def test_boot_in_isolation(tmp_path):
+    base = ProjectTree(apps={"blog": {"models": MODELS}}).build(tmp_path)
+
+    with isolated(base, "models") as fw:
+        record = fw.resolve("models:blog.post")
+        assert record.namespace == "blog"
+    # outside the block: framework stopped, imports restored, nothing leaked
 ```
 
 Pass kinds and the scope builds the framework, or hand it a prebuilt one when
@@ -59,13 +69,18 @@ framework when the thing you're testing *is* the boot.
 
 ## Try another mode: `mode`
 
-```python
-from spoc.testing import isolated, mode
+```python title="test_modes.py"
+from conftest import MODELS
+from spoc.testing import ProjectTree, isolated, mode
 
-with mode(base, "production"):          # temporarily rewrites spoc.toml
-    with isolated(base, "models") as fw:
-        assert fw.config.project["mode"] == "production"
-# the file's original bytes are back
+
+def test_production_mode(tmp_path):
+    base = ProjectTree(apps={"blog": {"models": MODELS}}).build(tmp_path)
+
+    with mode(base, "production"):      # temporarily rewrites spoc.toml
+        with isolated(base, "models") as fw:
+            assert fw.config.project["mode"] == "production"
+    # the file's original bytes are back
 ```
 
 ## With pytest: the fixtures
@@ -73,7 +88,10 @@ with mode(base, "production"):          # temporarily rewrites spoc.toml
 Install SPOC and the fixtures are just *there* — no plugin registration, no
 conftest:
 
-```python
+```python title="test_fixtures.py"
+from conftest import MODELS
+
+
 def test_blog_registers_a_post(spoc_framework):
     fw = spoc_framework("models", apps={"blog": {"models": MODELS}})
     assert fw.resolve("models:blog.post").object_name == "post"
@@ -87,5 +105,17 @@ def test_blog_registers_a_post(spoc_framework):
 
 Teardown always runs, even when the test fails — the next test starts from a
 clean world.
+
+To run every test on this page, type `pytest`. (The docs' own harness does the
+same through a tiny entry point — that's how these examples stay green:)
+
+```python title="main.py"
+"""These docs run their own examples: pytest over the files above."""
+
+import subprocess
+import sys
+
+raise SystemExit(subprocess.run([sys.executable, "-m", "pytest", "-q"]).returncode)
+```
 
 Next: [reading data files](formats.md).

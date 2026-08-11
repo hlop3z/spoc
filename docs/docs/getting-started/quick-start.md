@@ -70,6 +70,17 @@ class Example:
     """Registers as models:core.example."""
 ```
 
+`apps/core/views.py` is the same shape for the `views` kind:
+
+```python title="apps/core/views.py"
+from framework import views
+
+
+@views
+class Example:
+    """Registers as views:core.example."""
+```
+
 **`main.py` — the start button.** Nothing happens until you press it:
 
 ```python title="main.py"
@@ -116,6 +127,18 @@ class Post:
     """Registers as models:blog.post."""
 ```
 
+The generated `apps/blog/views.py` keeps its starter block — that's the
+`views:blog.example` you're about to see on the shelf:
+
+```python title="apps/blog/views.py"
+from framework import views
+
+
+@views
+class Example:
+    """Registers as views:blog.example."""
+```
+
 ## 5. Ask the shelf
 
 ```bash
@@ -129,13 +152,25 @@ views:blog.example
 views:core.example
 ```
 
-And from Python, `resolve` turns a name tag back into the block:
+And from Python, `resolve` turns a name tag back into the block. Update
+`main.py` to ask for the post:
 
-```python
-record = framework.resolve("models:blog.post")
-record.object      # <class 'apps.blog.models.Post'>
-record.kind        # "models"
-record.namespace   # "blog"
+```python title="main.py"
+from pathlib import Path
+
+from framework import framework
+
+BASE_DIR = Path(__file__).resolve().parent
+
+if __name__ == "__main__":
+    framework.start(BASE_DIR)
+
+    record = framework.resolve("models:blog.post")
+    print(record.object)     # <class 'apps.blog.models.Post'>
+    print(record.kind)       # models
+    print(record.namespace)  # blog
+
+    framework.shutdown()
 ```
 
 ## You now know the loop

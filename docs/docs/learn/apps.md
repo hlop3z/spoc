@@ -43,6 +43,8 @@ production), as covered in [The Settings File](../getting-started/configuration.
 If views need models to exist first, say so once, in the declaration:
 
 ```python
+import spoc
+
 framework = spoc.Framework(
     "models",
     spoc.KindSpec("views", depends_on=("models",)),
@@ -61,17 +63,13 @@ Here's the part that keeps big projects clean: apps **don't import each
 other**. They meet at the registry.
 
 From the storefront example that ships with SPOC — the `orders` app uses the
-`catalog` app's blocks without ever importing `apps.catalog`:
+`catalog` app's blocks without ever importing `apps.catalog`. This is the
+example's real file, included at build time (the storefront's own test suite
+runs it, and its `view` decorator is the storefront's naming — your
+`framework.py` picks the names):
 
-```python title="apps/orders/views.py"
-from framework import framework, view
-
-
-@view
-def order_summary():
-    product_cls = framework.resolve("models:catalog.product").object
-    stock = framework.resolve("views:catalog.list_products").object()
-    ...
+```python title="apps/orders/views.py" test="skip"
+--8<-- "../examples/apps/orders/views.py"
 ```
 
 The only thing the two apps share is the name-tag grammar. Swap the catalog
