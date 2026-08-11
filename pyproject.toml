@@ -235,6 +235,11 @@ dev = [
     # the same environment. This never reaches an installer of `spoc` —
     # `dependencies` above stays empty; the extras are opt-in feature flags.
     "spoc[full]",
+    # Doc snippet execution (tests/test_docs_examples.py): every Python fence
+    # under docs/docs/ runs or carries an explicit skip marker. Lives in `dev`,
+    # not `docs`, because the *test suite* imports it — the docs build does not.
+    # Adopted via /ai:decide (DECISIONS.md: "Doc snippet execution").
+    "pytest-examples>=0.0.15",
 ]
 examples = [
     # HTTP surface for the registry-projection example (never a kernel dependency)

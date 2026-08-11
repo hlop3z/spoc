@@ -571,3 +571,57 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   kernel's mode cascade); naming no tool (the docs example would be pseudocode).
 - **Isolation**: documentation only — the kernel neither imports nor depends on it, and
   the seam works identically with any validator or none.
+
+### Decision: Doc snippet execution — Adopt `pytest-examples`
+
+- **Status**: approved
+- **Why**: the "docs examples must run" bar is currently enforced for exactly one snippet
+  (`test_settings_seam_docs_example_runs`); everything else can rot silently. pytest-examples
+  (pydantic, MIT, Python 3.10–3.14) discovers examples in markdown and docstrings via
+  `find_examples()`, runs them as ordinary pytest cases, and its `--update-examples` mode
+  lints/formats snippets and inserts expected print output — which is precisely the
+  FastAPI-style output-block habit the docs audit found missing. Library-style discovery
+  (not blanket collection) lets snippets that need a project tree pair with the existing
+  `spoc.testing` harness, and lets non-runnable fragments be either completed or explicitly
+  skipped rather than silently ignored. Dev-dependency only — `dependencies = []` holds.
+- **Considered**: mktestdocs (simpler, `memory=True` chains sequential blocks, but
+  single-maintainer and no output checking or in-place updating); extending the existing
+  docs-mirror test pattern by hand (zero new deps, but hand-writes discovery, extraction,
+  and output comparison a maintained tool already ships — the `loc`/tokei mistake again).
+- **Isolation**: one test module (`tests/test_docs_examples.py`) plus the docs dependency
+  group. The docs themselves stay plain markdown; nothing in `src/spoc` is touched.
+
+### Decision: API reference member lists — Adopt (configure) mkdocstrings/griffe `__all__` derivation
+
+- **Status**: approved
+- **Why**: the member lists in `api/public.md` and `api/tooling.md` are hand-enumerated, so
+  a new `__all__` export silently vanishes from the docs. griffe — already this project's
+  adopted API extractor (see "Public API surface extraction — Adopt griffe") and the engine
+  under the already-installed mkdocstrings — treats `__all__` as the public-API authority
+  natively: modules' exports populate from it, and the handler renders them without manual
+  `members:` lists. This is configuration of two tools already adopted, not a new adoption,
+  and it makes the docs and `apicheck` read the public surface from the same source of truth.
+- **Considered**: keeping hand lists plus a CI drift-checker script (Build — polices a
+  problem the adopted tool dissolves); a custom page-generation script over griffe's JSON
+  dump (Build — reimplements the mkdocstrings handler).
+- **Isolation**: the `::: module` option blocks inside `docs/docs/api/*.md` and the
+  mkdocstrings handler config in `docs/mkdocs.yml`. No source changes; `__all__` remains
+  the single declaration.
+
+### Decision: CLI reference generation — Extend `mkdocs-macros` with a help-dump macro
+
+- **Status**: approved
+- **Why**: `tools/cli.md` is hand-written prose that can drift from the real argparse
+  surface. The maturity rubric fails both purpose-built candidates (below), and the
+  already-installed mkdocs-macros plugin accepts a ~20-line macro that imports the actual
+  parser factory and injects each subcommand's `--help` text at build time — it cannot
+  drift because it runs the real parser, and it adds no new dependency. The downward move
+  from Adopt to Extend is justified by the candidates' immaturity and by the extension
+  being glue over an adopted plugin, not a reimplementation of anything.
+- **Considered**: mkdocs-argparse (purpose-built but tiny community, sparse documentation,
+  unclear maintenance — fails the rubric on activity and community); mkdocs-rich-argparse
+  (actively developed but targets rich-argparse parsers, which SPOC's plain zero-dependency
+  argparse CLI is not).
+- **Isolation**: the macros module referenced by `docs/mkdocs.yml` plus the placeholders in
+  `tools/cli.md`. The CLI itself is untouched; the macro imports the parser factory the
+  shipped console script already uses.
