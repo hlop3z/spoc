@@ -72,4 +72,5 @@ So `apps.demo.extras.hook` would register as `hooks:demo.hook`.
 - **Kind hooks don't fire for plugin-only kinds.** `on_startup`/`on_shutdown`
   fire per app *module*, and a plugin has none.
 
-Next: [the command line](../tools/cli.md).
+Next: [build a framework](build-a-framework.md) — everything on these pages,
+in four files you author.

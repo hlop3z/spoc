@@ -32,97 +32,19 @@ them. That's the projection pattern from
 Every application has a few objects that must be **opened once, shared everywhere,
 and closed on the way out** — a database pool, an HTTP client, a cache connection.
 Most frameworks hand you an untyped bag for these (`app.ctx.db`, `app.state`). SPOC
-already has something better: the registry. The recipe is three small pieces, all of
-them public API you've already met.
+already has something better: the registry.
 
-**1. Declare the kind with lifecycle hooks** — the only kind in the vocabulary that
-uses them:
+The recipe is three small pieces, all public API you've already met: declare the
+kind with `on_startup`/`on_shutdown` hooks (the only kind in the vocabulary that
+uses them), register each resource as an *instance* that knows how to `open()` and
+`close()` itself, and resolve it through the registry at call time. The complete,
+runnable project is [Add a Database](../how-to/add-a-database.md) — this page keeps
+the reasons.
 
-```python title="framework.py"
-import spoc
-
-
-def _open(resources):
-    for resource in resources:
-        resource.open()
-
-
-def _close(resources):
-    for resource in resources:
-        resource.close()
-
-
-framework = spoc.Framework(
-    "views",
-    spoc.KindSpec("resources", on_startup=_open, on_shutdown=_close),
-)
-
-views = framework.kind("views")
-resource = framework.kind("resources")
-```
-
-**2. Declare each resource as a component** — an *instance* that knows how to open
-and close itself. Instances have no `__name__`, so name it explicitly:
-
-```python title="apps/core/resources.py"
-from framework import resource
-
-
-class Database:
-    """A stand-in for your engine/pool of choice."""
-
-    def __init__(self):
-        self.pool = None
-
-    def open(self):
-        self.pool = {"connected": True}   # real code: create the pool here
-
-    def close(self):
-        self.pool = None
-
-
-database = resource(Database(), name="database")   # → resources:core.database
-```
-
-**3. Reach it through the registry**, from any app, while handling a call:
-
-```python title="apps/core/views.py"
-from framework import framework, views
-
-
-@views
-def health():
-    db = framework.resolve("resources:core.database").object
-    return {"database": "up" if db.pool else "down"}
-```
-
-Install the app and boot it, and the whole loop shows itself:
-
-```toml title="config/spoc.toml"
-[spoc.apps]
-development = ["apps.core"]
-```
-
-```python title="main.py"
-from pathlib import Path
-
-from framework import framework
-
-BASE_DIR = Path(__file__).resolve().parent
-
-framework.start(BASE_DIR)
-
-health = framework.resolve("views:core.health").object
-print(health())   # {'database': 'up'}
-
-framework.shutdown()
-```
-
-That's the whole recipe. On `start()`, the kind's `on_startup` opens every declared
-resource before your surface takes traffic; on `shutdown()`, `on_shutdown` closes
-them in reverse module order. And because shutdown replaces the registry, resolving
-`resources:core.database` after teardown fails with a **named error** — you can never
-be handed a dead pool.
+On `start()`, the kind's `on_startup` opens every declared resource before your
+surface takes traffic; on `shutdown()`, `on_shutdown` closes them in reverse module
+order. And because shutdown replaces the registry, resolving a resource after
+teardown fails with a **named error** — you can never be handed a dead pool.
 
 Three fine points:
 

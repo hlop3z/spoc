@@ -92,34 +92,13 @@ settings = framework.config.tables["myapp"]   # {'api_url': ..., 'retries': 3}
 print(settings["retries"])                    # 3
 ```
 
-**Validating your tables is your job**, with any schema tool you like. The
-worked example uses [pydantic](https://docs.pydantic.dev) — a plain model over
-the already-parsed table (not `pydantic-settings`; SPOC has already done the
-file reading):
-
-```python title="main.py"
-from pathlib import Path
-
-import spoc
-from pydantic import BaseModel, HttpUrl
-
-BASE_DIR = Path(__file__).resolve().parent
-
-
-class MyAppSettings(BaseModel):
-    api_url: HttpUrl
-    retries: int = 3
-
-
-framework = spoc.Framework()
-framework.start(BASE_DIR)
-
-settings = MyAppSettings.model_validate(framework.config.tables["myapp"])
-print(settings.retries)   # 3 — typed, defaulted, and validated at the boundary
-```
+**Validating your tables is your job**, with any schema tool you like — the
+table arrives as a plain dict, so any validator that accepts one fits the
+seam. The worked, runnable example (a plain pydantic model over the
+already-parsed table) is [Validate Your Settings](../how-to/validate-settings.md).
 
 A typo inside `[spoc]` still refuses to boot, loudly. A typo inside your own
-table is yours to catch — which is exactly what the model above does.
+table is yours to catch — at the boundary, before the bad value travels.
 
 ## Per-mode environment values
 
@@ -162,4 +141,5 @@ print(framework.config.tables["myapp"])              # your tables, as parsed
 print(framework.installed_apps)                      # [] — none installed here
 ```
 
-Next: [the framework object](../learn/framework.md).
+Next: [the starter template](starter.md), or jump to
+[the framework object](../learn/framework.md).

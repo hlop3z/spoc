@@ -12,8 +12,8 @@ nav:
       - Getting Started:
           - Install: getting-started/installation.md
           - Your First Project: getting-started/quick-start.md
-          - The Starter: getting-started/starter.md
           - The Settings File: getting-started/configuration.md
+          - The Starter: getting-started/starter.md
       - Learn:
           - The Framework Object: learn/framework.md
           - Name Tags & the Registry: learn/names-and-registry.md
@@ -21,6 +21,13 @@ nav:
           - Start & Stop: learn/lifecycle.md
           - The Default Vocabulary: learn/vocabulary.md
           - Plugins: learn/plugins.md
+          - Build a Framework: learn/build-a-framework.md
+      - How-To:
+          - Add a Database: how-to/add-a-database.md
+          - Bind a Transport: how-to/bind-a-transport.md
+          - Validate Your Settings: how-to/validate-settings.md
+          - Test Your App: how-to/test-your-app.md
+          - Ship a Reusable App: how-to/ship-a-reusable-app.md
       - Tools:
           - The Command Line: tools/cli.md
           - Testing Your Project: tools/testing.md

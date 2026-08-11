@@ -4,7 +4,35 @@
 
 Frameworks like Django have rules: "put models in `models.py`, and I will find
 them." SPOC lets *you* write rules like that — in about five lines — and it
-does all the finding for you.
+does all the finding for you. That claim is a tutorial, not a slogan:
+[build a framework](learn/build-a-framework.md) takes you from an empty folder
+to `curl` talking to your own framework, in four files.
+
+## See it work
+
+Three commands to a working, dependency-free application:
+
+<!-- termynal -->
+
+```
+$ pip install spoc
+$ spoc init myproject --template starter
+$ cd myproject && python main.py --help
+usage: myproject [-h] {core.add,core.items} ...
+
+positional arguments:
+  {core.add,core.items}
+    core.add            Add an item to the store.
+    core.items          List the items in the store.
+
+options:
+  -h, --help            show this help message and exit
+```
+
+That help text was not written anywhere. It is **derived** — from blocks the
+generated app registered, by rules the generated `framework.py` declares. The
+docs' test suite generates this exact project and checks this exact output.
+[The starter](getting-started/starter.md) walks through every file.
 
 ## The idea, with a toy box
 

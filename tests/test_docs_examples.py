@@ -49,12 +49,11 @@ from pytest_examples import CodeExample, EvalExample, find_examples
 DOCS_DIR = Path(__file__).parent.parent / "docs" / "docs"
 
 # A reasoned ceiling, not an escape hatch: raising it is a visible diff the
-# review must justify (design D2). The seven: two lifecycle call-shape
+# review must justify (design D2). The six: two lifecycle call-shape
 # fragments (start one-liner, await pair), framework.md's boot-shape fragment,
-# vocabulary.md's hook-dispatch loop, stability.md's source quotation,
-# apps.md's build-time-included storefront file, starter.md's transport recipe
-# (runs from the how-to section instead).
-SKIP_CEILING = 7
+# vocabulary.md's hook-dispatch loop, stability.md's source quotation, and
+# apps.md's build-time-included storefront file.
+SKIP_CEILING = 6
 
 # Entry-file convention for state 2: the fence a reader would run.
 ENTRY_TITLE = "main.py"
@@ -78,10 +77,15 @@ def _is_skip(example: CodeExample) -> bool:
     return example.prefix_settings().get("test") == "skip"
 
 
+# The tutorial's entry serves HTTP forever, so the generic run-main.py test
+# would hang on it; test_framework_tutorial drives it end-to-end instead.
+TUTORIAL_PAGE = DOCS_DIR / "learn" / "build-a-framework.md"
+
 ALL_EXAMPLES = list(find_examples(str(DOCS_DIR)))
 STANDALONE = [ex for ex in ALL_EXAMPLES if _title(ex) is None]
 TREE_PAGES = sorted(
     {ex.path for ex in ALL_EXAMPLES if _title(ex) is not None and not _is_skip(ex)}
+    - {TUTORIAL_PAGE}
 )
 
 
@@ -144,10 +148,7 @@ def test_page_project(page: Path, tmp_path: Path):
         f"{page.name} declares project files {titles} but no "
         f'title="{ENTRY_TITLE}" entry — a project page must say how it runs'
     )
-    for title, body in files:
-        dest = tmp_path.joinpath(*title.split("/"))
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(body, encoding="utf-8")
+    _write_page_tree(page, tmp_path)
     proc = subprocess.run(
         [sys.executable, ENTRY_TITLE],
         cwd=tmp_path,
@@ -159,6 +160,100 @@ def test_page_project(page: Path, tmp_path: Path):
     assert proc.returncode == 0, (
         f"{page.name}'s project failed to run:\n"
         f"--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}"
+    )
+
+
+def _write_page_tree(page: Path, dest: Path) -> None:
+    for title, body in _page_files(page):
+        target = dest.joinpath(*title.split("/"))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body, encoding="utf-8")
+
+
+def test_framework_tutorial(tmp_path: Path):
+    """The Build a Framework page, end to end (`framework-tutorial` spec).
+
+    Assemble the page's files in page order, boot the framework the reader
+    built, serve HTTP on an ephemeral port (argv `0` — the page's own port
+    argument), and assert the exact responses the page displays. Single
+    request per route, no sleeps: the server prints its bound port before
+    serving, so the test reads that line instead of polling.
+    """
+    import json
+    import urllib.request
+
+    _write_page_tree(TUTORIAL_PAGE, tmp_path)
+    proc = subprocess.Popen(
+        [sys.executable, "main.py", "0"],
+        cwd=tmp_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert proc.stdout is not None
+        line = proc.stdout.readline().strip()
+        if not line.startswith("Serving on"):
+            _, stderr = proc.communicate(timeout=30)
+            pytest.fail(f"tutorial project failed to boot:\n{line}\n{stderr}")
+        port = int(line.rsplit(":", 1)[1])
+
+        def get(path: str) -> object:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}{path}", timeout=30
+            ) as response:
+                return json.load(response)
+
+        # The exact payloads the page's curl blocks display.
+        assert get("/hello/greet") == {"message": "Hello from a framework you built"}
+        assert get("/hello/goodbye") == {"message": "That's the whole trick"}
+    finally:
+        proc.kill()
+
+
+@pytest.mark.parametrize(
+    "page_path", ["index.md", "getting-started/starter.md"], ids=lambda p: p
+)
+def test_displayed_starter_help_is_real(page_path: str, tmp_path: Path):
+    """The `--help` output the docs display is the generated starter's, verbatim.
+
+    Generates the real starter (builtin set, offline), runs its entry point,
+    and compares against the page's displayed block — the landing payoff
+    cannot go stale (design D5).
+    """
+    import os
+
+    page = (DOCS_DIR / Path(*page_path.split("/"))).read_text("utf-8")
+    match = re.search(r"^usage: myproject.*?(?=\n```)", page, re.MULTILINE | re.DOTALL)
+    assert match, f"{page_path} lost its starter --help block"
+    displayed = match.group(0)
+
+    init = subprocess.run(
+        [sys.executable, "-m", "spoc.cli", "init", "myproject", "--template", "starter"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert init.returncode == 0, f"spoc init failed:\n{init.stdout}\n{init.stderr}"
+    shown = subprocess.run(
+        [sys.executable, "main.py", "--help"],
+        cwd=tmp_path / "myproject",
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+        env={**os.environ, "COLUMNS": "80"},
+    )
+    assert shown.returncode == 0, shown.stderr
+
+    def normalize(text: str) -> list[str]:
+        return [line.rstrip() for line in text.strip().splitlines() if line.strip()]
+
+    assert normalize(displayed) == normalize(shown.stdout), (
+        f"{page_path} displays stale starter --help output — "
+        "update the block to what the generated project actually prints"
     )
 
 

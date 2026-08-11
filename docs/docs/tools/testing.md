@@ -86,16 +86,8 @@ def test_production_mode(tmp_path):
 ## With pytest: the fixtures
 
 Install SPOC and the fixtures are just *there* — no plugin registration, no
-conftest:
-
-```python title="test_fixtures.py"
-from conftest import MODELS
-
-
-def test_blog_registers_a_post(spoc_framework):
-    fw = spoc_framework("models", apps={"blog": {"models": MODELS}})
-    assert fw.resolve("models:blog.post").object_name == "post"
-```
+conftest wiring. The worked test is
+[Test Your App](../how-to/test-your-app.md); what each fixture gives you:
 
 | Fixture          | What it gives you                                          |
 | ---------------- | ---------------------------------------------------------- |

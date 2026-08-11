@@ -18,6 +18,9 @@ positional arguments:
   {core.add,core.items}
     core.add            Add an item to the store.
     core.items          List the items in the store.
+
+options:
+  -h, --help            show this help message and exit
 ```
 
 That help text was not written anywhere — it is a **projection**. `surface.py`
@@ -65,44 +68,10 @@ delete what you don't need.
 
 `surface.routes(registry)` already derives an abstract route table from your
 views. Binding it to a real transport is a few lines *in your project*, using
-whatever you prefer. The worked example, with FastAPI
-(`pip install fastapi uvicorn`):
-
-```python title="http_app.py" test="skip"
-"""An HTTP surface over the same projection the CLI uses — add beside main.py."""
-
-from framework import framework
-from pathlib import Path
-import surface
-
-BASE_DIR = Path(__file__).resolve().parent
-
-
-def create_app():
-    from fastapi import FastAPI
-
-    framework.start(BASE_DIR)
-    app = FastAPI(title="myproject")
-    for route in surface.routes(framework.registry):
-        app.add_api_route(
-            route["path"], route["endpoint"], methods=["GET"], name=route["name"]
-        )
-    return app
-
-
-app = create_app()   # uvicorn http_app:app
-```
-
-The same shape works for anything that maps *name → callable*:
-
-- **A message socket**: iterate `surface.routes`, subscribe each `name`, call
-  `endpoint` on message arrival.
-- **A worker loop**: `surface.commands(framework.registry)["core.add"]` is a
-  plain callable — schedule it however your queue likes.
-
-Every one of these is a loop over the same table. That is the whole idea:
-SPOC never chooses your transport, and your components never know which one
-called them.
+whatever you prefer — the worked, runnable FastAPI example is
+[Bind a Transport](../how-to/bind-a-transport.md), and the same loop shape
+serves a message socket or a worker queue. SPOC never chooses your transport,
+and your components never know which one called them.
 
 Next: [The Default Vocabulary](../learn/vocabulary.md) explains what each kind
 means, or jump to [the storefront example](../examples.md) for a three-app

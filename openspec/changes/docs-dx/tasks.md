@@ -77,15 +77,17 @@ content on top of them. Group 8 closes out.
 
 ## 4. The north-star tutorial
 
-- [ ] 4.1 Write `docs/docs/learn/build-a-framework.md`: from empty directory to a
-      dependency-free framework — declare kinds, author one app component, project
-      the registry onto stdlib `http.server`, end with the real `curl` invocation and
-      its JSON response (design D1)
-- [ ] 4.2 Add the extraction test: assemble the page's `title`-fenced files in page
-      order into a temp tree, boot on an ephemeral port (bind 0, read port, single
-      request, no sleeps), assert the exact response the page displays
-- [ ] 4.3 Add the tutorial to nav (Learn group, after `plugins.md`) and to the
-      pages' `Next:` chain; link it from `index.md`'s north-star claim
+- [x] 4.1 `learn/build-a-framework.md` written: empty folder → four files (rules,
+      app, settings, stdlib `http.server` surface) → `curl` returns JSON; section 7
+      adds a function and the endpoint appears with no route table edited. The
+      port comes from argv so the test can pass 0
+- [x] 4.2 `test_framework_tutorial`: assembles the page's files in page order, boots
+      on an ephemeral port (argv `0`, reads the printed bound-port line — no
+      sleeps), asserts both curl payloads exactly as displayed. The page is excluded
+      from the generic run-`main.py` test since its entry serves forever. The test
+      caught a payload mismatch in my own page draft before it ever shipped
+- [x] 4.3 Nav (Learn, after Plugins), `plugins.md` `Next:` re-pointed, and the
+      landing page's north-star claim now links the tutorial
 
 ## 5. Error index
 
@@ -97,24 +99,30 @@ content on top of them. Group 8 closes out.
 
 ## 6. How-To section
 
-- [ ] 6.1 Extract the recipes into `docs/docs/how-to/` — one page each: database
-      resource (from `vocabulary.md`), transport binding (from `starter.md`),
-      settings validation (from `configuration.md`), testing your app, shipping a
-      reusable app; code moves, source pages keep prose + a link (design D5, no
-      duplication)
-- [ ] 6.2 Each recipe page's snippets are state 1 or 2 (executed); the FastAPI
-      binding runs under the `examples` dependency group as it does today
-- [ ] 6.3 Add the How-To nav group between Learn and Tools; re-point every `Next:`
-      link affected by the move
-- [ ] 6.4 Align nav order with the reading chain: `configuration.md` before
-      `starter.md`, matching quick-start's outbound link
+- [x] 6.1 Five how-to pages: add-a-database (from `vocabulary.md`), bind-a-transport
+      (from `starter.md`, rebuilt over the tutorial's project), validate-settings
+      (from `configuration.md`), test-your-app (from `testing.md`'s fixture
+      example), ship-a-reusable-app (the `spoc.component` marker recipe). Code
+      moved; each source page keeps the reasons plus a link
+- [x] 6.2 All five are executed project pages (the transport page proves the FastAPI
+      route table without a server — `app.routes` — so no httpx/TestClient
+      dependency is needed); starter's skip-marked recipe fence deleted, ceiling
+      7 → 6
+- [x] 6.3 How-To nav group between Learn and Tools; how-to pages chain `Next:`
+      internally and exit to the CLI page; `configuration.md`'s `Next:` re-pointed
+      to starter
+- [x] 6.4 Nav order aligned: Settings File before Starter, matching quick-start's
+      outbound link
 
 ## 7. Landing-page payoff
 
-- [ ] 7.1 Add the "See it work" block to `index.md` above the fold: the three
-      commands plus the real generated `--help` output, rendered with termynal; the
-      output text is a state-2 executed snippet so it cannot go stale
-- [ ] 7.2 Surface `pip install spoc` directly on the page (currently behind a link)
+- [x] 7.1 "See it work" block above the fold (termynal-marked): pip install → init
+      → real `--help` output. Verification is stronger than the planned state-2
+      snippet: `test_displayed_starter_help_is_real` generates the actual starter
+      and diffs its output against the block on BOTH pages that display it — and
+      immediately caught that both pages were abridging the real output (missing
+      `options:` section); fixed
+- [x] 7.2 `pip install spoc` is now the block's first line, on the page itself
 
 ## 8. Close-out
 
