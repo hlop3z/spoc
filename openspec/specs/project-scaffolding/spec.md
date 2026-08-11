@@ -22,6 +22,11 @@ template set it was generated from, and the names used across them MUST agree: e
 in the declaration has a corresponding module in the generated app, and the app named in the
 configuration exists on disk.
 
+Where generation derives a source-level name from a declared name, the derived name MUST be
+legal in the generated language and MUST be distinct from every other derived name in the
+same project. No name the identity grammar accepts may be refused on the grounds that the
+generated language reserves it; the derivation MUST accommodate it instead.
+
 The origin record MUST NOT affect whether the generated project starts, so a project remains
 runnable if it is removed.
 
@@ -37,6 +42,19 @@ runnable if it is removed.
 - **THEN** the configuration's app list, the app directory on disk, and the modules within it
   all reflect those kinds and that app name consistently, with no name appearing in one file
   that is absent from another
+
+#### Scenario: A declared kind the generated language reserves
+
+- **WHEN** a project is generated with a kind whose name is a reserved word in the generated
+  language, or whose derived name would be one
+- **THEN** generation succeeds, the derived name is a legal identifier, and the project starts
+  unedited with that kind registered under the name as declared
+
+#### Scenario: Derived names never collide
+
+- **WHEN** a project is generated with kinds whose derived names would otherwise coincide
+- **THEN** each kind receives a distinct derived name, and no declaration in the generated
+  project is bound twice
 
 #### Scenario: The generated app is a usable example
 
