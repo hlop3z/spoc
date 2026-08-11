@@ -76,9 +76,9 @@
       reason recorded (D5)
 - [x] 6.2 Re-measure coverage for `remote.py` and `cache.py`; for every line still uncovered,
       state why it is unreachable or cover it
-- [ ] 6.3 Record the correction in `CHANGELOG.md` under `[Unreleased]` — the aliasing fix under
+- [x] 6.3 Record the correction in `CHANGELOG.md` under `[Unreleased]` — the aliasing fix under
       `Fixed`, the narrowed platform classifiers under `Changed`
-- [ ] 6.4 Update the architecture diagram if the cache-root split changed the shape (Rule 1)
-- [ ] 6.5 Run the full gate from `.canon/checks.md` and report any row that could not be run
+- [x] 6.4 Update the architecture diagram if the cache-root split changed the shape (Rule 1)
+- [x] 6.5 Run the full gate from `.canon/checks.md` and report any row that could not be run
       as unverified (Rule 6)
-- [ ] 6.6 Review the diff and split it into commits by intent (Rule 3)
+- [x] 6.6 Review the diff and split it into commits by intent (Rule 3)
