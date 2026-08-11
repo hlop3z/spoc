@@ -1,7 +1,7 @@
 [project]
 name = "spoc"
 dynamic = ["version"]
-description = "Registry-first runtime kernel for modular monolithic Python applications"
+description = "Component registry and lifecycle for modular Python applications — build your own framework"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]

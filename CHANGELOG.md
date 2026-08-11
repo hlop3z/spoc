@@ -10,6 +10,23 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 ## [Unreleased]
 
+### Changed
+
+- **SPOC is described as a component registry, not a kernel.** The package
+  description, the README, the documentation home, and the architecture title all
+  claimed a "registry-first runtime kernel". Nothing in SPOC schedules, isolates, or
+  mediates; after `start()` returns it does nothing for the life of the process, and
+  an app can bypass the registry entirely by importing another app directly — a
+  system you can route around is not a kernel. The accurate classification is a
+  component registry with a total naming grammar and a dependency-ordered lifecycle,
+  and the positioning line is the one the docs already used: *SPOC helps you build
+  your own framework.* **Documentation only** — no code, no API, and no behaviour
+  changed. The word survives in `docs/architecture/kernel.md` and in source
+  docstrings as shorthand for the core package as against the contained subpackages
+  (`spoc.formats`, `spoc.testing`, `spoc.diagnostics`, `spoc.scaffold`); that
+  document now states the narrower meaning outright so it cannot drift back into a
+  claim.
+
 ### Fixed
 
 - **A kind named for a Python keyword no longer generates a project that fails to

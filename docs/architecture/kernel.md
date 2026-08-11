@@ -1,9 +1,14 @@
-# SPOC — kernel architecture
+# SPOC — system architecture
 
-What **is**, as of the kernel collapse. SPOC is a registry-first runtime
-kernel: one `Framework` object declares the kind set, apps declare components
-inward, surfaces project outward from the registry, and every dependency points
-at the kernel — never out of it.
+What **is**, as of the kernel collapse. SPOC is a component registry with a
+dependency-ordered lifecycle: one `Framework` object declares the kind set, apps
+declare components inward, surfaces project outward from the registry, and every
+dependency points at the kernel — never out of it.
+
+Throughout this document **kernel** means the core package (`spoc` proper, the
+box below) as opposed to the contained subpackages — `spoc.formats`,
+`spoc.testing`, `spoc.diagnostics`, `spoc.scaffold`. It is a boundary within the
+distribution, not a claim that SPOC schedules, isolates, or mediates anything.
 
 ## The shape
 
