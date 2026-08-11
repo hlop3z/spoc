@@ -4,6 +4,7 @@ Scaffolder tests: one per scenario in the `project-scaffolding` and
 (pure core, one-way dependency, generated project starts unedited).
 """
 
+import re
 import subprocess
 import sys
 import tomllib
@@ -144,21 +145,58 @@ def test_custom_kinds_are_declared_and_emitted(tmp_path):
     assert not (destination / "apps" / "core" / "models.py").exists()
 
 
-def test_decorator_falls_back_to_the_kind_when_singular_is_unsafe(tmp_path):
+def test_decorator_is_kept_legal_and_distinct(tmp_path):
     """A generated project must import; a prettier variable is worth less.
 
-    `ifs` singularizes to the keyword `if`, and `view` beside `views` would
-    make two kinds share one variable. Both fall back to the kind's own name.
+    `view` beside `views` would make two kinds share one variable, so the
+    singular gives way to the kind's own name. `ifs` singularizes to the
+    keyword `if`, which is escaped rather than abandoned — PEP 8's trailing
+    underscore. Names needing neither are left alone.
     """
     destination = tmp_path / "proj"
     generate(destination, kinds=("ifs", "view", "views", "status", "middleware"))
 
     declaration = (destination / "framework.py").read_text()
-    assert 'ifs = framework.kind("ifs")' in declaration
+    assert 'if_ = framework.kind("ifs")' in declaration
     assert 'view = framework.kind("view")' in declaration
     assert 'views = framework.kind("views")' in declaration
     assert 'status = framework.kind("status")' in declaration
     assert 'middleware = framework.kind("middleware")' in declaration
+
+
+def test_a_kind_named_for_a_keyword_generates_parsable_python(tmp_path):
+    """`--kinds class` is a legal kind: the grammar takes it and the kernel
+    registers it. Only the generated Python has to spell it differently, so the
+    whole tree is compiled rather than string-matched — the contract is that it
+    parses, not that it contains a token.
+    """
+    destination = tmp_path / "proj"
+    generate(destination, kinds=("class",))
+
+    for source in destination.rglob("*.py"):
+        compile(source.read_text(), str(source), "exec")
+
+    declaration = (destination / "framework.py").read_text()
+    assert 'class_ = framework.kind("class")' in declaration
+    assert (
+        "from framework import class_"
+        in (destination / "apps" / "core" / "class.py").read_text()
+    )
+
+
+def test_escaping_cannot_make_two_kinds_share_a_decorator(tmp_path):
+    """`class` escapes to `class_`, which a kind spelled `class_` already holds.
+
+    Two identical bindings would leave the second winning and the first kind's
+    module importing the wrong decorator, with nothing raised anywhere.
+    """
+    destination = tmp_path / "proj"
+    generate(destination, kinds=("class", "class_"))
+
+    declaration = (destination / "framework.py").read_text()
+    compile(declaration, "framework.py", "exec")
+    bound = re.findall(r"^(\w+) = framework\.kind\(", declaration, re.MULTILINE)
+    assert len(set(bound)) == 2, declaration
 
 
 def test_target_directory_must_be_empty(tmp_path):
