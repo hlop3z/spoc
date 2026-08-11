@@ -663,3 +663,111 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   reads correctly).
 - **Isolation**: the loop inside `decorator_names`. Order comes from the declared kinds
   tuple, so the result is deterministic.
+
+### Decision: Verifying platform-conditional behavior — Extend the cache-location build, platform as a value
+
+- **Status**: approved
+- **Why**: this re-examined *Cache location — Build (thin) on the platform conventions* above and
+  confirmed it: `platformdirs` is still the mature answer, no standard-library equivalent has
+  landed (the discuss.python.org thread remains a discussion, not a PEP), and `dependencies = []`
+  still blocks it. What changes is only *how* the already-built fifteen lines are shaped.
+  `default_cache_root()` splits into a pure function over an explicit platform identifier and
+  environment mapping, plus a thin adapter reading `sys.platform` and `os.environ`. Branch
+  selection stops being an ambient effect and becomes a value, so every arm is reachable from
+  every host by ordinary parametrization — which is what the `platform-support` capability
+  requires and what makes the coverage figure stop being a property of the machine that produced
+  it.
+- **Considered**: the pytest platform plugins (`pytest-platform-markers`, `pytest-skip-markers`)
+  — mature and actively maintained, but they *skip* tests on the wrong platform, which is the
+  categorical opposite of the requirement; adopting either would defeat it. Monkeypatching
+  `sys.platform` per test — no production change, but it patches a global other code may have
+  already read and leaves selection ambient.
+- **Isolation**: the pure function is core; the reader is the adapter, behind the `Cache` port.
+  The earlier ADR's "swapping to `platformdirs` later changes one adapter" gets strictly easier,
+  not harder.
+
+### Decision: Retention key for a revision — Adopt `hashlib`, Extend the existing digest scheme
+
+- **Status**: approved
+- **Why**: the revision reaches the cache as a path segment, and today it is filtered to path-safe
+  characters with any empty result becoming the literal `invalid`. Both halves are lossy:
+  `feature/x` and `featurex` land on one entry, and every unusable revision lands on `invalid`
+  together — two distinct revisions sharing retained content, which is the one thing a cache keyed
+  by an immutable revision must never do. The mapping becomes verbatim when the revision is
+  already a safe segment, `rev-<sha256 truncated>` otherwise, and a refusal when it is empty.
+  Total, collision-free to the strength of the digest, incapable of traversal, and it extends the
+  `url-<digest>` scheme `HttpRevisionResolver` already uses rather than inventing a second one —
+  the same move the *Collisions introduced by escaping* decision above made, for the same reason.
+  Hashing is on the never-hand-roll list; `hashlib.sha256` is the standard library's answer and is
+  already imported in `remote.py`.
+- **Considered**: refusing every non-path-safe revision — strictest and simplest, but the revision
+  is not always the caller's to control, since it can arrive as a `sha` field in a server's
+  response, so it converts a server's oddity into the user's error; rejected on the same reasoning
+  the escaping-collision decision used to decline refusing a legal input. Percent-encoding —
+  reversible and total, but puts `%` in path segments on the platform where this cache is least
+  tested, and changes the key for revisions that are safe today.
+- **Isolation**: `DirectoryCache._entry` in `src/spoc/scaffold/cache.py`. Every revision reachable
+  through the reference grammar today is already path-safe, so no retained content is invalidated.
+
+### Decision: Evidence that the retention key is injective — Adopt Hypothesis
+
+- **Status**: approved
+- **Why**: "two distinct revisions never share retained content" is an injectivity property over an
+  open input domain, and hand-picked examples can only ever demonstrate the cases someone thought
+  of — the `feature/x` collision survived precisely because nobody picked it. Hypothesis is already
+  a dev dependency and already carries this project's property suite, including stateful machines,
+  so this adopts an instrument that is present rather than adding one. The hand-picked cases stay
+  as named regression anchors for the collisions actually found.
+- **Considered**: table-driven examples alone (cheaper to read, but proves only the chosen rows);
+  adding a dedicated fuzzing tool (a second instrument where the adopted one already fits).
+- **Isolation**: `tests/test_properties.py` for the property, `tests/test_scaffold_cache.py` for
+  the named regressions.
+
+### Decision: Provoking the concurrent-retention race — Adopt pytest's `monkeypatch` at the seam
+
+- **Status**: approved
+- **Why**: `Cache.retain` catches a failed publish and accepts the entry if another process
+  published the revision first. Injecting that failure at the publish seam, with the entry
+  pre-created, exercises the branch deterministically — no sleeps, no scheduler dependence — along
+  with the negative case where the entry does not exist and the failure must still raise. No tool
+  is being chosen here beyond the test framework already in use; recorded because the alternative
+  is the kind that quietly becomes the suite's one flaky test.
+- **Considered**: two real threads on a barrier — exercises the true interleaving, but is
+  timing-dependent and would be the only nondeterministic test among 685; kept out of the gate.
+- **Isolation**: `tests/test_scaffold_cache.py`. Acknowledged limit: this verifies the handler, not
+  that the underlying rename is atomic on every filesystem — which the multi-platform gate now at
+  least executes for real on each declared platform.
+
+### Decision: Coverage floor — Adopt `coverage.py` reporting, decline the gate
+
+- **Status**: approved
+- **Why**: no `fail_under` is introduced. The lines that mattered in this change were invariant
+  lines — a transfer bound, a redirect refusal, an aliasing key — and a floor cannot tell those
+  from any other line, so it would make a number the target on the change that exists to argue
+  against treating it as one. What replaces it is the `platform-support` requirement that the
+  measurement no longer depends on its host, which is what makes two runs comparable at all.
+  Coverage gets a row in `.canon/checks.md` marked a review aid rather than a gate, the same
+  treatment `tokei` already carries.
+- **Considered**: a global `fail_under` at the achieved total — cheap, standard, and would catch
+  silent erosion; declined for this change and left live rather than closed. If erosion is observed
+  later, the argument changes and this gets revisited.
+- **Isolation**: `[tool.coverage.report]` in `pyproject.toml` and the review-aid row in
+  `.canon/checks.md`.
+
+### Decision: Multi-platform execution of the gate — Rent, on the CI platform already in use
+
+- **Status**: approved
+- **Why**: infrastructure, so the hierarchy answers it without further evaluation; the runners are
+  rented from the CI platform this project already uses. The substantive part is scope, not vendor:
+  the declared platform set becomes Linux, Windows, and macOS, replacing
+  `Operating System :: OS Independent` — a claim no gate can satisfy — and the `python` job runs
+  the full product of three operating systems and three interpreter versions with no exclusions.
+  `cache.py` carries a darwin arm today, so a set omitting macOS would ship a branch no gate ever
+  executes. The repository is public, so the added legs cost queue latency rather than money.
+- **Considered**: excluding OS/version combinations to trim the matrix — cheaper, but the matrix
+  stops being derivable from a single statement in `.canon/checks.md`, which is the property that
+  keeps `task check` and CI the same gate. Linux and Windows only — covers the dev/CI split that
+  produced the recent encoding defect, but leaves the darwin arm unexecuted.
+- **Isolation**: the `python` job matrix in `.github/workflows/ci.yml`, derived from the platform
+  scope stated in `.canon/checks.md`. The `go`, `docs-build`, and `doc-links` rows stay
+  single-platform, which the capability permits for checks whose outcome cannot differ by platform.
