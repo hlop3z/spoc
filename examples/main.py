@@ -22,6 +22,10 @@ if __name__ == "__main__":
     summary = framework.resolve("views:orders.order_summary").object()
     print("Order total:", summary["total_cents"], "cents")
 
+    # A view reaches the live resource mid-call (opened by the kind's hook)
+    hit = framework.resolve("views:catalog.find_product").object("mouse")
+    print("Search hit:", hit["product"]["name"])
+
     # Enumerate the whole registry (deterministic order)
     for component in framework.registry:
         print(" -", component.identifier)

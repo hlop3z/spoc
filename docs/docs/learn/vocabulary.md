@@ -1,0 +1,140 @@
+# The Default Vocabulary
+
+SPOC lets you invent any kinds you like — that's the whole point. But an ecosystem
+needs a shared language: a reusable app published by someone else can only declare
+components of kinds *your* project happens to have. So SPOC blesses one **default
+vocabulary** — five kinds with agreed meanings.
+
+**The rule, up front:** deviate freely. Nothing enforces these names. The default is
+what the starter template emits, what these docs teach, and what reusable third-party
+apps may assume. Think of it like Django's `models.py`: powerful *because* everyone
+means the same thing by it — except here it's a convention, not a law.
+
+## The five kinds
+
+| Kind        | A component is…                                    | Lifecycle role                                  |
+| ----------- | -------------------------------------------------- | ----------------------------------------------- |
+| `models`    | a domain data declaration (a class, a schema)      | none — purely declarative                       |
+| `views`     | a callable a surface exposes (a route, a page)     | none — a surface projects it                    |
+| `commands`  | a callable a project CLI exposes                   | none — the CLI projects it                      |
+| `resources` | a live process-wide object (a pool, a client)      | opened by `on_startup`, closed by `on_shutdown` |
+| `hooks`     | a callable a surface fires at named moments        | none — *your* code dispatches it                |
+
+Four of the five are purely declarative: SPOC registers them, and a **surface** — the
+web binding, the CLI, the worker loop you build — enumerates the registry and exposes
+them. That's the projection pattern from
+[Name Tags & the Registry](names-and-registry.md).
+
+`resources` is the interesting one.
+
+## Resources: live objects with a lifecycle
+
+Every application has a few objects that must be **opened once, shared everywhere,
+and closed on the way out** — a database pool, an HTTP client, a cache connection.
+Most frameworks hand you an untyped bag for these (`app.ctx.db`, `app.state`). SPOC
+already has something better: the registry. The recipe is three small pieces, all of
+them public API you've already met.
+
+**1. Declare the kind with lifecycle hooks** — the only kind in the vocabulary that
+uses them:
+
+```python title="framework.py"
+import spoc
+
+
+def _open(resources):
+    for resource in resources:
+        resource.open()
+
+
+def _close(resources):
+    for resource in resources:
+        resource.close()
+
+
+framework = spoc.Framework(
+    "models",
+    "views",
+    spoc.KindSpec("resources", on_startup=_open, on_shutdown=_close),
+)
+
+models = framework.kind("models")
+views = framework.kind("views")
+resource = framework.kind("resources")
+```
+
+**2. Declare each resource as a component** — an *instance* that knows how to open
+and close itself. Instances have no `__name__`, so name it explicitly:
+
+```python title="apps/core/resources.py"
+from framework import resource
+
+
+class Database:
+    """A stand-in for your engine/pool of choice."""
+
+    def __init__(self):
+        self.pool = None
+
+    def open(self):
+        self.pool = {"connected": True}   # real code: create the pool here
+
+    def close(self):
+        self.pool = None
+
+
+database = resource(Database(), name="database")   # → resources:core.database
+```
+
+**3. Reach it through the registry**, from any app, while handling a call:
+
+```python title="apps/core/views.py"
+from framework import framework, views
+
+
+@views
+def health():
+    db = framework.resolve("resources:core.database").object
+    return {"database": "up" if db.pool else "down"}
+```
+
+That's the whole recipe. On `start()`, the kind's `on_startup` opens every declared
+resource before your surface takes traffic; on `shutdown()`, `on_shutdown` closes
+them in reverse module order. And because shutdown replaces the registry, resolving
+`resources:core.database` after teardown fails with a **named error** — you can never
+be handed a dead pool.
+
+Three fine points:
+
+- **Resolve at call time, not import time.** A module that grabs a resource at import
+  runs before `start()` and gets nothing. Inside a view/command/hook body, the
+  resource is always live.
+- **If a module's own `initialize()` needs a resource from its app**, declare the
+  order: `spoc.KindSpec("models", depends_on=("resources",))`. Cross-app
+  `initialize()` use isn't orderable — resolve lazily instead.
+- **Async projects** declare coroutine `open`/`close` hooks and boot with
+  `astart()`/`ashutdown()` — same recipe, awaited. See
+  [Start & Stop](lifecycle.md).
+
+## Hooks: events without an event system
+
+A `hooks` component is a callable; *dispatching* it is your surface's job, not
+SPOC's — the kernel describes, it never executes. The pattern is one loop:
+
+```python
+for record in framework.registry.by_kind("hooks"):
+    record.object(event)          # your surface decides when, and with what
+```
+
+Name hook components after the moment they answer (`on_order_created`,
+`before_request`) and every app can contribute to the same moments.
+
+## Where to see it running
+
+The [storefront example](../examples.md) exercises the resource recipe end to end —
+a resource opened at boot, resolved from another module mid-call, and closed at
+shutdown, with the test suite watching both halves. The starter template
+(`spoc init myproject --template starter`) generates the full vocabulary wired and
+running.
+
+Next: [Plugins](plugins.md).

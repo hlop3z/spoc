@@ -37,9 +37,28 @@ async def drain(objects) -> None:
     print("drain awaited")
 
 
+# The resource recipe's async twin: the same open/close discipline, awaited.
+async def open_resources(resources) -> None:
+    await asyncio.sleep(0)
+    for resource_obj in resources:
+        resource_obj.open()
+
+
+async def close_resources(resources) -> None:
+    await asyncio.sleep(0)
+    for resource_obj in resources:
+        resource_obj.close()
+
+
 framework = spoc.Framework(
     spoc.KindSpec("models", on_startup=warm_up, on_shutdown=drain),
     spoc.KindSpec("views", depends_on=("models",)),
+    spoc.KindSpec(
+        "resources",
+        required=False,
+        on_startup=open_resources,
+        on_shutdown=close_resources,
+    ),
     spoc.KindSpec("middleware", required=False),
     spoc.KindSpec("hooks", required=False),
 )

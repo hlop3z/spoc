@@ -37,6 +37,8 @@ def test_storefront_boots_and_registers_the_domain():
             "models:auth.user_account",
             "models:catalog.product",
             "models:orders.order",
+            "resources:catalog.search_index",
+            "views:catalog.find_product",
             "views:catalog.list_products",
             "views:orders.order_summary",
         ]
@@ -55,6 +57,25 @@ def test_cross_namespace_resolution_at_runtime():
         fw.shutdown()
 
 
+def test_resource_opened_at_start_reached_mid_call_and_released():
+    """The vocabulary's resource recipe, observed at both ends.
+
+    The kind's startup hook opens the resource before any view runs; a view in
+    another module reaches it through the registry while handling a call; the
+    shutdown hook has released it by the time shutdown returns.
+    """
+    fw = _example_framework().start(EXAMPLES)
+    index = fw.resolve("resources:catalog.search_index").object
+    try:
+        assert index.events == ["open"]  # opened by the kind's hook, exactly once
+        hit = fw.resolve("views:catalog.find_product").object("mouse")
+        assert hit["product"]["name"] == "mouse"  # reached live, mid-call
+    finally:
+        fw.shutdown()
+    assert index.events == ["open", "close"]  # released on the way out
+    assert index.entries is None
+
+
 def test_module_lifecycle_seeds_and_clears_the_stock():
     fw = _example_framework().start(EXAMPLES)
     catalog_models = importlib.import_module("apps.catalog.models")
@@ -71,7 +92,11 @@ def test_async_entry_awaits_hooks_on_the_async_path():
     async def run():
         await fw.astart(EXAMPLES)
         assert fw.resolve("models:catalog.product").object.__name__ == "Product"
+        # The resource recipe's async twin: coroutine hooks opened it, awaited.
+        index = fw.resolve("resources:catalog.search_index").object
+        assert index.entries is not None
         await fw.ashutdown()
+        assert index.entries is None
 
     asyncio.run(run())
     assert fw.started is False
@@ -84,6 +109,7 @@ def test_http_projection_derives_from_the_registry():
         http_app = importlib.import_module("http_app")
         routes = http_app.build_routes(fw.registry)
         assert {r["path"] for r in routes} == {
+            "/catalog/find_product",
             "/catalog/list_products",
             "/orders/order_summary",
         }
@@ -123,3 +149,4 @@ def test_sync_entry_runs_to_completion():
         check=True,
     )
     assert "Order total: 15800 cents" in result.stdout
+    assert "Search hit: mouse" in result.stdout
