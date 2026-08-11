@@ -128,6 +128,45 @@ class TestSpocToml:
                 load_spoc_toml(base_dir)
 
 
+class TestApplicationTables:
+    """Top-level tables outside ``[spoc]`` are the application's: delivered as
+    parsed, never validated, never silently dropped."""
+
+    def test_app_table_rides_along(self, tmp_path):
+        (tmp_path / "spoc.toml").write_text(
+            '[spoc]\nmode = "production"\n\n'
+            '[myapp]\napi_url = "https://example.test"\nretries = 3\n'
+        )
+        loaded = load_spoc_toml(tmp_path)
+        assert loaded["myapp"] == {"api_url": "https://example.test", "retries": 3}
+        assert loaded["spoc"]["mode"] == "production"
+
+    def test_app_tables_are_not_validated(self, tmp_path):
+        # Keys [spoc] would refuse, nested tables, mixed types: all pass through.
+        (tmp_path / "spoc.toml").write_text(
+            "[myapp]\nmode = 7\n\n[myapp.nested]\nvalues = [1, 2]\n"
+        )
+        loaded = load_spoc_toml(tmp_path)
+        assert loaded["myapp"]["mode"] == 7
+        assert loaded["myapp"]["nested"]["values"] == [1, 2]
+
+    def test_app_tables_are_isolated_across_loads(self, tmp_path):
+        (tmp_path / "spoc.toml").write_text('[myapp]\nkey = "value"\n')
+        load_spoc_toml(tmp_path)["myapp"]["key"] = "mutated"
+        assert load_spoc_toml(tmp_path)["myapp"]["key"] == "value"
+
+    def test_missing_file_yields_no_app_tables(self, tmp_path):
+        assert set(load_spoc_toml(tmp_path)) == {"spoc"}
+
+    def test_spoc_key_set_stays_closed_beside_app_tables(self, tmp_path):
+        # The passthrough loosens nothing inside the kernel's own table.
+        (tmp_path / "spoc.toml").write_text(
+            '[spoc]\nmoode = "production"\n\n[myapp]\nx = 1\n'
+        )
+        with pytest.raises(ConfigurationError, match="moode"):
+            load_spoc_toml(tmp_path)
+
+
 class TestValidation:
     """The four explicit checks that replaced the recursive schema engine."""
 

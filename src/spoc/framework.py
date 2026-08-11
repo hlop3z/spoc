@@ -33,7 +33,7 @@ import importlib
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -57,19 +57,27 @@ from .core.registry import Component, Registry
 
 @dataclass(frozen=True)
 class Config:
-    """The ``[spoc]`` table and the environment for the active mode."""
+    """The ``[spoc]`` table, the active mode's environment, and the app's own tables.
+
+    ``tables`` holds every top-level table in ``spoc.toml`` other than ``[spoc]``,
+    as parsed — the kernel neither validates nor reads them. Validating them is the
+    application's job, through whatever schema tool it adopts.
+    """
 
     project: dict[str, Any]
     environment: Any
+    tables: dict[str, Any] = field(default_factory=dict)
 
 
 def _build_config(base_dir: Path, echo: bool = False) -> Config:
-    raw = load_spoc_toml(base_dir, echo=echo).get("spoc", {})
+    loaded = load_spoc_toml(base_dir, echo=echo)
+    spoc_table = loaded.get("spoc", {})
     return Config(
-        project=raw,
+        project=spoc_table,
         environment=load_environment(
-            base_dir, raw.get("mode", DEFAULT_MODE), echo=echo
+            base_dir, spoc_table.get("mode", DEFAULT_MODE), echo=echo
         ),
+        tables={k: v for k, v in loaded.items() if k != "spoc"},
     )
 
 

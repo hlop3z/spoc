@@ -902,6 +902,93 @@ def test_config_is_populated_from_the_project(tmp_path):
     assert fw.config.environment == {"DATABASE_URL": "postgres://local"}
 
 
+def test_config_exposes_app_owned_tables(tmp_path):
+    """Top-level tables outside [spoc] reach the app through `config.tables`,
+    as parsed — the kernel neither validates them nor reads them."""
+    base = make_project(tmp_path, "tblapp")
+    with (base / "config" / "spoc.toml").open("a", encoding="utf-8") as handle:
+        handle.write('\n[tblapp]\napi_url = "https://example.test"\nretries = 3\n')
+
+    fw = Framework("models").start(base)
+
+    assert fw.config is not None
+    assert fw.config.tables == {
+        "tblapp": {"api_url": "https://example.test", "retries": 3}
+    }
+    assert "tblapp" not in fw.config.project  # the kernel's table stays its own
+
+
+def test_settings_seam_docs_example_runs(tmp_path):
+    """The worked example on the Settings File docs page, executed.
+
+    The seam contract is tool-agnostic; the docs demonstrate it with a plain
+    pydantic model over the already-parsed table. Docs snippets must run.
+    """
+    pydantic = pytest.importorskip(
+        "pydantic", reason="examples dependency group not installed"
+    )
+    base = make_project(tmp_path, "seamapp")
+    with (base / "config" / "spoc.toml").open("a", encoding="utf-8") as handle:
+        handle.write('\n[myapp]\napi_url = "https://api.example.com"\n')
+
+    framework = Framework("models").start(base)
+    assert framework.config is not None
+
+    class MyAppSettings(pydantic.BaseModel):
+        api_url: pydantic.HttpUrl
+        retries: int = 3
+
+    settings = MyAppSettings.model_validate(framework.config.tables["myapp"])
+    assert settings.retries == 3  # typed, defaulted, validated at the boundary
+    assert str(settings.api_url).startswith("https://api.example.com")
+
+
+def test_resource_lifecycle_recipe_from_the_vocabulary_page(tmp_path):
+    """The Default Vocabulary page's resource recipe, executed.
+
+    A resource is an *instance* component: the kind's on_startup opens it before
+    application code runs, resolve() reaches it live, on_shutdown closes it, and
+    resolution after shutdown fails with a named error — never a dead pool.
+    """
+    resources_body = """
+        from spoc import component
+
+        class Database:
+            def __init__(self):
+                self.pool = None
+
+            def open(self):
+                self.pool = {"connected": True}
+
+            def close(self):
+                self.pool = None
+
+        database = component(Database(), kind="resources", name="database")
+    """
+    base = make_project(tmp_path, "core", extra_modules={"resources": resources_body})
+
+    def _open(resources):
+        for resource in resources:
+            resource.open()
+
+    def _close(resources):
+        for resource in resources:
+            resource.close()
+
+    fw = Framework(
+        "models",
+        KindSpec("resources", on_startup=_open, on_shutdown=_close),
+    ).start(base)
+
+    database = fw.resolve("resources:core.database").object
+    assert database.pool == {"connected": True}  # live before app code runs
+
+    fw.shutdown()
+    assert database.pool is None  # released by the time shutdown returns
+    with pytest.raises(UnknownNamespaceError):
+        fw.resolve("resources:core.database")  # named error, not a dead pool
+
+
 def test_config_environment_falls_back_to_default_regardless_of_echo(tmp_path):
     """The fallback is behavior, not logging — echo must not gate it."""
     for echo in (False, True):
