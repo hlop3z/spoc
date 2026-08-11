@@ -38,8 +38,9 @@ Every Python fence under `docs/docs/` is in exactly one of three states, and sil
 not one of them — `tests/test_docs_examples.py` enforces this:
 
 1. **Standalone**: runs as-is; printed output must appear as `#> ` comments (regenerate
-   with `uv run pytest tests/test_docs_examples.py --update-examples` — on an **LF**
-   checkout only; the updater corrupts CRLF files, see the module docstring).
+   with `PYTHONUTF8=1 uv run pytest tests/test_docs_examples.py --update-examples` —
+   the env var is not optional, or the updater splices the rewrite at the wrong offset
+   and corrupts the page; see the module docstring).
 2. **Project file** (`title="path"`): written into a per-page project, in page order, and
    run through the page's `title="main.py"` entry — so show complete files, never
    fragments.
