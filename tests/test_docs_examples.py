@@ -229,7 +229,15 @@ def test_displayed_starter_help_is_real(page_path: str, tmp_path: Path):
     displayed = match.group(0)
 
     init = subprocess.run(
-        [sys.executable, "-m", "spoc.cli", "init", "myproject", "--template", "starter"],
+        [
+            sys.executable,
+            "-m",
+            "spoc.cli",
+            "init",
+            "myproject",
+            "--template",
+            "starter",
+        ],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -285,7 +293,7 @@ def test_skip_ledger():
     """State 3 stays visible and bounded — silence is not an allowed state."""
     skipped = [str(ex) for ex in ALL_EXAMPLES if _is_skip(ex)]
     assert len(skipped) <= SKIP_CEILING, (
-        f"{len(skipped)} fences marked test=\"skip\" exceeds the ceiling of "
+        f'{len(skipped)} fences marked test="skip" exceeds the ceiling of '
         f"{SKIP_CEILING}:\n" + "\n".join(skipped) + "\n"
         "Complete them into runnable state, or raise SKIP_CEILING in the same "
         "diff with the justification in review."

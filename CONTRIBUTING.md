@@ -32,6 +32,24 @@ ruff's defaults, so a toolchain upgrade cannot silently change what CI enforces.
 ruff release surfaces findings that shouldn't be enforced here, change that config in the
 same pull request and say why — don't scatter `# noqa`.
 
+### Editing the docs? The snippets are tested
+
+Every Python fence under `docs/docs/` is in exactly one of three states, and silence is
+not one of them — `tests/test_docs_examples.py` enforces this:
+
+1. **Standalone**: runs as-is; printed output must appear as `#> ` comments (regenerate
+   with `uv run pytest tests/test_docs_examples.py --update-examples` — on an **LF**
+   checkout only; the updater corrupts CRLF files, see the module docstring).
+2. **Project file** (`title="path"`): written into a per-page project, in page order, and
+   run through the page's `title="main.py"` entry — so show complete files, never
+   fragments.
+3. **Marked** (`test="skip"` on the fence line): display-only, counted against an explicit
+   ceiling in the test module. Raising the ceiling is a reviewed decision, not a reflex.
+
+The API reference derives its member lists from `__all__` and the CLI page captures the
+real `--help` at build time — don't hand-edit those listings; build the docs instead
+(`task docs:check`).
+
 ## How work is organized
 
 Changes are driven through **OpenSpec**, governed by a canon of engineering rules in

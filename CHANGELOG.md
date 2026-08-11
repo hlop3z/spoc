@@ -12,6 +12,18 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 ### Added
 
+- **Documentation that cannot drift** (docs only — no package change). Every Python
+  fence in the docs now runs in CI or carries an explicit skip marker, with printed
+  output verified against `#> ` comments; ten pages are executed as complete
+  projects, file for file, the way a reader would run them. The API reference
+  derives its member lists from `__all__`, the CLI page captures the real
+  `--help` at build time, and a strict docs build joins the validation gate. New
+  pages: **Build a Framework** (an end-to-end tutorial — empty folder to a
+  `curl`-able HTTP framework in four files, executed by the test suite), a
+  task-oriented **How-To** section (database resource, transport binding,
+  settings validation, testing, shipping a reusable app — all executed), and an
+  **Error Index** mapping every public exception to its trigger and fix, held
+  complete by a test.
 - **The `starter` template set** (provisional). `spoc init myproject --template starter`
   generates a *running application*, not just a bootable skeleton: the five-kind
   default vocabulary (`models`, `views`, `commands`, `resources`, `hooks`) wired end

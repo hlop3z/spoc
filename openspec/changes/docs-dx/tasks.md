@@ -126,10 +126,12 @@ content on top of them. Group 8 closes out.
 
 ## 8. Close-out
 
-- [ ] 8.1 Full gate green (`.canon/checks.md`), including the docs snippet suite,
-      strict docs build, and both completeness tests
-- [ ] 8.2 Docs that describe the docs: update `CONTRIBUTING.md` (or the relevant
-      canon check note) with the snippet policy — three states, none silent — and
-      the one-command output-regeneration step
-- [ ] 8.3 Update `CHANGELOG.md` (docs section) and any architecture diagram touched
-      by the new test flow if one exists; Rule 3 commit split by intent
+- [x] 8.1 Full `task check` green: formatter, linter, types, 680-test suite (30 docs
+      tests), Go build, doc links, strict docs build, apicheck 0 fatal, apidiff 0
+      breakages
+- [x] 8.2 `CONTRIBUTING.md` gains "Editing the docs? The snippets are tested" —
+      the three states, the LF-only regeneration caveat, and the derived-listing
+      warning
+- [x] 8.3 `CHANGELOG.md` Unreleased leads with the docs-integrity entry;
+      `docs/architecture/docs-integrity.md` added (Rule 1): the three snippet
+      states and the derived-vs-test-held split
