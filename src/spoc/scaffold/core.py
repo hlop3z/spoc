@@ -263,23 +263,54 @@ def _singular(kind: str) -> str:
     return kind[:-1]
 
 
+def _escape_keyword(name: str) -> str:
+    """The name a Python keyword already owns, spelled legally — `class` → `class_`.
+
+    A single trailing underscore is the language's own convention for this
+    collision (PEP 8), which is why it is preferred to any rewording: a reader
+    who has met `class_` in the standard library needs no explanation.
+    `keyword.iskeyword` is the authoritative list and travels with the language,
+    so no local table can fall behind it.
+    """
+    return f"{name}_" if keyword.iskeyword(name) else name
+
+
 def decorator_names(kinds: tuple[str, ...]) -> dict[str, str]:
     """Map each declared kind to the decorator variable generated for it.
 
     One function, so the framework declaration and every app module derive the
-    same name from the same input and cannot disagree. Two cases fall back to
-    the kind's own name, because a pretty variable is worth less than a file
-    that imports: a singular form that collides with another kind's, and one
-    that is a Python keyword (`ifs` → `if`).
+    same name from the same input and cannot disagree. Three ordered steps, each
+    protecting the one property that matters more than a pretty variable — the
+    generated project has to parse and to import what it says it imports:
+
+    1. propose the singular (:func:`_singular`);
+    2. fall back to the kind's own name when the singular would collide with
+       another kind's name or with another kind's singular;
+    3. escape whatever survives if a Python keyword owns it, then append further
+       underscores until it is unused.
+
+    The escape is last because a keyword can arrive from either earlier step —
+    from singularization (`ifs` → `if_`) or from the kind itself (`class` →
+    `class_`, where falling back to the kind lands on the same illegal token).
+    One rule covers both. The final uniquing exists for the one input escaping
+    can break: kinds `class` and `class_` both reach `class_`, and two identical
+    bindings in the declaration would silently give one kind the other's
+    decorator.
     """
     proposed = {kind: _singular(kind) for kind in kinds}
     taken = Counter(proposed.values())
-    return {
-        kind: kind
-        if taken[name] > 1 or name in set(kinds) - {kind} or keyword.iskeyword(name)
-        else name
-        for kind, name in proposed.items()
-    }
+    names: dict[str, str] = {}
+    used: set[str] = set()
+    for kind, singular in proposed.items():
+        chosen = (
+            kind if taken[singular] > 1 or singular in set(kinds) - {kind} else singular
+        )
+        chosen = _escape_keyword(chosen)
+        while chosen in used:
+            chosen += "_"
+        names[kind] = chosen
+        used.add(chosen)
+    return names
 
 
 def _render(text: str, values: Values) -> str:
