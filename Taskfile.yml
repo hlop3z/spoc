@@ -102,6 +102,11 @@ tasks:
   # `check` is the Rule 6 gate: it must stay equivalent to `.canon/checks.md` and
   # .github/workflows/ci.yml. Adding a check to CI without adding it here is the
   # bug this task exists to prevent.
+  #
+  # Scope note: this runs on whichever platform you are on, which is one leg of the
+  # gate rather than the gate. The declared platforms are Linux, Windows, and macOS
+  # ("Platform scope" in .canon/checks.md), and only CI runs all three — a green run
+  # here is evidence for your platform alone.
   check:
     desc: Run the full suite (format + lint + type + test + go + doc links + API surface)
     cmds:

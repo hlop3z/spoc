@@ -17,7 +17,12 @@ classifiers = [
     # criteria in [tool.spoc.stability] and the docs' Stability page all hold.
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "Operating System :: OS Independent",
+    # The platforms the gate actually runs on. "OS Independent" was a claim no
+    # gate can satisfy — see the platform-support capability, which requires the
+    # declared set and the gated set to be identical.
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",

@@ -20,15 +20,37 @@ moment you first discover the real command, so the next session doesn't rediscov
 | Tool tests        | `cd scripts/py && uv run pytest tools/`                | The workshop tools' own suites. The Unit tests row cannot reach them — `testpaths = ["tests"]` pins it to the package suite, and the tools are a separate workspace. These test the code that gates everything else, so they get their own row. |
 | Surface delta     | `cd scripts/py && uv run apidiff ../..`                | Compares the working tree against the last release tag: elements added, removed, or moved between tiers, incompatible changes (griffe), withdrawals in flight, and for each removed element whether its deprecation lifecycle completed — established by walking the published releases behind it, counted in minor lines so a patch release cannot satisfy the wait. **Reports without failing until 1.0** — the pre-stable allowance permits those changes, so failing would contradict `release-policy`. From 1.0, breakages are permitted only in a major release, while an incomplete withdrawal fails in any increment. Exits 2 when no baseline resolves **or when a withdrawal history cannot be established**, which is why CI needs full tag history. Separate row from API surface on purpose: different input, different question, its own exit code. |
 | File-size review  | `tokei . --files --sort lines`                         | **Review aid, not a gate** — `tokei` always exits 0 and the thresholds in `.canon/guidelines.md` are a judgement call, so `task check` does not run it. Any language, largest first; run it as `task size`. Missing? `cd scripts/go && go run ./cmd/ensure tokei` |
+| Coverage          | `uv run pytest tests --cov=src/spoc --cov-report=term-missing` | **Review aid, not a gate** — no `fail_under`. The lines that matter are invariant lines and a floor cannot tell those from any other, so a threshold would make the number the target. Read the *missing* column, not the percentage. The figure is comparable between machines only because platform-conditional branches are selected by value rather than by the host (`platform-support`); before that it measured where it ran. Run it as `task test:cov`. |
 
 A row marked "not yet defined" is a real answer: that check is **unverified** and Rule 6 says
 to report it as such. It is not permission to skip it silently.
 
+## Platform scope
+
+The declared platforms are **Linux, Windows, and macOS** — the set in `pyproject.toml`'s
+classifiers. The `platform-support` capability requires the declared set and the gated set to be
+identical, so this list and that one move together; adding a platform to either alone is a defect.
+
+**Unit tests, Formatter, Linter (Python), and Type checker run on every declared platform**, across
+every supported interpreter version — the full product, no exclusions. These are the checks whose
+outcome can differ by platform, and the exclusion-free matrix is what keeps CI derivable from this
+statement rather than from a list someone has to maintain by hand.
+
+**Every other row runs on one platform.** The capability permits this for checks whose outcome
+cannot differ by platform: the Go workspace rows build a cross-compiled toolchain's own output, and
+Doc links, API surface, Tool tests, and Surface delta are static analyses over the repository's
+text. Docs build is the one judgement call in that list — it touches paths, so it could in
+principle differ — and it stays single-platform because `mkdocs` resolves its own paths and the
+Unit tests row already exercises this project's path handling on all three.
+
+Locally, `task check` runs the same commands on whichever platform you are on. That is one leg of
+the gate, not the gate: a green local run is evidence for your platform only.
+
 ## Running them
 
-`task check` runs every gate row above, in order, with the same scope. The one row it does not
-run is **File-size review**, which is marked a review aid rather than a gate for the reason
-given in its Status cell. `Taskfile.yml` and `.github/workflows/ci.yml` are both derived from
+`task check` runs every gate row above, in order, with the same scope. The rows it does not
+run are **File-size review** and **Coverage**, both marked review aids rather than gates for the
+reasons given in their Status cells. `Taskfile.yml` and `.github/workflows/ci.yml` are both derived from
 this table — if you add a check to one, add it to all three, or `task check` stops being the
 gate it claims to be.
 

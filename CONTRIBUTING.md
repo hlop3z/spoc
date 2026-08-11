@@ -20,12 +20,18 @@ dev- or docs-only and never reaches an installer of `spoc`.
 
 Run the validation suite. The canonical commands live in [`.canon/checks.md`](.canon/checks.md)
 — formatter, linter, type checker, tests, the Go workspace build, and the doc-link check. CI
-runs exactly those, so a green local suite means a green pipeline.
+runs exactly those.
 
-`task check` runs that suite for you — same commands, same repo-wide scope — so a green
-`task check` means a green pipeline. Individual tasks (`task lint`, `task format`,
-`task test:fast`) run one check each for the inner loop. `.canon/checks.md` stays the source
-of truth; when a task disagrees with it, the task is wrong.
+`task check` runs that suite for you — same commands, same repo-wide scope. Individual tasks
+(`task lint`, `task format`, `task test:fast`) run one check each for the inner loop.
+`.canon/checks.md` stays the source of truth; when a task disagrees with it, the task is wrong.
+
+**A green local run is evidence for your platform, not for the pipeline.** SPOC is gated on
+Linux, Windows, and macOS across every supported Python version, and your machine is one of
+those legs — see "Platform scope" in `.canon/checks.md`. Develop on whichever you have; the
+suite is written so that platform-conditional behavior is exercised from any host, so you are
+not blind to the other two. What you cannot check locally is how the platform itself behaves,
+which is what the other legs are for.
 
 Ruff's rule selection is pinned explicitly in `pyproject.toml` rather than inherited from
 ruff's defaults, so a toolchain upgrade cannot silently change what CI enforces. If a new
