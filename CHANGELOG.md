@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows
 What each version increment promises, and for which parts of the surface, is written
 down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
-## [Unreleased]
+## [0.7.0] — 2026-08-11
 
 ### Changed
 
@@ -534,5 +534,6 @@ Installing `spoc` bare reads JSON, CSV, and TOML — all standard library.
 | `query` | `python-jsonpath`, `iregexp-check`| RFC 9535 JSONPath + RFC 6901 JSON Pointer  |
 | `full`  | all of the above                  | everything                                 |
 
+[0.7.0]: https://github.com/hlop3z/spoc/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/hlop3z/spoc/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/hlop3z/spoc/compare/v0.3.9...v0.5.0
