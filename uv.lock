@@ -983,6 +983,7 @@ docs = [
 ]
 examples = [
     { name = "fastapi" },
+    { name = "pydantic" },
 ]
 
 [package.metadata]
@@ -1017,7 +1018,10 @@ docs = [
     { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0.0" },
     { name = "termynal", specifier = ">=0.13.0" },
 ]
-examples = [{ name = "fastapi", specifier = ">=0.115" }]
+examples = [
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "pydantic", specifier = ">=2" },
+]
 
 [[package]]
 name = "starlette"

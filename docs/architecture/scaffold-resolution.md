@@ -22,7 +22,7 @@ flowchart TB
 
     subgraph adapters ["sources — adapters"]
         direction LR
-        builtin["built-in set<br/><i>importlib.resources</i>"]
+        builtin["built-in sets<br/><i>importlib.resources</i><br/>default · starter"]
         entry["entry points<br/><i>spoc.scaffold_templates</i>"]
         directory["local directory"]
         remote["<b>RemoteTemplateSource</b>"]
@@ -46,6 +46,12 @@ flowchart TB
 `available()` lives on `EnumerableSource`, which only the built-in and
 entry-point sources implement. A remote reference has no candidate set, so a
 not-found error never invents one for it.
+
+Two sets ship inside the distribution (`BUILTIN_SETS`): `default`, the minimal
+bootable project, and `starter`, the default vocabulary wired end to end with a
+transport-neutral projection module and a stdlib command surface. `starter` is
+fully concrete — no `per_kind` repetition — because the `resources` kind's
+lifecycle hooks cannot be expressed by name substitution.
 
 ## Retrieval, and where each control sits
 

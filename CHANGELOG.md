@@ -8,6 +8,33 @@ All notable changes to this project are documented here. The format follows
 What each version increment promises, and for which parts of the surface, is written
 down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
+## [Unreleased]
+
+### Added
+
+- **The `starter` template set** (provisional). `spoc init myproject --template starter`
+  generates a *running application*, not just a bootable skeleton: the five-kind
+  default vocabulary (`models`, `views`, `commands`, `resources`, `hooks`) wired end
+  to end, a transport-neutral projection module (`surface.py`), and a working project
+  CLI (`python main.py <namespace.command>`) — with zero dependencies beyond SPOC.
+  The starter chooses no transport; binding the projection to HTTP, messaging, or a
+  worker loop is a few documented lines in the generated project. Fully concrete on
+  purpose (`--kinds` does not apply): the `resources` kind's lifecycle wiring cannot
+  be expressed by name substitution.
+- **A default kind vocabulary.** The five kinds above are now documented as SPOC's
+  conventional vocabulary — the names reusable apps may assume — with the resource
+  lifecycle recipe (an instance component the kind's `on_startup` opens, `resolve`
+  reaches, and `on_shutdown` closes). Convention only: deviation stays fully
+  supported, and the kernel is unchanged. The storefront example now demonstrates
+  the recipe (`resources:catalog.search_index`, resolved mid-call by
+  `views:catalog.find_product`).
+- **App-owned configuration tables.** `spoc.toml` tables outside `[spoc]` were
+  parsed and silently discarded; they now reach the application, as parsed, on
+  `framework.config.tables`. The kernel claims exactly one top-level table — stated
+  as a contract, so an app table can never collide with a kernel one — and validates
+  nothing outside it; the docs show the seam with a plain pydantic model as the
+  worked example. The `[spoc]` closed key set is unchanged.
+
 ## [0.6.0] — 2026-08-10
 
 ### Added

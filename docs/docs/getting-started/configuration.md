@@ -60,6 +60,47 @@ production = ["apps.core"]
 test = ["apps.fakes"]
 ```
 
+## Your own tables: app-owned settings
+
+SPOC claims exactly **one** top-level table: `[spoc]`. Every other top-level
+table in the file is yours — parsed and handed back untouched on
+`framework.config.tables`, never validated or read by the kernel. SPOC will
+never claim a second table, so a table of yours can never collide with a
+kernel one.
+
+```toml title="config/spoc.toml"
+[spoc]
+mode = "development"
+
+[myapp]                # yours: any keys, any shapes
+api_url = "https://api.example.com"
+retries = 3
+```
+
+```python
+framework.start(BASE_DIR)
+settings = framework.config.tables["myapp"]   # {'api_url': ..., 'retries': 3}
+```
+
+**Validating your tables is your job**, with any schema tool you like. The
+worked example uses [pydantic](https://docs.pydantic.dev) — a plain model over
+the already-parsed table (not `pydantic-settings`; SPOC has already done the
+file reading):
+
+```python
+from pydantic import BaseModel, HttpUrl
+
+class MyAppSettings(BaseModel):
+    api_url: HttpUrl
+    retries: int = 3
+
+settings = MyAppSettings.model_validate(framework.config.tables["myapp"])
+settings.retries       # 3 — typed, defaulted, and validated at the boundary
+```
+
+A typo inside `[spoc]` still refuses to boot, loudly. A typo inside your own
+table is yours to catch — which is exactly what the model above does.
+
 ## Per-mode environment values
 
 Beside the settings file, SPOC loads one small TOML file per mode from
@@ -90,6 +131,7 @@ framework.start(BASE_DIR)
 
 framework.config.project["debug"]           # True — the [spoc] table
 framework.config.environment["database_url"]  # from the active mode's env file
+framework.config.tables                     # your own top-level tables, as parsed
 framework.installed_apps                    # ['apps.core', 'apps.blog']
 ```
 

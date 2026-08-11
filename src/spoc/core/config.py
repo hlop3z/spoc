@@ -6,6 +6,12 @@ The configuration adapter: the only place the kernel reads a file.
 is never imported here. Absent keys fall back to :data:`SPOC_DEFAULTS`, and an absent file
 loads as all defaults with a warning naming where it was expected.
 
+The kernel claims exactly one top-level table: ``[spoc]``. Every other top-level table
+in the file is application-owned — delivered back as parsed data, never interpreted,
+validated, or acted on here. The single claimed table is a stated contract: the kernel
+will never claim a second one, so an application's table can never collide with a
+kernel one.
+
 Validation is a few explicit checks, not a schema engine. The ``[spoc]`` table is a
 closed set of the five keys in :data:`_SPOC_TYPES`, written by the project owner, so a
 general-purpose recursive validator was more machinery than the contract it enforced;
@@ -114,9 +120,12 @@ def validate_spoc_config(config: dict[str, Any]) -> None:
 def load_spoc_toml(base_dir: Path, echo: bool = False) -> dict[str, Any]:
     """Load and validate ``spoc.toml``, filling absent keys from the defaults.
 
-    The defaults are deep-copied into every load. They are module-level
-    structures holding nested dicts and lists; handing them out by reference
-    would let one project's configuration be mutated into the next one's.
+    The returned mapping holds the merged ``spoc`` table plus every
+    application-owned top-level table, as parsed. The defaults and the
+    application tables are deep-copied into every load. They are (or join)
+    module-level structures holding nested dicts and lists; handing them out
+    by reference would let one project's configuration be mutated into the
+    next one's.
     """
     search_paths = [base_dir / "config" / "spoc.toml", base_dir / "spoc.toml"]
 
@@ -132,7 +141,10 @@ def load_spoc_toml(base_dir: Path, echo: bool = False) -> dict[str, Any]:
                 **deepcopy(DEFAULT_MODES),
                 **deepcopy(declared.get("modes", {})),
             }
-            return {"spoc": merged}
+            # Application-owned tables ride along untouched: parsed, never
+            # validated, never silently dropped.
+            tables = {k: deepcopy(v) for k, v in config.items() if k != "spoc"}
+            return {**tables, "spoc": merged}
 
     if echo:
         logger.warning(

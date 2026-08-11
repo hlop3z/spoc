@@ -540,3 +540,34 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: the single internal `version:bump` task in `Taskfile.yml`. The three
   `version:bump:{major,minor,patch}` entry points pass a segment name and know nothing about
   the implementation, so replacing hatch means editing one line.
+
+### Decision: Starter template's surface stack — Adopt the stdlib (no third-party binding)
+
+- **Status**: approved
+- **Why**: the kernel is surface-plural ("HTTP, CLI, workers … FastAPI, Robyn, anything"),
+  so the starter set generates no transport binding at all: a dependency-free projection
+  module (`surface.py`) plus a command surface on stdlib `argparse` — a real, runnable
+  application with zero third-party dependencies. Transport bindings are ~15-line
+  documented recipes over the projection, each executed by the test suite; the worked
+  HTTP recipe uses FastAPI because it is already the `examples` dev-dependency.
+- **Considered**: a FastAPI-generating starter (flavors SPOC as an HTTP/FastAPI adjunct
+  and demotes every other transport); Litestar (same flavoring plus a new CI dependency);
+  per-stack starter sets now (each must generate-and-boot in CI for no present user —
+  remains open as later pure-data additions through the `scaffold-templates` contract).
+- **Isolation**: template data only (`src/spoc/scaffold/templates/starter/`); binding
+  recipes live in the docs and run under the `examples` dependency group. Nothing in
+  `src/spoc` imports any of it.
+
+### Decision: Settings-validation seam — Adopt pydantic (worked example only)
+
+- **Status**: approved
+- **Why**: app-owned `spoc.toml` tables reach the app already parsed on
+  `framework.config.tables`, so plain-model validation (`Model.model_validate(table)`)
+  is the exact fit. The docs contract stays tool-agnostic — "validate the parsed table
+  with any schema validator" — and pydantic appears only as the worked example, pinned
+  in the `examples` dependency group so the docs snippet test runs.
+- **Considered**: pydantic-settings (its file/env source machinery duplicates reading
+  the kernel has already done); dynaconf (its own mode/merge layering competes with the
+  kernel's mode cascade); naming no tool (the docs example would be pseudocode).
+- **Isolation**: documentation only — the kernel neither imports nor depends on it, and
+  the seam works identically with any validator or none.

@@ -38,7 +38,11 @@ ENTRY_POINT_GROUP = "spoc.scaffold_templates"
 
 MANIFEST_NAME = "manifest.toml"
 
+#: The set used when an operation names none.
 BUILTIN_SET = "default"
+
+#: Every set that ships inside the distribution, resolvable by bare name.
+BUILTIN_SETS = frozenset({BUILTIN_SET, "starter"})
 
 
 def _parse_manifest(manifest_text: str, root: Path) -> TemplateSet:
@@ -107,9 +111,9 @@ def load_from_traversable(root: Traversable) -> TemplateSet:
         return load_from_directory(path)
 
 
-def _builtin_traversable() -> Traversable:
-    """The built-in template set's location, however this package is installed."""
-    return resources.files("spoc.scaffold") / "templates" / BUILTIN_SET
+def _builtin_traversable(name: str) -> Traversable:
+    """A built-in template set's location, however this package is installed."""
+    return resources.files("spoc.scaffold") / "templates" / name
 
 
 def _entry_points() -> dict[str, metadata.EntryPoint]:
@@ -211,7 +215,7 @@ class InstalledTemplateSources:
         self._remote = remote
 
     def available(self) -> tuple[str, ...]:
-        names = {BUILTIN_SET, *_entry_points()}
+        names = {*BUILTIN_SETS, *_entry_points()}
         return tuple(sorted(names))
 
     def load(self, name: str) -> TemplateSet:
@@ -235,8 +239,8 @@ class InstalledTemplateSources:
 
     def _load_name(self, reference: Reference) -> TemplateSet:
         name = reference.location
-        if name == BUILTIN_SET:
-            return load_from_traversable(_builtin_traversable())
+        if name in BUILTIN_SETS:
+            return load_from_traversable(_builtin_traversable(name))
 
         entry = _entry_points().get(name)
         if entry is None:

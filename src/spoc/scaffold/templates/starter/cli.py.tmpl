@@ -1,0 +1,41 @@
+"""The command surface for $project_name: argparse over the projection.
+
+A thin adapter — it translates argv, dispatches hooks at named moments, and
+renders output. Behavior lives in the command components; the table comes
+from `surface.commands`, so a new `commands` component becomes a subcommand
+with no edit here.
+"""
+
+import argparse
+
+import surface
+
+
+def _dispatch(registry, moment, **info):
+    """The hook dispatch site: *your* surface fires hooks; SPOC never does."""
+    for hook in surface.hooks(registry):
+        hook(moment, **info)
+
+
+def build_parser(registry):
+    parser = argparse.ArgumentParser(prog="$project_name")
+    subcommands = parser.add_subparsers(dest="command", required=True)
+    for name, command in surface.commands(registry).items():
+        doc = (command.__doc__ or "").strip().splitlines()
+        entry = subcommands.add_parser(name, help=doc[0] if doc else None)
+        entry.add_argument(
+            "args", nargs="*", help="arguments passed through to the command"
+        )
+        entry.set_defaults(_run=command)
+    return parser
+
+
+def run(framework, argv=None):
+    """Parse argv against the projected commands and run one."""
+    namespace = build_parser(framework.registry).parse_args(argv)
+    _dispatch(framework.registry, "command_started", command=namespace.command)
+    result = namespace._run(*namespace.args)
+    if result is not None:
+        print(result)
+    _dispatch(framework.registry, "command_finished", command=namespace.command)
+    return 0

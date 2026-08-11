@@ -1,0 +1,16 @@
+"""Hook callables for the $app_name app — kind `hooks`.
+
+The surface decides when hooks fire: `cli.py` dispatches them around every
+command (`command_started`, `command_finished`). Any installed app can
+contribute hooks to the same moments — that is the point of a shared
+vocabulary.
+"""
+
+from framework import hooks
+
+
+@hooks
+def announce(moment, **info):
+    """Registers as `hooks:$app_name.announce`."""
+    if moment == "command_finished":
+        print(f"[$app_name] {info['command']} finished")

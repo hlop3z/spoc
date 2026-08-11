@@ -5,7 +5,9 @@
 One declarative file configures the project: mode, the per-mode app cascade,
 plugins, and per-mode environment values. The kernel reads nothing else — a
 user's own settings module stays theirs — so what the system loads is
-answerable by reading a single file.
+answerable by reading a single file. The kernel claims exactly one table in
+that file; every other top-level table is application-owned data, delivered
+back as parsed and never interpreted.
 
 ## Requirements
 
@@ -21,13 +23,21 @@ The configuration table's key set is closed: a key outside the declared set MUST
 start with a configuration error naming the unknown key and the valid keys, so a typo
 never silently boots the project with defaults.
 
+The kernel claims exactly one top-level table in the configuration file — its own.
+Every other top-level table is application-owned: the kernel MUST expose such tables
+to the application, as parsed data, through the framework's exposed configuration, and
+MUST NOT interpret, validate, or act on their contents. The kernel MUST NOT silently
+discard any top-level table. The kernel MUST NOT claim any additional top-level table
+in the future; the single claimed table is a stated contract, so an application-owned
+table can never collide with a kernel one.
+
 A configuration file that exists but cannot be read or parsed MUST fail start with a
 configuration error naming the path and the reason; no lower-level filesystem or
 parser failure escapes as itself.
 
 Loaded configuration is isolated per load: mutating the configuration one framework
-exposes MUST NOT alter the documented defaults observed by any later load in the same
-process.
+exposes — including an application-owned table — MUST NOT alter the documented
+defaults or the values observed by any later load in the same process.
 
 All configuration warnings MUST obey one verbosity control: the missing-file warning
 and the environment-file warnings are gated by the same setting, not each by its own
@@ -51,7 +61,7 @@ rule.
 #### Scenario: Unknown configuration key is refused
 
 - **WHEN** the configuration file contains a key outside the declared key set (for
-  example a misspelling of a valid key)
+  example a misspelling of a valid key) inside the kernel's own table
 - **THEN** start fails with a configuration error naming the unknown key and listing
   the valid keys
 
@@ -67,6 +77,27 @@ rule.
   a second framework is then constructed and started without a configuration file
 - **THEN** the second framework observes the documented defaults, unaffected by the
   mutation
+
+#### Scenario: An application-owned table reaches the application
+
+- **WHEN** the configuration file declares a top-level table other than the kernel's
+  own, and the framework starts
+- **THEN** the application can read that table's parsed contents through the
+  framework's exposed configuration, and the kernel's behavior is unaffected by those
+  contents
+
+#### Scenario: Application-owned tables are not validated by the kernel
+
+- **WHEN** an application-owned table contains any keys and values whatsoever
+- **THEN** start does not fail on their account, and the values are delivered as
+  parsed
+
+#### Scenario: Application-owned tables are isolated across loads
+
+- **WHEN** a caller mutates an application-owned table exposed by one started
+  framework, and a second framework is then constructed against the same project
+- **THEN** the second framework observes the table as declared in the file, unaffected
+  by the mutation
 
 ### Requirement: Mode cascade for app lists
 

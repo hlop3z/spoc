@@ -111,6 +111,13 @@ public = [
   "template-set:default",
 ]
 
+# Public and documented, but unsettled: may change incompatibly in a minor
+# release. The starter's generated shape is new with this line; it settles
+# once it survives a full minor line unchanged.
+provisional = [
+  "template-set:starter",
+]
+
 # What carries no promise, even on a `public` element. Written down rather than
 # inferred, so silence is never mistaken for a guarantee.
 [tool.spoc.stability.excluded]
@@ -232,6 +239,10 @@ dev = [
 examples = [
     # HTTP surface for the registry-projection example (never a kernel dependency)
     "fastapi>=0.115",
+    # The settings-validation seam's worked example (docs: The Settings File).
+    # Pinned directly rather than ridden as fastapi's transitive dependency, so
+    # the docs-mirroring test keeps meaning if fastapi's own deps change.
+    "pydantic>=2",
 ]
 docs = [
     # Docs Tools
