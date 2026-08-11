@@ -2,10 +2,11 @@
 
 ### Requirement: A revision names its own retained content and no other
 
-Retention addresses content by the exact revision it was retrieved for. Where a revision is
-used to designate a retention location, that use MUST be either faithful or refused: a
-revision that cannot be used as a location MUST NOT be rewritten into one that could designate
-content retrieved for a different revision.
+A revision MUST designate its own retained content and no other's. Retention addresses content
+by the exact revision it was retrieved for, so where a revision is used to designate a
+retention location, that use MUST be either faithful or refused: a revision that cannot be used
+as a location MUST NOT be rewritten into one that could designate content retrieved for a
+different revision.
 
 Two distinct revisions MUST NOT resolve to the same retained content. A revision MUST NOT be
 usable to designate a location outside the retention root.
