@@ -8,6 +8,20 @@ All notable changes to this project are documented here. The format follows
 What each version increment promises, and for which parts of the surface, is written
 down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
+## [Unreleased]
+
+### Fixed
+
+- **A kind named for a Python keyword no longer generates a project that fails to
+  parse.** `spoc init shop --kinds class` emitted `class = framework.kind("class")`
+  and `from framework import class` — two `SyntaxError`s. The kind was never the
+  problem: the identity grammar accepts `class` and the kernel registers it, so only
+  the generated variable needed spelling around the language. It now carries PEP 8's
+  trailing underscore (`class_`), the escape applies to a singular that lands on a
+  keyword too (`--kinds ifs` now gives `if_` where it previously fell back to `ifs`),
+  and derived names are checked for collisions *after* escaping, so no two kinds can
+  bind the same variable. **Affects newly generated projects only.**
+
 ## [0.7.0] — 2026-08-11
 
 ### Changed

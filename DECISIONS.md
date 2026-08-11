@@ -625,3 +625,41 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: the macros module referenced by `docs/mkdocs.yml` plus the placeholders in
   `tools/cli.md`. The CLI itself is untouched; the macro imports the parser factory the
   shipped console script already uses.
+
+### Decision: Keyword-safe decorator names — Adopt the standard (PEP 8 + stdlib `keyword`)
+
+- **Status**: approved
+- **Why**: `spoc init --kinds class` generated `class = framework.kind("class")`, which
+  does not parse. The concern reads as "turn a category name into a legal identifier",
+  which sounds like an inflection problem and is not: singularization is already decided
+  and deliberately conservative, and the half that was broken is answered by a convention
+  Python publishes about itself — PEP 8's *"single trailing underscore … to avoid
+  conflicts with Python keyword, e.g. `class_`"*. Detection is `keyword.iskeyword`, the
+  authoritative list, from the standard library, already imported in the module. Adopting
+  the standard costs one helper; a reader who has met `class_` needs no explanation.
+- **Considered**: an inflection library (`inflect`, `inflection`) — solves the half that
+  is not broken, escapes no keywords, and cannot be adopted at all while the
+  distribution's `dependencies = []` is an invariant; refusing keyword kinds at validation
+  — would make the scaffolder stricter than the kernel it scaffolds for, since the
+  identity grammar accepts `class` and the registry stores it happily; a prefix
+  (`kind_class`, `_class`) or a rewording (`klass`) — both inventions, and a leading
+  underscore additionally reads as private.
+- **Isolation**: `_escape_keyword` and `decorator_names` in `src/spoc/scaffold/core.py`.
+  The templates interpolate `$decorator` and never spell a name themselves, so no template
+  changed.
+
+### Decision: Collisions introduced by escaping — Build (thin), append underscores
+
+- **Status**: approved
+- **Why**: escaping can create a duplicate the pre-escape check cannot see — kinds `class`
+  and `class_` both reach `class_`, and the declaration would bind one variable twice with
+  the second silently winning, handing one kind the other's decorator. A final pass that
+  appends underscores until each name is unused is total, terminates, extends the
+  convention already adopted above rather than inventing a second one, and does nothing at
+  all on inputs that do not collide.
+- **Considered**: raising an error on the collision (refuses a legal pair of kinds for a
+  cosmetic reason, against the function's own stance that a working file beats a pretty
+  variable); numbering duplicates `class_2` (a second scheme where extending the first one
+  reads correctly).
+- **Isolation**: the loop inside `decorator_names`. Order comes from the declared kinds
+  tuple, so the result is deterministic.

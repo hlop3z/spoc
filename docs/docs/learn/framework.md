@@ -66,7 +66,10 @@ class Whatever:             # → models:<app>.admin
 Inside an app you'd write `from framework import model` instead of the four
 setup lines — the decorator is the same object either way. The kind is plural
 (`models` is a category); the decorator is singular, because it marks one
-thing. `spoc init` names them that way for you.
+thing. `spoc init` names them that way for you — and where the singular is a
+word Python reserves, it adds the trailing underscore PEP 8 uses for exactly
+that (`spoc init shop --kinds class` gives you `class_`). The kind keeps the
+name you declared; only the variable is spelled around the language.
 
 A derived name is converted for you: `UserAccount` → `user_account`,
 `HTTPServer` → `http_server`. A name you *state* is used exactly as written —
