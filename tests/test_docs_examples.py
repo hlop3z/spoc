@@ -29,13 +29,21 @@ pytest-examples 0.0.18 facts, verified against the installed source
 - ``run_print_check`` fails when a snippet's prints are not mirrored by
   ``#> `` comments, so output display is enforced, not optional;
   ``run_print_update`` under ``--update-examples`` regenerates them.
-  CAUTION: on a CRLF checkout (Windows) the update writer miscomputes file
-  offsets and corrupts the page around the fence — verified against 0.0.18.
-  Until fixed upstream, run ``--update-examples`` only on an LF checkout, or
-  copy the expected ``#> `` lines from the check-mode diff by hand.
+  CAUTION: run it as ``PYTHONUTF8=1 uv run pytest … --update-examples``.
+  ``_modify_files`` reads and writes the page with the interpreter's locale
+  encoding while ``find_examples`` reads it as UTF-8, so wherever the two
+  codecs disagree on a character count the rewrite is spliced at the wrong
+  offset and the page is corrupted around the fence — on cp1252 a single em
+  dash anywhere above the fence is enough, and these pages are full of them.
+  Line endings are not involved: an LF checkout corrupts identically, and
+  UTF-8 mode leaves CRLF intact. Verified both ways against 0.0.18.
 - Examples share no state: each runs as a fresh module. Pages that need
   accumulation declare project files (state 2) instead of relying on
   fence-to-fence memory.
+- Both locale-encoding defects above are already fixed upstream — pydantic/
+  pytest-examples#66, merged 2026-07-13, after 0.0.18 shipped. Nothing to
+  report and nothing to contribute; when a release carrying it lands, raise the
+  pin and delete the ``_utf8_example_files`` fixture and the caution with it.
 """
 
 import re
@@ -111,8 +119,11 @@ def _utf8_example_files(monkeypatch: pytest.MonkeyPatch):
 
     pytest-examples 0.0.18 reads markdown as UTF-8 but writes the extracted
     module with the locale default, so on Windows any non-ASCII character in a
-    snippet becomes a SyntaxError before the example even runs. Upstream
-    defect in ``EvalExample._write_file``; remove when fixed.
+    snippet becomes a SyntaxError before the example even runs. Upstream defect
+    in ``EvalExample._write_file``, fixed by pytest-examples#66 and unreleased;
+    remove this fixture when a release carrying it is pinned. It stays even
+    though ``PYTHONUTF8=1`` would also cure it — a plain ``uv run pytest`` must
+    pass without the caller knowing to set anything.
     """
 
     def _write_file(self: EvalExample, example: CodeExample) -> Path:
