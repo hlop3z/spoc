@@ -111,6 +111,13 @@ public = [
   "template-set:default",
 ]
 
+# Public and documented, but unsettled: may change incompatibly in a minor
+# release. The starter's generated shape is new with this line; it settles
+# once it survives a full minor line unchanged.
+provisional = [
+  "template-set:starter",
+]
+
 # What carries no promise, even on a `public` element. Written down rather than
 # inferred, so silence is never mistaken for a guarantee.
 [tool.spoc.stability.excluded]

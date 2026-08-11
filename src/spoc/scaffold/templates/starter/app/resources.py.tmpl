@@ -1,0 +1,27 @@
+"""Process-lifetime resources for the $app_name app — kind `resources`.
+
+A resource is an *instance* that knows how to open and close itself. The
+kind's hooks (declared in framework.py) open it before any surface takes a
+call and close it at shutdown. Reach it with
+`framework.resolve("resources:$app_name.store")` — at call time, never at
+import time.
+"""
+
+from framework import resources
+
+
+class ItemStore:
+    """In-memory stand-in for a real pool, client, or connection."""
+
+    def __init__(self):
+        self.items = None
+
+    def open(self):
+        self.items = []
+
+    def close(self):
+        self.items = None
+
+
+# Instances carry no __name__, so a resource states its name explicitly.
+store = resources(ItemStore(), name="store")

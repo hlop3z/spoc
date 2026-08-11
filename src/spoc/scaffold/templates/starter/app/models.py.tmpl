@@ -1,0 +1,15 @@
+"""Domain data for the $app_name app — kind `models`, purely declarative."""
+
+import dataclasses as dc
+
+from framework import models
+
+
+@dc.dataclass
+@models
+class Item:
+    """Registers as `models:$app_name.item` — PEP 8 names convert to
+    snake_case identifiers automatically."""
+
+    name: str
+    done: bool = False

@@ -12,12 +12,14 @@ nav:
       - Getting Started:
           - Install: getting-started/installation.md
           - Your First Project: getting-started/quick-start.md
+          - The Starter: getting-started/starter.md
           - The Settings File: getting-started/configuration.md
       - Learn:
           - The Framework Object: learn/framework.md
           - Name Tags & the Registry: learn/names-and-registry.md
           - Apps & Modes: learn/apps.md
           - Start & Stop: learn/lifecycle.md
+          - The Default Vocabulary: learn/vocabulary.md
           - Plugins: learn/plugins.md
       - Tools:
           - The Command Line: tools/cli.md

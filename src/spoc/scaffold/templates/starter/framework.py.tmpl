@@ -1,0 +1,36 @@
+"""The entire framework definition for $project_name: one declaration.
+
+These five kinds are SPOC's default vocabulary — the names reusable apps may
+assume. Rename, remove, or add kinds freely; the registry treats any
+vocabulary the same. Only `resources` uses lifecycle hooks: they open every
+declared resource before a surface takes a call, and close them on the way
+out.
+"""
+
+import spoc
+
+
+def _open(resources_of_app):
+    for resource in resources_of_app:
+        resource.open()
+
+
+def _close(resources_of_app):
+    for resource in resources_of_app:
+        resource.close()
+
+
+framework = spoc.Framework(
+    "models",
+    spoc.KindSpec("views", depends_on=("models",)),
+    "commands",
+    spoc.KindSpec("resources", on_startup=_open, on_shutdown=_close),
+    "hooks",
+)
+
+# One decorator per declared kind. Apps import these to declare components.
+models = framework.kind("models")
+views = framework.kind("views")
+commands = framework.kind("commands")
+resources = framework.kind("resources")
+hooks = framework.kind("hooks")

@@ -1,0 +1,18 @@
+# Application configuration — the only file the kernel reads.
+#
+# SPOC claims exactly this [spoc] table. Any other top-level table you add is
+# yours: parsed and handed back on framework.config.tables, never validated.
+[spoc]
+mode = "development" # options: development, staging, production
+debug = true
+
+# Installed apps by mode, each a dotted module path imported exactly as
+# written. Development cascades staging and production in, so an app listed
+# under production is loaded in every mode.
+[spoc.apps]
+production = ["apps.$app_name"]
+staging = []
+development = []
+
+# Additional components (plugins and hooks), each a resolvable reference.
+[spoc.plugins]

@@ -1,0 +1,70 @@
+# The starter template set: the default vocabulary, wired and runnable.
+#
+# Fully concrete on purpose — no `per_kind` repetition. The `resources` kind
+# needs lifecycle hooks wired in framework.py, and name substitution cannot
+# express that, so the vocabulary is written out rather than derived from
+# `--kinds` (which this set therefore does not consult).
+#
+# `values` is the enumerable declaration the scaffold-templates spec requires.
+# The operation may supply more than a set declares; it must never supply less.
+
+[template_set]
+name = "starter"
+description = "A runnable transport-neutral application: the five-kind default vocabulary, a registry-projection module, and a project CLI."
+values = [
+    "project_name",
+    "app_name",
+]
+
+[[files]]
+source = "config/spoc.toml.tmpl"
+target = "config/spoc.toml"
+
+# The origin record is not here, and no set may declare it: `spoc init` writes
+# it itself, for every generation.
+
+[[files]]
+source = "framework.py.tmpl"
+target = "framework.py"
+
+[[files]]
+source = "surface.py.tmpl"
+target = "surface.py"
+
+[[files]]
+source = "cli.py.tmpl"
+target = "cli.py"
+
+[[files]]
+source = "main.py.tmpl"
+target = "main.py"
+
+[[files]]
+source = "apps_init.py.tmpl"
+target = "apps/__init__.py"
+
+[[files]]
+source = "app/__init__.py.tmpl"
+target = "apps/$app_name/__init__.py"
+
+# One module per vocabulary kind — layout is taxonomy.
+
+[[files]]
+source = "app/models.py.tmpl"
+target = "apps/$app_name/models.py"
+
+[[files]]
+source = "app/views.py.tmpl"
+target = "apps/$app_name/views.py"
+
+[[files]]
+source = "app/commands.py.tmpl"
+target = "apps/$app_name/commands.py"
+
+[[files]]
+source = "app/resources.py.tmpl"
+target = "apps/$app_name/resources.py"
+
+[[files]]
+source = "app/hooks.py.tmpl"
+target = "apps/$app_name/hooks.py"

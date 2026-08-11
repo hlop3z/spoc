@@ -1,0 +1,27 @@
+"""Command callables for the $app_name app — kind `commands`.
+
+The project CLI projects these as subcommands:
+
+    python main.py $app_name.add milk
+    python main.py $app_name.items
+
+Positional arguments pass through as strings; a new @commands function
+becomes a subcommand with no edit to cli.py.
+"""
+
+from framework import commands, framework
+
+
+@commands
+def add(name="example"):
+    """Add an item to the store."""
+    store = framework.resolve("resources:$app_name.store").object
+    store.items.append(name)
+    return f"added {name!r} ({len(store.items)} total)"
+
+
+@commands
+def items():
+    """List the items in the store."""
+    store = framework.resolve("resources:$app_name.store").object
+    return "\n".join(store.items) if store.items else "(empty)"

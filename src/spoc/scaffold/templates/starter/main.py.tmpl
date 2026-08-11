@@ -1,0 +1,24 @@
+"""Entry point for $project_name.
+
+    python main.py <namespace.command> [args...]
+    python main.py --help
+
+Boot, hand argv to the command surface, always shut down. The same boot
+serves any other surface you bind over `surface.py` — HTTP, messaging,
+workers. See the docs: Learn -> The Default Vocabulary.
+"""
+
+import sys
+from pathlib import Path
+
+import cli
+from framework import framework
+
+BASE_DIR = Path(__file__).resolve().parent
+
+if __name__ == "__main__":
+    framework.start(BASE_DIR)
+    try:
+        sys.exit(cli.run(framework, sys.argv[1:]))
+    finally:
+        framework.shutdown()

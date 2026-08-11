@@ -1,0 +1,34 @@
+"""The projection: registry records in, abstract surface tables out.
+
+Pure derivation — no transport, no third-party imports. Bind these tables to
+anything: `cli.py` binds `commands()` to argparse; the same `routes()` table
+binds to an HTTP framework, a message socket, or a worker loop in a few
+lines. Declaring a new component of a projected kind extends the table with
+no edit here.
+"""
+
+
+def routes(registry):
+    """An abstract route table derived from `views` records alone."""
+    return [
+        {
+            "path": f"/{record.namespace}/{record.object_name}",
+            "endpoint": record.object,
+            "name": record.identifier,
+        }
+        for record in registry.by_kind("views")
+    ]
+
+
+def commands(registry):
+    """A command table derived from `commands` records alone."""
+    return {
+        f"{record.namespace}.{record.object_name}": record.object
+        for record in registry.by_kind("commands")
+    }
+
+
+def hooks(registry):
+    """The hook callables, in canonical order. Firing them is the surface's
+    decision — the kernel never executes."""
+    return [record.object for record in registry.by_kind("hooks")]

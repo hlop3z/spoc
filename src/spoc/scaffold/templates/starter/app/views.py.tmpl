@@ -1,0 +1,15 @@
+"""Read-side callables for the $app_name app — kind `views`.
+
+A surface projects these: `surface.routes` derives one abstract route per
+view, and whatever transport you bind (HTTP, messaging, a worker) exposes
+it. SPOC registers views; it never calls them.
+"""
+
+from framework import framework, views
+
+
+@views
+def list_items():
+    """Registers as `views:$app_name.list_items`."""
+    store = framework.resolve("resources:$app_name.store").object
+    return {"items": list(store.items)}
