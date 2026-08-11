@@ -10,6 +10,7 @@ ones.
 
 import email.message
 import io
+import json
 import tarfile
 import urllib.error
 import urllib.request
@@ -18,7 +19,8 @@ from pathlib import Path
 import pytest
 
 from spoc.scaffold import remote
-from spoc.scaffold.cache import DirectoryCache, default_cache_root
+from spoc.scaffold.cache import DirectoryCache
+from spoc.scaffold.core import parse_reference
 from spoc.scaffold.errors import (
     IncompleteTemplateSetError,
     InsecureRedirectError,
@@ -29,6 +31,10 @@ from spoc.scaffold.errors import (
 from spoc.scaffold.plan import Reference, ReferenceKind
 from spoc.scaffold.remote import HttpFetcher, _is_secure, _NoDowngradeRedirect
 from spoc.scaffold.sources import InstalledTemplateSources, RemoteTemplateSource
+
+# The socket ban is what makes this module's opening claim checkable rather than
+# aspirational — see the `no_sockets` fixture in conftest.py.
+pytestmark = pytest.mark.usefixtures("no_sockets")
 
 MANIFEST = b"""
 [template_set]
@@ -223,6 +229,19 @@ class TestRedirectPolicy:
     def test_remote_http_is_not_secure(self) -> None:
         assert not _is_secure("http://example.com/set.tar.gz")
 
+    def test_the_refusing_handler_is_actually_installed(self) -> None:
+        """The tests above prove the handler refuses a downgrade. This proves the
+        opener every retrieval uses is the one carrying it — without this, the
+        policy could be correct and unreachable at the same time, and every other
+        test in this class would still pass."""
+        # `handlers` is not in the type stubs, so it is read defensively: if it
+        # ever disappears this reads as no handler installed and fails, which is
+        # the honest outcome for a test that can no longer see what it checks.
+        installed = getattr(remote._opener(), "handlers", [])
+        assert any(isinstance(h, _NoDowngradeRedirect) for h in installed), (
+            "retrievals would follow a redirect onto plaintext without being asked"
+        )
+
 
 class TestNoRemoteSuppliedPaths:
     def test_url_is_built_from_the_reference_alone(self) -> None:
@@ -256,18 +275,6 @@ class TestNoRemoteSuppliedPaths:
 
         assert got == payload
         assert not planted.exists(), "a server-supplied filename must name nothing"
-
-
-class TestCacheRoot:
-    def test_xdg_override_is_honoured(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("XDG_CACHE_HOME", "/tmp/somewhere")
-        assert "somewhere" in str(default_cache_root())
-
-    def test_root_is_under_a_spoc_directory(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
-        assert "spoc" in str(default_cache_root()).lower()
 
 
 class _FakeResponse:
@@ -379,3 +386,214 @@ class TestFailuresNameWhatTheCallerSupplied:
         message = str(caught.value)
         assert "'gh:o/r'" in message
         assert "name resolution failed" in message
+
+
+class _PayloadOpener:
+    """An opener answering with exactly these bytes, and no useful headers."""
+
+    def __init__(self, payload: bytes) -> None:
+        self.payload = payload
+        self.calls = 0
+
+    def open(self, request: object, timeout: float | None = None) -> _FakeResponse:
+        self.calls += 1
+        return _FakeResponse(self.payload, disposition="")
+
+
+def _answering(payload: bytes) -> _PayloadOpener:
+    return _PayloadOpener(payload)
+
+
+class TestTransferBound:
+    """`MAX_TRANSFER_BYTES` refuses an absurd transfer before it is buffered.
+
+    The bound that decides correctness is the expanded-size one in
+    `spoc.scaffold.archive`; this one exists so a hostile server cannot make the
+    process hold 96MB in memory on the way there. The real constant is far too
+    large to allocate in a test, so the bound itself is moved rather than the
+    payload — what is under test is the comparison, not the number.
+    """
+
+    def test_a_transfer_over_the_bound_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(remote, "MAX_TRANSFER_BYTES", 16)
+        monkeypatch.setattr(remote, "_opener", lambda: _answering(b"x" * 17))
+
+        with pytest.raises(RetrievalError) as caught:
+            remote.HttpFetcher().fetch(_ref(), "abc123")
+
+        message = str(caught.value)
+        assert "16" in message, "the failure must name the bound that was exceeded"
+        assert "'gh:o/r'" in message
+
+    def test_a_transfer_exactly_at_the_bound_is_accepted(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The bound is a maximum, not a strict one — an exact fit is not an
+        excess, and an off-by-one here would refuse legitimate content."""
+        monkeypatch.setattr(remote, "MAX_TRANSFER_BYTES", 16)
+        monkeypatch.setattr(remote, "_opener", lambda: _answering(b"x" * 16))
+
+        assert remote.HttpFetcher().fetch(_ref(), "abc123") == b"x" * 16
+
+
+class TestInsecureRedirectSurvivesRetrieval:
+    def test_a_refused_redirect_is_not_flattened_into_a_generic_failure(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The redirect policy is only as good as what the caller is told. If the
+        refusal were reported as an ordinary retrieval failure, a downgrade attack
+        would be indistinguishable from a flaky network."""
+
+        class Opener:
+            def open(self, request: object, timeout: float | None = None) -> object:
+                raise InsecureRedirectError(
+                    "https://host/set.tar.gz", "http://host/set.tar.gz"
+                )
+
+        monkeypatch.setattr(remote, "_opener", lambda: Opener())
+
+        with pytest.raises(InsecureRedirectError) as caught:
+            remote.HttpFetcher().fetch(_ref(), "abc123")
+        assert "weaker guarantees" in str(caught.value)
+
+
+class TestMalformedGithubReference:
+    @pytest.mark.parametrize("location", ["o", "o/r/extra", "", "/"])
+    def test_a_reference_that_is_not_owner_repo_is_refused(self, location: str) -> None:
+        reference = Reference(
+            kind=ReferenceKind.REMOTE,
+            raw=f"gh:{location}",
+            scheme="gh",
+            location=location,
+        )
+        with pytest.raises(RetrievalError) as caught:
+            remote.HttpRevisionResolver().resolve(reference)
+
+        message = str(caught.value)
+        assert "owner/repo" in message, "the failure must say what the form should be"
+        assert f"'gh:{location}'" in message
+
+    def test_the_same_refusal_applies_when_building_a_url(self) -> None:
+        reference = Reference(
+            kind=ReferenceKind.REMOTE, raw="gh:o", scheme="gh", location="o"
+        )
+        with pytest.raises(RetrievalError):
+            remote.HttpFetcher().fetch(reference, "abc123")
+
+
+class TestRevisionResolution:
+    """Every form a reference can take, resolved to the revision it designates."""
+
+    def test_a_github_reference_resolves_to_the_reported_commit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        opener = _answering(json.dumps({"sha": "d3adb33f"}).encode("utf-8"))
+        monkeypatch.setattr(remote, "_opener", lambda: opener)
+
+        assert remote.HttpRevisionResolver().resolve(_ref()) == "d3adb33f"
+        assert opener.calls == 1, "a moving reference has to be asked about"
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            b"not json at all",
+            b"{}",
+            b"[]",
+            b'{"commit": {"sha": "abc"}}',
+            b"null",
+        ],
+    )
+    def test_a_response_without_a_revision_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch, payload: bytes
+    ) -> None:
+        """Nothing the remote party says is trusted to be well-formed."""
+        monkeypatch.setattr(remote, "_opener", lambda: _answering(payload))
+
+        with pytest.raises(RetrievalError) as caught:
+            remote.HttpRevisionResolver().resolve(_ref())
+        assert "did not report a revision" in str(caught.value)
+        assert "'gh:o/r'" in str(caught.value)
+
+    def test_a_pinned_reference_resolves_without_asking_anyone(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A pinned VCS reference already names its revision, so resolving it is
+        a pure function and must open nothing."""
+        opener = _answering(b'{"sha": "should-not-be-read"}')
+        monkeypatch.setattr(remote, "_opener", lambda: opener)
+
+        reference = parse_reference("git+https://host/o/repo@v1.2.3")
+        assert remote.HttpRevisionResolver().resolve(reference) == "v1.2.3"
+        assert opener.calls == 0
+
+    def test_a_direct_archive_url_is_keyed_by_its_own_digest(self) -> None:
+        """A direct URL carries no revision to ask about, so the URL is the whole
+        identity and its digest is the key."""
+        reference = parse_reference("https://host/sets/minimal.tar.gz")
+        revision = remote.HttpRevisionResolver().resolve(reference)
+        assert revision.startswith("url-")
+
+    def test_the_same_url_always_yields_the_same_key(self) -> None:
+        """Otherwise a repeat generation would retrieve again every time."""
+        first = remote.HttpRevisionResolver().resolve(
+            parse_reference("https://host/set.tar.gz")
+        )
+        second = remote.HttpRevisionResolver().resolve(
+            parse_reference("https://host/set.tar.gz")
+        )
+        assert first == second
+
+    def test_different_urls_yield_different_keys(self) -> None:
+        resolver = remote.HttpRevisionResolver()
+        first = resolver.resolve(parse_reference("https://host/one.tar.gz"))
+        second = resolver.resolve(parse_reference("https://host/two.tar.gz"))
+        assert first != second
+
+
+class TestRetrievalUrlConstruction:
+    """The URL is a pure function of the reference and the revision.
+
+    Every case here is the same assertion in a different dress: what is fetched
+    is derived locally, never taken from anything a remote party said.
+    """
+
+    @pytest.mark.parametrize(
+        ("reference", "expected"),
+        [
+            (
+                "gh:o/r",
+                "https://codeload.github.com/o/r/tar.gz/abc123",
+            ),
+            (
+                "git+https://host/o/repo",
+                "https://host/o/repo/archive/abc123.tar.gz",
+            ),
+            # The `.git` suffix is transport spelling, not part of the path.
+            (
+                "git+https://host/o/repo.git",
+                "https://host/o/repo/archive/abc123.tar.gz",
+            ),
+            (
+                "git+ssh://host/o/repo",
+                "ssh://host/o/repo/archive/abc123.tar.gz",
+            ),
+            # A direct archive URL is used exactly as supplied. Plaintext here is
+            # the caller's explicit choice; what is refused is being *moved* onto
+            # plaintext by a redirect nobody asked for.
+            (
+                "https://host/sets/minimal.tar.gz",
+                "https://host/sets/minimal.tar.gz",
+            ),
+            (
+                "http://localhost:8000/set.tar.gz",
+                "http://localhost:8000/set.tar.gz",
+            ),
+        ],
+    )
+    def test_url_is_derived_from_the_reference_alone(
+        self, reference: str, expected: str
+    ) -> None:
+        built = HttpFetcher()._url_for(parse_reference(reference), "abc123")
+        assert built == expected

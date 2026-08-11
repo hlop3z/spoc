@@ -1,17 +1,20 @@
 """
-Property-based tests (specs: object-identity, component-registry).
+Property-based tests (specs: object-identity, component-registry,
+remote-template-acquisition).
 
-Universal quantification over the two hardest contracts: the identifier
-grammar (round-trip identity, rejection completeness) and the registry's
-invariants under arbitrary operation sequences and thread interleavings.
+Universal quantification over the hardest contracts: the identifier grammar
+(round-trip identity, rejection completeness), the registry's invariants under
+arbitrary operation sequences and thread interleavings, and the injectivity of
+the revision-to-location mapping that keys the template cache.
 Example-based tests state the cases we thought of; these hunt for the ones
 we didn't. Budgets are stated per test so `task check` stays fast.
 """
 
 import re
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
-from hypothesis import given, settings
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, invariant, rule
 
@@ -24,6 +27,7 @@ from spoc.core.exceptions import (
 )
 from spoc.core.identity import SEGMENT_PATTERN
 from spoc.core.registry import Registry
+from spoc.scaffold.cache import DirectoryCache
 
 # ── Generators ────────────────────────────────────────────────────────────
 
@@ -94,6 +98,43 @@ def test_segment_rejection_never_converts(junk):
         assert "object_name" in str(exc)
         return
     raise AssertionError(f"non-conforming segment was accepted: {junk!r}")
+
+
+# ── Retention: a revision names its own content and no other ──────────────
+
+# `_entry` is pure — it derives a path and touches no filesystem — so one cache
+# over a notional root serves every example.
+_RETENTION = DirectoryCache(Path("/retained"))
+
+
+@settings(max_examples=500)
+@given(left=st.text(max_size=40), right=st.text(max_size=40))
+def test_distinct_revisions_never_share_retained_content(left, right):
+    """Injectivity, over the whole input space rather than the cases we picked.
+
+    This is the property the old mapping violated: filtering a revision to
+    path-safe characters made `feature/x` and `featurex` the same entry, so one
+    revision could be served the other's content. Examples never found it —
+    nobody thought to pick that pair (spec: remote-template-acquisition).
+    """
+    assume(left != right)
+    assert _RETENTION._entry(left) != _RETENTION._entry(right)
+
+
+@settings(max_examples=500)
+@given(revision=st.text(max_size=40))
+def test_no_revision_designates_a_location_outside_the_root(revision):
+    """A revision arrives as a path segment, so no revision may traverse out of
+    the retention root — whatever it contains."""
+    entry = _RETENTION._entry(revision)
+    assert entry.parent == _RETENTION.root
+
+
+@settings(max_examples=200)
+@given(revision=st.text(max_size=40))
+def test_the_mapping_is_a_function_of_the_revision_alone(revision):
+    """A repeat generation has to find what the first one retained."""
+    assert _RETENTION._entry(revision) == _RETENTION._entry(revision)
 
 
 # ── Registry: invariants under arbitrary operation sequences ──────────────
