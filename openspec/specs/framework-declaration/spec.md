@@ -21,6 +21,13 @@ cannot exist and no kind attribute can be stated away from the kind it describes
 Declaring the same kind more than once within one declaration MUST fail, naming the
 duplicated kind. A later declaration never silently replaces an earlier one.
 
+The inter-kind dependency order stated here MUST hold across the whole project, not
+merely within each app. A kind that depends on another orders every installed app's
+modules of the two kinds against each other, so the depended-on kind is complete
+everywhere before the dependent kind begins anywhere. The declaration is therefore the
+single statement of load phases for the project, and no per-app declaration weakens or
+overrides it.
+
 #### Scenario: Kinds are stated once
 
 - **WHEN** a framework is declared with kinds `models` and `views`
@@ -31,7 +38,16 @@ duplicated kind. A later declaration never silently replaces an earlier one.
 
 - **WHEN** the declaration states that `views` depends on `models`
 - **THEN** modules of kind `models` are loaded and initialized before modules of kind
-  `views` in every app, with no separate ordering declaration
+  `views`, with no separate ordering declaration
+
+#### Scenario: The dependency order spans apps
+
+- **WHEN** the declaration states that `views` depends on `models`, and two apps `blog`
+  and `shop` are installed
+- **THEN** both apps' `models` modules are loaded and initialized before either app's
+  `views` module
+- **AND** no app's `views` module is loaded before any app's `models` module, whatever
+  order the apps are declared in
 
 #### Scenario: Per-kind attributes ride the same declaration
 
