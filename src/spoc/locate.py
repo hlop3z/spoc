@@ -11,10 +11,16 @@ inside an isolation scope).
 from __future__ import annotations
 
 import importlib
+from types import ModuleType
 
-from ..framework import Framework
+from .framework import Framework
 
-__all__ = ["DEFAULT_FRAMEWORK_REF", "LocateError", "locate_framework"]
+__all__ = [
+    "DEFAULT_FRAMEWORK_REF",
+    "LocateError",
+    "locate_framework",
+    "locate_root",
+]
 
 #: What ``spoc init`` emits: module ``framework``, attribute ``framework``.
 DEFAULT_FRAMEWORK_REF = "framework:framework"
@@ -35,6 +41,16 @@ def _fail(ref: str, problem: str) -> LocateError:
 
 def locate_framework(ref: str = DEFAULT_FRAMEWORK_REF) -> Framework:
     """Import `ref` (``module:attr``) and return the :class:`Framework` it names."""
+    return locate_root(ref)[1]
+
+
+def locate_root(ref: str = DEFAULT_FRAMEWORK_REF) -> tuple[ModuleType, Framework]:
+    """Locate a framework *and* the composition root module that declares it.
+
+    Callers that only want the framework use :func:`locate_framework`; stub
+    generation needs the module too, because a stub describes the module a
+    project imports, not the object inside it.
+    """
     module_path, sep, attribute = ref.partition(":")
     if not sep or not module_path or not attribute:
         raise _fail(ref, f"{ref!r} is not of the form module:attribute")
@@ -55,4 +71,4 @@ def locate_framework(ref: str = DEFAULT_FRAMEWORK_REF) -> Framework:
             ref,
             f"{module_path}:{attribute} is {type(framework).__name__}, not a Framework",
         )
-    return framework
+    return module, framework

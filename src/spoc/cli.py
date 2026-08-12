@@ -18,7 +18,7 @@ from pathlib import Path
 
 from .core.exceptions import SpocError
 from .diagnostics import cli as diagnostics_cli
-from .diagnostics.locate import LocateError, locate_framework
+from .locate import LocateError, locate_framework
 from .scaffold import cli as scaffold_cli
 from .scaffold.cache import DirectoryCache
 from .scaffold.remote import HttpFetcher, HttpRevisionResolver

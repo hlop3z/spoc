@@ -11,8 +11,8 @@ A diagnostic run is an isolated dry boot: the operations compose
 modules, or import-path changes outlive a call.
 """
 
+from ..locate import DEFAULT_FRAMEWORK_REF, LocateError
 from .core import CheckReport, Finding, RecordInfo, check, explain, list_records
-from .locate import DEFAULT_FRAMEWORK_REF, LocateError
 
 __all__ = [
     # Operations

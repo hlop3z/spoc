@@ -20,13 +20,14 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from ..core.config import load_spoc_toml
 from ..core.exceptions import ConfigurationError, SpocError, UnknownKindError
 from ..core.registry import Component
 from ..framework import Framework
+from ..locate import DEFAULT_FRAMEWORK_REF, LocateError, locate_framework
 from ..testing import import_state
-from .locate import DEFAULT_FRAMEWORK_REF, LocateError, locate_framework
 
 __all__ = ["CheckReport", "Finding", "RecordInfo", "check", "explain", "list_records"]
 
@@ -68,7 +69,7 @@ class RecordInfo:
     location: str
 
     @classmethod
-    def from_component(cls, component: Component) -> RecordInfo:
+    def from_component(cls, component: Component[Any]) -> RecordInfo:
         obj = component.object
         module = getattr(obj, "__module__", None)
         qualname = getattr(obj, "__qualname__", None)

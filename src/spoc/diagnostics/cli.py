@@ -12,8 +12,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from ..locate import DEFAULT_FRAMEWORK_REF
 from .core import check, explain, list_records
-from .locate import DEFAULT_FRAMEWORK_REF
 
 __all__ = ["register"]
 
