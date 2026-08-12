@@ -1,0 +1,9 @@
+// This fixture is its own project: `framework` resolves from this directory,
+// not from the repo root. Open THIS folder in your editor to reproduce what
+// tests/test_conformance.py checks. Pyright reads JSONC, so these comments are
+// part of the format — a "//" *key* is not, and warns.
+{
+  "include": ["."],
+  "extraPaths": ["."],
+  "typeCheckingMode": "standard"
+}

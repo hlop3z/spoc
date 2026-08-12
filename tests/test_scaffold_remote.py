@@ -15,6 +15,7 @@ import tarfile
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Self
 
 import pytest
 
@@ -287,7 +288,7 @@ class _FakeResponse:
     def read(self, size: int = -1) -> bytes:
         return self._buffer.read(size)
 
-    def __enter__(self) -> "_FakeResponse":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc: object) -> None:

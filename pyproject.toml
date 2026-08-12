@@ -143,6 +143,11 @@ internal-attributes = true
 # Markdown, which reflows the aligned trailing comments the docs use as annotations.
 [tool.ruff]
 target-version = "py312"
+# The conformance fixture is a standalone project, not repo source: it resolves
+# `framework` from its own root and carries pyright-only constructs. It is
+# checked far harder than this gate could — by mypy, pyright, and ty in
+# tests/test_conformance.py — so linting it from here would only mislint it.
+extend-exclude = ["tests/conformance"]
 include = [
     "*.py",
     "*.pyi",
@@ -163,6 +168,7 @@ select = [
     "B",   # flake8-bugbear
     "SIM", # flake8-simplify
     "DTZ", # flake8-datetimez — naive datetimes are a correctness trap
+    "PYI", # flake8-pyi — the generated stubs are linted like any other source
     "RUF", # ruff-specific
 ]
 ignore = [
@@ -174,6 +180,12 @@ ignore = [
 
 [tool.ty.environment]
 root = ["./src"]
+
+# Same reason as ruff's exclusion above: the conformance fixture is its own
+# project with its own import root, and its own gate checks it with three
+# checkers. Checking it from here resolves nothing and reports everything.
+[tool.ty.src]
+exclude = ["tests/conformance"]
 
 # unresolved-import stays on for the published packages. It is ignored only where
 # imports genuinely cannot resolve statically: the example project imports its own
@@ -233,6 +245,14 @@ dev = [
     "hypothesis>=6.100",
     "ruff>=0.14.13",
     "ty>=0.0.12",
+    # The generated-stub conformance gate (tests/test_conformance.py) runs three
+    # type checkers over one fixture. `ty` alone cannot hold this contract: it is
+    # beta at 0.0.x, and — more to the point — no user's editor runs it, so a stub
+    # could pass CI and still fail everyone. pyright is what VS Code runs through
+    # Pylance, which makes it the authority on the autocomplete claim; mypy is the
+    # second independent reading. Dev-only; `dependencies` above stays empty.
+    "mypy>=1.13",
+    "pyright>=1.1.390",
     # The formats suite exercises the real codecs and simulates a *missing*
     # extra with a stub factory — so the extras must be present for the suite
     # to mean anything. Declared here rather than as a CI flag: `uv sync`

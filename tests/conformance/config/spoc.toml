@@ -1,0 +1,6 @@
+[spoc]
+mode = "development"
+debug = true
+
+[spoc.apps]
+development = ["shop"]
