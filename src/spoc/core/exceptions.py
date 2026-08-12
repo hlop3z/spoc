@@ -233,3 +233,21 @@ class ConfigurationError(SpocError):
     def __init__(self, message: str, config_file: str | None = None) -> None:
         self.config_file = config_file
         super().__init__(f"{message} in file {config_file}" if config_file else message)
+
+
+class ComponentShapeError(SpocError):
+    """A component's shape is not the shape the caller's type contract expects.
+
+    Shape is the one thing typed access checks at runtime — whether the record
+    holds something constructible, a plain value, or a callable. Structure is
+    not checked here: which members an object provides is a static question,
+    and answering it twice would put a validation engine in the kernel.
+    """
+
+    def __init__(self, identifier: str, expected: str, got: str) -> None:
+        self.identifier, self.expected, self.got = identifier, expected, got
+        super().__init__(
+            f"Component {identifier!r} is {got}, but the requested access "
+            f"expects {expected}. Use the accessor matching the component's "
+            "shape, or register a different object under this identifier"
+        )

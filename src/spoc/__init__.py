@@ -19,11 +19,12 @@ and enforced by ``apicheck``. See the stability policy in the docs.
 """
 
 from .__about__ import __version__
-from .core.declaration import KindSpec, component
+from .core.declaration import KindHandle, KindSpec, component
 from .core.exceptions import (
     AppNotFoundError,
     CircularDependencyError,
     ComponentKindMismatchError,
+    ComponentShapeError,
     ConfigurationError,
     DuplicateComponentError,
     IdentityDivergenceError,
@@ -49,6 +50,7 @@ __all__ = [
     # Declaration
     "Framework",
     "KindSpec",
+    "KindHandle",
     "Config",
     "component",
     # Registry
@@ -73,6 +75,7 @@ __all__ = [
     "DuplicateComponentError",
     "IdentityDivergenceError",
     "ComponentKindMismatchError",
+    "ComponentShapeError",
     "MissingNameError",
     "UnmarkableObjectError",
     "MetadataContractError",

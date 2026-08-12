@@ -44,12 +44,18 @@ from .core.config import (
     load_spoc_toml,
 )
 from .core.declaration import (
+    KindHandle,
     KindSpec,
     as_kind_spec,
     discover,
     registrar,
 )
-from .core.exceptions import ConfigurationError, SpocError, UnknownKindError
+from .core.exceptions import (
+    ComponentShapeError,
+    ConfigurationError,
+    SpocError,
+    UnknownKindError,
+)
 from .core.identity import to_snake_case, validate_segment
 from .core.loader import KindHooks, LoadedModule, Loader
 from .core.registry import Component, Registry
@@ -67,6 +73,19 @@ class Config:
     project: dict[str, Any]
     environment: Any
     tables: dict[str, Any] = field(default_factory=dict)
+
+
+def _shape_of(obj: Any) -> str:
+    """Name a component's shape in the vocabulary typed access reports.
+
+    The three shapes are exhaustive and ordered: a class is constructible even
+    though it is also callable, so the checks cannot be reversed.
+    """
+    if isinstance(obj, type):
+        return "a constructible object"
+    if callable(obj):
+        return "a callable"
+    return "a value"
 
 
 def _build_config(base_dir: Path, echo: bool = False) -> Config:
@@ -141,7 +160,7 @@ class Framework:
             raise UnknownKindError(kind, self.kinds)
         return self._specs[kind]
 
-    def kind(self, kind: str) -> Callable[..., Any]:
+    def kind(self, kind: str) -> KindHandle:
         """The registration handle for a declared kind."""
         return registrar(self.spec(kind))
 
@@ -159,9 +178,48 @@ class Framework:
         """True once ``start`` has completed successfully."""
         return self._started
 
-    def resolve(self, identifier: str) -> Component:
+    def resolve(self, identifier: str) -> Component[Any]:
         """Resolve ``kind:namespace.object_name`` to its registry record."""
         return self.registry.resolve(identifier)
+
+    def resolve_type[T](self, identifier: str, contract: type[T]) -> type[T]:
+        """Resolve a constructible component under a caller-owned contract.
+
+        `contract` is read by the type checker, not by this method: it names the
+        static type the caller expects and never reaches the registry. Pointing
+        it at a ``Protocol`` the *calling* app declares is what keeps typed
+        access from re-coupling the two apps — the caller states the shape it
+        needs instead of importing the module that provides it.
+
+        Only shape is checked here; see :meth:`resolve_object` for the rest of
+        the contract this pair shares.
+        """
+        obj = self.registry.resolve(identifier).object
+        if not isinstance(obj, type):
+            raise ComponentShapeError(
+                identifier, "a constructible object", _shape_of(obj)
+            )
+        return obj
+
+    def resolve_object[T](self, identifier: str, contract: type[T]) -> T:
+        """Resolve a value or callable component under a caller-owned contract.
+
+        The counterpart to :meth:`resolve_type`, and the pair is exhaustive
+        because ``type[T]`` versus ``T`` is the only distinction the type system
+        forces. A callable is returned uninvoked: the kernel describes, and
+        typed access is still a pure lookup.
+
+        Neither accessor inspects the object's members. Whether it structurally
+        satisfies `contract` is a static question, answered where the contract
+        is visible; re-answering it at runtime would duplicate a known fact and
+        put a validation engine in the kernel.
+        """
+        obj = self.registry.resolve(identifier).object
+        if isinstance(obj, type):
+            raise ComponentShapeError(
+                identifier, "a value or a callable", _shape_of(obj)
+            )
+        return obj
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
