@@ -169,6 +169,125 @@ class TestOrdering:
         loader.shutdown({}, lambda entry: ())
 
 
+class TestSyncAsyncParity:
+    """The two paths must stay behaviourally paired, not merely similar.
+
+    The four walks (sync/async x initialize/shutdown) were four independent
+    copies differing only by `await`, and they had already drifted — both
+    initialize paths logged per module while neither shutdown path logged at
+    all. These tests are what make consolidating them safe: they compare
+    observable behaviour rather than reading the diff.
+    """
+
+    @staticmethod
+    def _tree(loader: Loader, events: list[str]) -> None:
+        for name in ("a", "b", "c"):
+            loader._modules[name] = fake(
+                name,
+                kind="models" if name != "c" else "views",
+                initialize=lambda n=name: events.append(f"up:{n}"),
+                teardown=lambda n=name: events.append(f"down:{n}"),
+            )
+            loader._graph.setdefault(name, set())
+        loader._graph["b"].add("a")
+        loader._graph["c"].add("b")
+
+    def _hooks(self, events: list[str]) -> dict:
+        return {
+            "models": (
+                lambda objs: events.append("hook_up:models"),
+                lambda objs: events.append("hook_down:models"),
+            ),
+            "views": (
+                lambda objs: events.append("hook_up:views"),
+                lambda objs: events.append("hook_down:views"),
+            ),
+        }
+
+    def test_both_paths_produce_the_same_event_sequence(self):
+        import asyncio
+
+        sync_events: list[str] = []
+        sync_loader = Loader()
+        self._tree(sync_loader, sync_events)
+        sync_loader.initialize(self._hooks(sync_events), lambda entry: ())
+        sync_loader.shutdown(self._hooks(sync_events), lambda entry: ())
+
+        async_events: list[str] = []
+        async_loader = Loader()
+        self._tree(async_loader, async_events)
+
+        async def run():
+            await async_loader.ainitialize(self._hooks(async_events), lambda e: ())
+            await async_loader.ashutdown(self._hooks(async_events), lambda e: ())
+
+        asyncio.run(run())
+
+        assert sync_events == async_events, (
+            "the synchronous and asynchronous walks diverged in order or dispatch"
+        )
+
+    def test_both_paths_leave_the_same_bookkeeping(self):
+        import asyncio
+
+        sync_loader = Loader()
+        self._tree(sync_loader, [])
+        sync_loader.initialize({}, lambda entry: ())
+        after_sync_init = {
+            e.name: (e.started, e.initialized) for e in sync_loader.ordered()
+        }
+
+        async_loader = Loader()
+        self._tree(async_loader, [])
+        asyncio.run(async_loader.ainitialize({}, lambda entry: ()))
+        after_async_init = {
+            e.name: (e.started, e.initialized) for e in async_loader.ordered()
+        }
+
+        assert after_sync_init == after_async_init
+        assert all(flags == (True, True) for flags in after_sync_init.values())
+
+        sync_loader.shutdown({}, lambda entry: ())
+        asyncio.run(async_loader.ashutdown({}, lambda entry: ()))
+        after_sync_down = {
+            e.name: (e.started, e.initialized) for e in sync_loader.ordered()
+        }
+        after_async_down = {
+            e.name: (e.started, e.initialized) for e in async_loader.ordered()
+        }
+
+        assert after_sync_down == after_async_down
+        assert all(flags == (False, False) for flags in after_sync_down.values())
+
+    def test_both_paths_log_per_module_on_both_phases(self, caplog):
+        """The drift that duplication produced: shutdown logged nothing."""
+        import asyncio
+        import logging
+
+        for label, run in (
+            ("sync", None),
+            ("async", True),
+        ):
+            loader = Loader()
+            self._tree(loader, [])
+            caplog.clear()
+            with caplog.at_level(logging.DEBUG, logger="spoc.core.loader"):
+                if run is None:
+                    loader.initialize({}, lambda e: ())
+                    loader.shutdown({}, lambda e: ())
+                else:
+                    asyncio.run(loader.ainitialize({}, lambda e: ()))
+                    asyncio.run(loader.ashutdown({}, lambda e: ()))
+
+            messages = [r.getMessage() for r in caplog.records]
+            assert sum("Initializing module" in m for m in messages) == 3, (
+                f"{label}: initialize did not log once per module"
+            )
+            assert sum("Tearing down module" in m for m in messages) == 3, (
+                f"{label}: shutdown did not log once per module"
+            )
+
+
 class TestLifecycleHooks:
     def test_hooks_dispatch_by_kind(self, loader):
         seen: list[tuple[str, str]] = []

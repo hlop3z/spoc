@@ -33,13 +33,19 @@ from .exceptions import (
     UnresolvedReferenceError,
 )
 
-logger = logging.getLogger("spoc")
+logger = logging.getLogger(__name__)
 
 #: A kind's lifecycle hooks, each called with the module's registered component
 #: objects as an immutable sequence in registration order.
 type KindHooks = tuple[
     Callable[[Sequence[Any]], Any] | None, Callable[[Sequence[Any]], Any] | None
 ]
+
+#: One unit of lifecycle work: the app-authored callable and the arguments it
+#: takes. The callable is carried unwrapped so a coroutine function is still
+#: recognizable as one — wrapping it in a thunk would hide that from the
+#: synchronous path's refusal.
+type _Step = tuple[Callable[..., Any], tuple[Any, ...]]
 
 
 @dataclass
@@ -55,7 +61,10 @@ class LoadedModule:
     #: effective installed-app list. The loader carries this without interpreting
     #: it, exactly as it carries `kind` — the framework owns what the numbers mean.
     position: tuple[int, int] = (0, 0)
-    #: The module's own ``initialize()`` completed, so its ``teardown()`` is owed.
+    #: The module came through the initialize phase — whether or not it defined
+    #: an ``initialize()`` of its own — so its ``teardown()`` is owed. A module
+    #: that defines neither is still flagged, which costs nothing: shutdown looks
+    #: for a ``teardown()`` and finds none.
     initialized: bool = False
     #: The startup phase completed for this module — the kind's startup hook ran,
     #: or there was none to run — so the shutdown hook is owed. Tracked apart
@@ -189,69 +198,45 @@ class Loader:
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
     #
-    # Each phase exists twice: a synchronous form that refuses coroutine
-    # callables loudly (it can neither run a loop of its own nor guess at
-    # one), and an asynchronous form that awaits whatever a hook or module
-    # function returns awaitable. Both walk the same order and share the
-    # same error contract: a failure raised by a hook or a module's own
-    # lifecycle function is the app author's, and propagates untouched.
+    # Each phase is described once, as a generator of the steps it must run in
+    # order which owns the flag bookkeeping between them. The synchronous and
+    # asynchronous drivers consume that one description and differ only in
+    # whether they call or await, so the order, the hook dispatch, and the
+    # bookkeeping cannot drift apart. They previously could, and had: both
+    # initialize paths logged per module while neither shutdown path logged.
+    #
+    # A flag is set only once the generator resumes, which is after the driver
+    # has run the step — so a hook or module function that raises leaves its own
+    # flag unset, and shutdown tears down exactly what came up.
+    #
+    # Both phases share one error contract: a failure raised by a hook or a
+    # module's own lifecycle function is the app author's, and propagates
+    # untouched. The kernel's own refusal — a coroutine the synchronous path
+    # cannot run — is a precondition checked before any step runs.
 
-    @staticmethod
-    def _refuse_coroutine(fn: Callable[..., Any], owner: str) -> None:
-        if inspect.iscoroutinefunction(fn):
-            raise SpocError(
-                f"{owner} is a coroutine function; the synchronous lifecycle "
-                "cannot run it — use astart()/ashutdown() to await it"
-            )
-
-    def initialize(
+    def _startup_steps(
         self,
         hooks: dict[str, KindHooks],
         components_for: Callable[[LoadedModule], Sequence[Any]],
-    ) -> None:
-        """Fire each module's startup hook, then its own ``initialize()``."""
+    ) -> Iterator[_Step]:
+        """The startup phase in load order: each kind's hook, then the module's own."""
         for entry in self.ordered():
             logger.debug("Initializing module: %s", entry.name)
             on_startup, _ = hooks.get(entry.kind, (None, None))
             if on_startup is not None:
-                self._refuse_coroutine(
-                    on_startup, f"startup hook for kind {entry.kind!r}"
-                )
-                on_startup(components_for(entry))
+                yield on_startup, (components_for(entry),)
             entry.started = True
             fn = getattr(entry.module, "initialize", None)
             if callable(fn) and not entry.initialized:
-                self._refuse_coroutine(fn, f"{entry.name}.initialize")
-                fn()
+                yield fn, ()
             entry.initialized = True
 
-    async def ainitialize(
+    def _shutdown_steps(
         self,
         hooks: dict[str, KindHooks],
         components_for: Callable[[LoadedModule], Sequence[Any]],
-    ) -> None:
-        """Asynchronous :meth:`initialize`: awaits coroutine hooks and modules."""
-        for entry in self.ordered():
-            logger.debug("Initializing module: %s", entry.name)
-            on_startup, _ = hooks.get(entry.kind, (None, None))
-            if on_startup is not None:
-                result = on_startup(components_for(entry))
-                if inspect.isawaitable(result):
-                    await result
-            entry.started = True
-            fn = getattr(entry.module, "initialize", None)
-            if callable(fn) and not entry.initialized:
-                result = fn()
-                if inspect.isawaitable(result):
-                    await result
-            entry.initialized = True
-
-    def shutdown(
-        self,
-        hooks: dict[str, KindHooks],
-        components_for: Callable[[LoadedModule], Sequence[Any]],
-    ) -> None:
-        """Fire each module's shutdown hook, then its own ``teardown()``, in reverse.
+    ) -> Iterator[_Step]:
+        """The shutdown phase reversed: each kind's hook, then the module's teardown.
 
         What never came up is not torn down, and the two halves are tracked
         separately: a module whose own ``initialize()`` raised after its kind's
@@ -259,39 +244,93 @@ class Loader:
         ``teardown()`` for an initialize that never completed.
         """
         for entry in reversed(self.ordered()):
+            logger.debug("Tearing down module: %s", entry.name)
             if entry.started:
                 _, on_shutdown = hooks.get(entry.kind, (None, None))
                 if on_shutdown is not None:
-                    self._refuse_coroutine(
-                        on_shutdown, f"shutdown hook for kind {entry.kind!r}"
-                    )
-                    on_shutdown(components_for(entry))
+                    yield on_shutdown, (components_for(entry),)
                 entry.started = False
             if entry.initialized:
                 fn = getattr(entry.module, "teardown", None)
                 if callable(fn):
-                    self._refuse_coroutine(fn, f"{entry.name}.teardown")
-                    fn()
+                    yield fn, ()
                 entry.initialized = False
+
+    def _coroutines_in(
+        self, hooks: dict[str, KindHooks], *, startup: bool
+    ) -> list[str]:
+        """Name every coroutine callable the named phase would have to run.
+
+        Reported together rather than one at a time: an author who declared two
+        of them should learn about both from one run.
+        """
+        offenders: list[str] = []
+        for entry in self.ordered():
+            on_startup, on_shutdown = hooks.get(entry.kind, (None, None))
+            hook = on_startup if startup else on_shutdown
+            if hook is not None and inspect.iscoroutinefunction(hook):
+                label = "startup" if startup else "shutdown"
+                offenders.append(f"{label} hook for kind {entry.kind!r}")
+            attr = "initialize" if startup else "teardown"
+            fn = getattr(entry.module, attr, None)
+            if callable(fn) and inspect.iscoroutinefunction(fn):
+                offenders.append(f"{entry.name}.{attr}")
+        return list(dict.fromkeys(offenders))
+
+    @staticmethod
+    def _refuse_coroutines(offenders: Sequence[str]) -> None:
+        """Refuse before any step has run, so no side effect precedes the refusal."""
+        if not offenders:
+            return
+        subject = ", ".join(offenders)
+        if len(offenders) == 1:
+            raise SpocError(
+                f"{subject} is a coroutine function; the synchronous lifecycle "
+                "cannot run it — use astart()/ashutdown() to await it"
+            )
+        raise SpocError(
+            f"{subject} are coroutine functions; the synchronous lifecycle "
+            "cannot run them — use astart()/ashutdown() to await them"
+        )
+
+    def initialize(
+        self,
+        hooks: dict[str, KindHooks],
+        components_for: Callable[[LoadedModule], Sequence[Any]],
+    ) -> None:
+        """Fire each module's startup hook, then its own ``initialize()``."""
+        self._refuse_coroutines(self._coroutines_in(hooks, startup=True))
+        for call, args in self._startup_steps(hooks, components_for):
+            call(*args)
+
+    async def ainitialize(
+        self,
+        hooks: dict[str, KindHooks],
+        components_for: Callable[[LoadedModule], Sequence[Any]],
+    ) -> None:
+        """Asynchronous :meth:`initialize`: awaits coroutine hooks and modules."""
+        for call, args in self._startup_steps(hooks, components_for):
+            result = call(*args)
+            if inspect.isawaitable(result):
+                await result
+
+    def shutdown(
+        self,
+        hooks: dict[str, KindHooks],
+        components_for: Callable[[LoadedModule], Sequence[Any]],
+    ) -> None:
+        """Fire each module's shutdown hook, then its own ``teardown()``, in reverse."""
+        self._refuse_coroutines(self._coroutines_in(hooks, startup=False))
+        for call, args in self._shutdown_steps(hooks, components_for):
+            call(*args)
 
     async def ashutdown(
         self,
         hooks: dict[str, KindHooks],
         components_for: Callable[[LoadedModule], Sequence[Any]],
     ) -> None:
-        """Asynchronous :meth:`shutdown`: awaits coroutine hooks and modules."""
-        for entry in reversed(self.ordered()):
-            if entry.started:
-                _, on_shutdown = hooks.get(entry.kind, (None, None))
-                if on_shutdown is not None:
-                    result = on_shutdown(components_for(entry))
-                    if inspect.isawaitable(result):
-                        await result
-                entry.started = False
-            if entry.initialized:
-                fn = getattr(entry.module, "teardown", None)
-                if callable(fn):
-                    result = fn()
-                    if inspect.isawaitable(result):
-                        await result
-                entry.initialized = False
+        """Asynchronous :meth:`shutdown`: awaits coroutine hooks and teardowns."""
+        for call, args in self._shutdown_steps(hooks, components_for):
+            result = call(*args)
+            if inspect.isawaitable(result):
+                await result
