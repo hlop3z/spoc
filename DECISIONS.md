@@ -1100,8 +1100,17 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   better for inherently probabilistic races, but it intercepts threading primitives and is
   new); `pytest-run-parallel` (Quansight-Labs; runs one test in many threads — strong for
   broad thread-safety sweeps, cannot express "these two operations must overlap").
-- **Revisit trigger**: a concurrency test that cannot be made reliable with a barrier. Adopt
-  `blanket` for that test rather than tolerating flakiness or deleting the coverage.
+- **Outcome**: the barrier repaired the duplicate race, and the escalation to `blanket` was
+  not needed for the resolution-failure guarantee either — but not because a barrier
+  sufficed. The store only ever grows, so a multi-observation failure could only name
+  candidates that appeared *after* the lookup, and exposing that requires suspending
+  execution *inside* `resolve` between the lookup and the candidate scan, which no barrier
+  placed outside it can reach. Counting lock acquisitions instead pins the mechanism
+  exactly and deterministically. Recorded because "adopt the deterministic tool" was the
+  anticipated answer and a deterministic *assertion* turned out to beat it.
+- **Revisit trigger**: a concurrency test that cannot be made reliable with a barrier and has
+  no deterministic invariant to assert instead. Adopt `blanket` for that test rather than
+  tolerating flakiness or deleting the coverage.
 - **Isolation**: `tests/test_concurrency.py`. No barrier appears in `src/`.
 
 ### Decision: Logging from a zero-dependency library — Adopt the standard library's `logging`, bridgeable but unbridged
