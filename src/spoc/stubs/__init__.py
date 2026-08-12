@@ -23,10 +23,11 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..core.shape import Shape, shape_of
 from ..locate import DEFAULT_FRAMEWORK_REF, locate_root
 from ..testing import import_state
 from .emit import emit
-from .extract import Shape, TypeRef, alias_for, reference_for, shape_of
+from .extract import TypeRef, alias_for, reference_for
 from .manifest import (
     Entry,
     Handle,

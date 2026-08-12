@@ -20,16 +20,22 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from ..core.config import load_spoc_toml
 from ..core.exceptions import ConfigurationError, SpocError, UnknownKindError
-from ..core.registry import Component
 from ..framework import Framework
 from ..locate import DEFAULT_FRAMEWORK_REF, LocateError, locate_framework
+from ..projection import ComponentEntry
 from ..testing import import_state
 
-__all__ = ["CheckReport", "Finding", "RecordInfo", "check", "explain", "list_records"]
+__all__ = [
+    "CheckReport",
+    "ComponentEntry",
+    "Finding",
+    "check",
+    "explain",
+    "list_records",
+]
 
 #: The marker the loader's sync-path refusal carries; seeing it means the
 #: declaration is async-lifecycle and the dry boot should retry via astart.
@@ -55,32 +61,6 @@ class CheckReport:
     @property
     def ok(self) -> bool:
         return not self.findings
-
-
-@dataclass(frozen=True)
-class RecordInfo:
-    """One registry record, described: the three facets plus where the
-    registered object lives (``module:qualname``)."""
-
-    identifier: str
-    kind: str
-    namespace: str
-    object_name: str
-    location: str
-
-    @classmethod
-    def from_component(cls, component: Component[Any]) -> RecordInfo:
-        obj = component.object
-        module = getattr(obj, "__module__", None)
-        qualname = getattr(obj, "__qualname__", None)
-        location = f"{module}:{qualname}" if module and qualname else repr(obj)
-        return cls(
-            identifier=component.identifier,
-            kind=component.kind,
-            namespace=component.namespace,
-            object_name=component.object_name,
-            location=location,
-        )
 
 
 def _start_any(fw: Framework, base: Path) -> str:
@@ -171,10 +151,15 @@ def list_records(
     framework_ref: str = DEFAULT_FRAMEWORK_REF,
     kind: str | None = None,
     namespace: str | None = None,
-) -> list[RecordInfo]:
+) -> list[ComponentEntry]:
     """Enumerate the registry, optionally narrowed by facet. An unknown kind
     fails with the kernel's candidate-naming error; namespaces are an open
-    set, so an unknown one is simply empty."""
+    set, so an unknown one is simply empty.
+
+    Records are described by the registry projection — the one structure that
+    describes a component — so what `spoc list` reports and what the projection
+    publishes cannot drift. Only the boot depth differs, and deliberately: this
+    reports on a *started* project, which is the question `list` answers."""
     with _booted(base_dir, framework_ref) as (fw, _):
         if kind is not None and kind not in fw.registry.kinds:
             raise UnknownKindError(kind, fw.registry.kinds)
@@ -187,15 +172,15 @@ def list_records(
             ),
             key=lambda c: c.identifier,
         )
-        return [RecordInfo.from_component(c) for c in records]
+        return [ComponentEntry.from_component(c) for c in records]
 
 
 def explain(
     identifier: str,
     base_dir: Path | str,
     framework_ref: str = DEFAULT_FRAMEWORK_REF,
-) -> RecordInfo:
+) -> ComponentEntry:
     """Resolve one identifier and describe its record. Resolution failures
     are the kernel's own — a typo names the failing segment and candidates."""
     with _booted(base_dir, framework_ref) as (fw, _):
-        return RecordInfo.from_component(fw.resolve(identifier))
+        return ComponentEntry.from_component(fw.resolve(identifier))

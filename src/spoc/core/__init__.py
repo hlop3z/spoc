@@ -9,6 +9,7 @@ sits under it, one module per concern, and nothing here imports anything above i
 
 - :mod:`spoc.core.identity` — the identifier grammar, and the one conversion feeding it
 - :mod:`spoc.core.registry` — the flat component store and its faceted reads
+- :mod:`spoc.core.shape` — the one classifier for a registered object's shape
 - :mod:`spoc.core.declaration` — kind specs, the marker, and discovery
 - :mod:`spoc.core.loader` — dependency-ordered module loading and lifecycle dispatch
 - :mod:`spoc.core.config` — the configuration adapter (the only module that reads files)

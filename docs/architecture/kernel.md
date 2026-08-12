@@ -7,8 +7,9 @@ dependency points at the kernel — never out of it.
 
 Throughout this document **kernel** means the core package (`spoc` proper, the
 box below) as opposed to the contained subpackages — `spoc.formats`,
-`spoc.testing`, `spoc.diagnostics`, `spoc.scaffold`. It is a boundary within the
-distribution, not a claim that SPOC schedules, isolates, or mediates anything.
+`spoc.testing`, `spoc.diagnostics`, `spoc.scaffold`, `spoc.stubs`,
+`spoc.projection`. It is a boundary within the distribution, not a claim that
+SPOC schedules, isolates, or mediates anything.
 
 ## The shape
 
@@ -281,6 +282,7 @@ flowchart TB
     cli -->|init| scaffold["spoc.scaffold"]
     cli -->|check · list · explain| diag
     cli -->|stubs| stubs
+    cli -->|projection| proj
 
     subgraph diag ["spoc.diagnostics — contained subpackage"]
         direction TB
@@ -292,30 +294,52 @@ flowchart TB
     subgraph stubs ["spoc.stubs — contained subpackage"]
         direction TB
         scli["cli — subcommand adapter"]
-        sman["manifest — describe(): collect-only boot"]
+        sman["manifest — describe(): projection + type refs"]
         sext["extract — live objects → type references"]
         semit["emit — manifest → stub text (pure)"]
         scli --> sman --> sext
         sman --> semit
     end
 
+    subgraph proj ["spoc.projection — the one description of a registry"]
+        direction TB
+        pcli["cli — subcommand adapter"]
+        pprod["produce — collected(): collect-only boot"]
+        pdoc["document — records → JSON (pure)"]
+        pschema[["schema.json — published JSON Schema"]]
+        pcli --> pprod --> pdoc
+        pdoc -.validates against.-> pschema
+    end
+
     locate["spoc.locate<br/>framework:framework convention · mod:attr override"]
     dcore --> locate
     sman --> locate
+    pprod --> locate
+
+    sman -->|borrows the collect-only boot| pprod
+    dcore -->|describes records as| pdoc
 
     dcore -->|isolated dry boot| harness["spoc.testing scopes"]
-    sman -->|isolated dry boot| harness
+    pprod -->|isolated dry boot| harness
     dcore --> kernel["Kernel public API<br/>start · registry · resolve · typed errors"]
-    sman --> kernel
+    pprod --> kernel
 ```
 
-`spoc.stubs` is the fifth contained subpackage and the second isolated dry boot,
-stopped one phase earlier: discovery runs, initialization does not. Its product is
-a `.pyi` beside the project's composition root, which narrows `resolve` per
-identifier. A stub never executes, so naming one app's classes for the type checker
-adds no runtime coupling between apps — the decoupling the registry exists to provide
-survives being described. `spoc.locate` sits outside both subpackages because both
-need it and only `spoc.cli` may import the diagnostics.
+`spoc.stubs` is the fifth contained subpackage. Its product is a `.pyi` beside the
+project's composition root, which narrows `resolve` per identifier. A stub never
+executes, so naming one app's classes for the type checker adds no runtime coupling
+between apps — the decoupling the registry exists to provide survives being described.
+`spoc.locate` sits outside every subpackage because they all need it and only
+`spoc.cli` may import them.
+
+`spoc.projection` is the sixth, and the only one that is also depended *on*. It owns
+the collect-only boot — discovery runs, initialization does not — so a project whose
+startup hooks would fail is still describable, and it owns the single description of a
+registered component. Both other describing surfaces read that description rather than
+building one: the stub adds the static type each identifier yields, which is meaningful
+only to a type checker, and `spoc list` renders the same records as prose after a full
+boot. One registry, one description, three renderings; the boot depth and the rendering
+are the whole of the difference between the commands.
 
 The findings never rephrase anything: `check` reports the kernel's own error
 text (failing segment, valid candidates), gathered instead of raised. The

@@ -1,4 +1,18 @@
-## ADDED Requirements
+# Registry Projection
+
+## Purpose
+
+A booted registry is describable as data, under a published schema, so a
+consumer that never imports the project — a generator, an admin surface, a
+documentation build, a client in another language — can read what a project
+registered without parsing an artifact meant for something else. The
+description is produced by discovery alone, so a project that could not be
+started is still describable, and it is ordered canonically, so two
+descriptions of one registry are identical and a difference between them means
+the registry changed. It is the single description every other describing
+surface derives from.
+
+## Requirements
 
 ### Requirement: The registry MUST have one described projection as data
 
@@ -97,6 +111,10 @@ the registry rather than in declaration order, load order, or filesystem layout.
 ordering is a property of the projection itself and MUST NOT be stated only by reference to
 another surface that happens to share it.
 
+No value in the document may vary between two runs over one unchanged registry. In
+particular, a component's stated location MUST NOT be derived from anything carrying a
+process-specific value, such as an object's memory address.
+
 #### Scenario: Two projections of one registry are identical
 
 - **WHEN** one unchanged project is projected twice
@@ -106,6 +124,12 @@ another surface that happens to share it.
 
 - **WHEN** a project's installed-app list is reordered without changing what is registered
 - **THEN** the projection is unchanged
+
+#### Scenario: A registered instance is located stably
+
+- **WHEN** a project registering an object that carries no definition site of its own is
+  projected twice
+- **THEN** the two documents state the same location for it
 
 ### Requirement: The projection MUST be available as a library result and as a command
 

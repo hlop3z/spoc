@@ -112,6 +112,11 @@ public = [
   "fixture:spoc_isolated",
   "fixture:spoc_tree",
   "schema:config/spoc.toml",
+  # The registry projection's document shape, published as JSON Schema at
+  # spoc/projection/schema.json. The document is the contract, not the
+  # dataclass that produces it: `format_version` in the document is what a
+  # consumer branches on, and it moves only when the shape does.
+  "schema:projection/document",
   "script:spoc",
   "template-set:default",
 ]
@@ -265,6 +270,14 @@ dev = [
     # not `docs`, because the *test suite* imports it — the docs build does not.
     # Adopted via /ai:decide (DECISIONS.md: "Doc snippet execution").
     "pytest-examples>=0.0.15",
+    # The registry projection's schema is hand-written, so the suite is what
+    # proves the producer and the published schema still agree: every projection
+    # the tests build is validated against it. The reference implementation, and
+    # pure Python, so it installs across the whole gated platform matrix.
+    # Dev-only by design — an earlier ADR rejected this same package as a
+    # *runtime* dependency and that rejection stands (DECISIONS.md: "Validating
+    # the projection in the suite"). `dependencies` above stays empty.
+    "jsonschema>=4.26",
 ]
 examples = [
     # HTTP surface for the registry-projection example (never a kernel dependency)

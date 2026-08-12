@@ -9,10 +9,16 @@ importing :mod:`spoc` never loads it.
 A diagnostic run is an isolated dry boot: the operations compose
 :mod:`spoc.testing`'s isolation scopes, so no framework state, loaded app
 modules, or import-path changes outlive a call.
+
+Records are described by :class:`spoc.projection.ComponentEntry` rather than by
+a structure of this subpackage's own. One registry has one description; what
+differs between `spoc list` and `spoc projection` is the boot depth and the
+rendering, which is the whole of the difference.
 """
 
 from ..locate import DEFAULT_FRAMEWORK_REF, LocateError
-from .core import CheckReport, Finding, RecordInfo, check, explain, list_records
+from ..projection import ComponentEntry
+from .core import CheckReport, Finding, check, explain, list_records
 
 __all__ = [
     # Operations
@@ -21,8 +27,8 @@ __all__ = [
     "explain",
     # Results
     "CheckReport",
+    "ComponentEntry",
     "Finding",
-    "RecordInfo",
     # Location
     "DEFAULT_FRAMEWORK_REF",
     "LocateError",

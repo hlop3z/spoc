@@ -64,6 +64,7 @@ def _run_explain(args: argparse.Namespace) -> int:
     print(f"namespace:   {record.namespace}")
     print(f"object_name: {record.object_name}")
     print(f"object:      {record.location}")
+    print(f"shape:       {record.shape}")
     return 0
 
 

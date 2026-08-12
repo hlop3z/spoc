@@ -1,12 +1,16 @@
 """
 The manifest: what a booted project's resolution surface looks like, frozen.
 
-Describing a project is a *collect-only* boot. The kernel already separates
-"work out what exists" from "start it": :meth:`Framework.start` runs discovery
-and then initializes modules, so describing reuses the first half and stops.
-No initializer runs, no lifecycle hook fires, and the framework is reset
-afterwards — including when describing fails — so a description leaves nothing
-behind that an ordinary start would not have.
+Describing a project is a *collect-only* boot, and this module does not own one:
+it borrows :func:`spoc.projection.collected`, so the stub and the registry
+projection describe a registry at the same depth by construction rather than by
+two modules agreeing to.
+
+What the manifest adds to a projection is exactly what a *type checker* needs
+and a language-neutral document must not carry: the static type each identifier
+yields, and the composition root's mirrorable surface. Everything a consumer in
+another language could act on — the identifier, its facets, the location, the
+shape — is the projection's, read from it rather than recomputed here.
 
 The manifest is the boundary between describing and emitting. The emitter never
 introspects anything; it consumes this. That is what keeps a change to discovery
@@ -19,11 +23,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Any
 
 from ..core.exceptions import SpocError
+from ..core.shape import Shape
 from ..framework import Framework
-from .extract import Shape, TypeRef, reference_for, shape_of
+from ..projection import ComponentEntry, Projection
+from ..projection.produce import collected, projection_of
+from .extract import TypeRef, reference_for
 
 
 class UnmirrorableRootError(SpocError):
@@ -49,14 +55,35 @@ class UnmirrorableRootError(SpocError):
 
 @dataclass(frozen=True)
 class Entry:
-    """One resolvable identifier and the static type reading it yields."""
+    """One resolvable identifier and the static type reading it yields.
 
-    identifier: str
-    kind: str
-    namespace: str
-    object_name: str
-    shape: Shape
+    A projection entry plus the one Python-specific fact the projection refuses
+    to carry. The facets are read through, not copied into new fields, so there
+    is no second place where an identifier's kind could be recorded wrongly.
+    """
+
+    component: ComponentEntry
     type_ref: TypeRef
+
+    @property
+    def identifier(self) -> str:
+        return self.component.identifier
+
+    @property
+    def kind(self) -> str:
+        return self.component.kind
+
+    @property
+    def namespace(self) -> str:
+        return self.component.namespace
+
+    @property
+    def object_name(self) -> str:
+        return self.component.object_name
+
+    @property
+    def shape(self) -> Shape:
+        return self.component.shape
 
 
 @dataclass(frozen=True)
@@ -73,9 +100,14 @@ class Manifest:
 
     root_module: str
     framework_attribute: str
-    kinds: tuple[str, ...]
+    projection: Projection
     handles: tuple[Handle, ...]
     entries: tuple[Entry, ...]
+
+    @property
+    def kinds(self) -> tuple[str, ...]:
+        """The declared kind set, read from the projection that states it."""
+        return self.projection.kinds
 
     @property
     def degraded(self) -> int:
@@ -83,22 +115,21 @@ class Manifest:
         return sum(1 for entry in self.entries if entry.type_ref.degraded)
 
 
-def _entries(framework: Framework) -> tuple[Entry, ...]:
-    """One entry per registered component, in canonical identifier order.
+def _entries(projection: Projection, framework: Framework) -> tuple[Entry, ...]:
+    """One entry per projected component, in the projection's own order.
 
-    ``Registry.all`` already sorts by identifier, so emission order is a
-    property of the grammar rather than of declaration or load order.
+    Order is not re-established here. The projection already emits in canonical
+    identifier order, and re-sorting would be a second claim to the same
+    guarantee — one that could later disagree with the first.
     """
     return tuple(
         Entry(
-            identifier=record.identifier,
-            kind=record.kind,
-            namespace=record.namespace,
-            object_name=record.object_name,
-            shape=shape_of(record.object),
-            type_ref=reference_for(record.object),
+            component=component,
+            type_ref=reference_for(
+                framework.registry.resolve(component.identifier).object
+            ),
         )
-        for record in framework.registry.all()
+        for component in projection.components
     )
 
 
@@ -143,25 +174,13 @@ def describe(framework: Framework, base_dir: Path | str, root: ModuleType) -> Ma
     pre-description state before this returns, on both the success and the
     failure path, so describing a project is never a way to half-start it.
     """
-    if framework.started:
-        raise SpocError(
-            "Cannot describe a started framework: describing runs its own "
-            "collect-only boot and would race the running one"
-        )
-
-    # The collect-only half of start(): discovery, without initialization.
-    boot: Any = framework._boot_discovery
-    try:
-        boot(Path(base_dir))
-        entries = _entries(framework)
-        binding, handles = _surface(root, framework)
+    with collected(framework, base_dir) as discovered:
+        projection = projection_of(discovered)
+        binding, handles = _surface(root, discovered)
         return Manifest(
             root_module=getattr(root, "__name__", "<unknown>"),
             framework_attribute=binding,
-            kinds=framework.kinds,
+            projection=projection,
             handles=handles,
-            entries=entries,
+            entries=_entries(projection, discovered),
         )
-    finally:
-        # Leave nothing behind that an ordinary start would not have.
-        framework._reset()
