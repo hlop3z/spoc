@@ -75,6 +75,70 @@ class Config:
     tables: dict[str, Any] = field(default_factory=dict)
 
 
+#: Separates an app's module path from an explicitly stated namespace. Python's
+#: own word for rebinding a name to avoid a clash, so there is nothing new to
+#: learn — and it does not overload ``:``, which already means "attribute" in
+#: this project's ``module.path:attribute`` references. The surrounding spaces
+#: are what make it unambiguous: a dotted module path cannot contain whitespace,
+#: so a package named ``aspect`` or ``last`` is unaffected.
+_NAMESPACE_ALIAS = " as "
+
+
+@dataclass(frozen=True)
+class _AppEntry:
+    """One `[spoc.apps]` entry, split into what it imports and what it claims."""
+
+    path: str
+    namespace: str
+
+
+def _parse_app_entry(entry: str) -> _AppEntry:
+    """Split a declared app entry into its module path and its namespace.
+
+    ``"apps.shop"`` derives the namespace from the final path segment;
+    ``"vendor.shop as vendor_shop"`` states it. The stated form exists so two
+    apps whose folders happen to share a name can coexist without renaming a
+    package the author may not control — a vendored tree, a third-party
+    distribution.
+
+    Either way the namespace goes through :func:`validate_segment`, so derived
+    and stated names are held to the one grammar.
+    """
+    head, separator, tail = entry.partition(_NAMESPACE_ALIAS)
+    path = head.strip()
+    stated = tail.strip()
+    # Neither a module path nor a namespace can contain whitespace, so interior
+    # space is what catches every malformed shape at once: a bare `as`, a
+    # missing side, a second clause.
+    contains_space = any(part.split() != [part] for part in (path, stated) if part)
+    if not path or contains_space or (separator and not stated):
+        raise ConfigurationError(
+            f"Malformed app entry {entry!r}. Expected a dotted module path, "
+            "optionally followed by ' as <namespace>'"
+        )
+    namespace = stated if separator else path.rpartition(".")[2]
+    return _AppEntry(path=path, namespace=validate_segment("namespace", namespace))
+
+
+def _claim(owners: dict[str, str], namespace: str, package: str) -> None:
+    """Record `package` as the owner of `namespace`, or refuse the contest.
+
+    A namespace names one place. Because it derives from a path's *final*
+    segment, two packages under different parents collide on that segment
+    without either author doing anything unusual — and the merge is silent
+    until they also happen to declare the same object name, at which point the
+    error names a third place entirely.
+    """
+    owner = owners.setdefault(namespace, package)
+    if owner != package:
+        raise ConfigurationError(
+            f"Namespace {namespace!r} is claimed by two packages: {owner!r} and "
+            f"{package!r}. A namespace names one place, so one of them must "
+            "claim a different one: give that app an 'as' clause in "
+            '[spoc.apps], as in "pkg.thing as other_name"'
+        )
+
+
 def _shape_of(obj: Any) -> str:
     """Name a component's shape in the vocabulary typed access reports.
 
@@ -356,8 +420,16 @@ class Framework:
         importlib.invalidate_caches()
         self.base_dir = base_dir
         self.config = _build_config(base_dir, self.echo)
-        self._register_plugins(self.config.project)
-        self._register_apps()
+        # Namespaces are claimed from the full app list before anything is
+        # imported, so a contested one fails with nothing registered rather
+        # than partway through discovery — which is exactly the confusing
+        # artifact this check exists to remove.
+        entries = self._app_entries()
+        owners: dict[str, str] = {}
+        for entry in entries:
+            _claim(owners, entry.namespace, entry.path)
+        self._register_plugins(self.config.project, owners, entries)
+        self._register_apps(entries)
 
         for entry in self.loader.ordered():
             discover(self.registry, entry.module, entry.name, entry.namespace)
@@ -379,7 +451,12 @@ class Framework:
             if c.namespace == entry.namespace
         )
 
-    def _register_plugins(self, project: dict[str, Any]) -> None:
+    def _register_plugins(
+        self,
+        project: dict[str, Any],
+        owners: dict[str, str],
+        entries: list[_AppEntry],
+    ) -> None:
         """Register config-declared references into the one flat registry.
 
         A ``[spoc.plugins]`` group names a declared kind — configuration is a
@@ -391,11 +468,20 @@ class Framework:
         kind only plugins populate is declared ``required=False`` so apps
         need not provide a module for it.
 
+        A reference inside an installed app takes *that app's* namespace, which
+        is the app's stated one when it stated one — the package owns the name,
+        not the path segment. A reference outside every installed app derives
+        its own namespace and claims it; claiming one another package already
+        owns is the same contest an app-versus-app collision is, and fails the
+        same way. Registering into your own app's namespace stays legal, since
+        that is what the group is for.
+
         A configured reference is a name in a file — there is nowhere for it to
         carry metadata — so a kind that states a metadata contract cannot be
         populated this way, and says so rather than reporting a contract
         violation the author has no way to satisfy.
         """
+        namespace_of_app = {entry.path: entry.namespace for entry in entries}
         for group, references in (project.get("plugins", {}) or {}).items():
             spec = self.spec(group)  # an undeclared group raises UnknownKindError
             if spec.metadata is not None and references:
@@ -409,9 +495,13 @@ class Framework:
                 obj = self.loader.load_from_uri(uri)
                 module_path, _, attr = uri.rpartition(".")
                 segments = module_path.split(".")
-                namespace = validate_segment(
-                    "namespace", segments[-2] if len(segments) > 1 else segments[-1]
-                )
+                package = ".".join(segments[:-1]) if len(segments) > 1 else segments[-1]
+                namespace = namespace_of_app.get(package)
+                if namespace is None:
+                    namespace = validate_segment(
+                        "namespace", package.rpartition(".")[2]
+                    )
+                    _claim(owners, namespace, package)
                 object_name = to_snake_case(attr)
                 self.registry.add(spec.name, namespace, object_name, obj)
 
@@ -452,24 +542,30 @@ class Framework:
                     installed.append(app)
         return installed
 
-    def _register_apps(self) -> None:
+    def _app_entries(self) -> list[_AppEntry]:
+        """The installed apps for the active mode, parsed but not yet imported."""
         assert self.config is not None
-        app_names = self._collect_apps(
-            self.config.project.get("mode", DEFAULT_MODE),
-            self.config.project.get("apps", {}),
-            self.config.project.get("modes", DEFAULT_MODES),
-        )
-        for app in app_names:
-            # An app entry is a dotted module path imported exactly as written;
-            # its final segment is the namespace and must satisfy the grammar.
-            namespace = validate_segment("namespace", app.rpartition(".")[2])
+        return [
+            _parse_app_entry(app)
+            for app in self._collect_apps(
+                self.config.project.get("mode", DEFAULT_MODE),
+                self.config.project.get("apps", {}),
+                self.config.project.get("modes", DEFAULT_MODES),
+            )
+        ]
+
+    def _register_apps(self, entries: list[_AppEntry]) -> None:
+        for entry in entries:
+            # The path is imported exactly as written; the namespace was either
+            # derived from its final segment or stated by the entry, and has
+            # already been validated and claimed.
             for spec in self._specs.values():
                 self.loader.register(
-                    f"{app}.{spec.name}",
+                    f"{entry.path}.{spec.name}",
                     kind=spec.name,
-                    app=app,
-                    namespace=namespace,
-                    dependencies=tuple(f"{app}.{d}" for d in spec.depends_on),
+                    app=entry.path,
+                    namespace=entry.namespace,
+                    dependencies=tuple(f"{entry.path}.{d}" for d in spec.depends_on),
                     required=spec.required,
                 )
-        self.installed_apps = app_names
+        self.installed_apps = [entry.path for entry in entries]
