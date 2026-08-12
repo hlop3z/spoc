@@ -11,14 +11,14 @@
 
 ## 2. Pin the current behaviour before changing anything
 
-- [ ] 2.1 Add a test asserting the cross-app phase barrier on the *current* implementation:
+- [x] 2.1 Add a test asserting the cross-app phase barrier on the *current* implementation:
       two apps, two dependent kinds, assert no app's dependent module loads before any
       app's depended-on module
-- [ ] 2.2 Add a test asserting the declaration-order tiebreak within one kind phase, in
+- [x] 2.2 Add a test asserting the declaration-order tiebreak within one kind phase, in
       both app orders, so the tiebreak is pinned independently of the barrier
-- [ ] 2.3 Add a test asserting hook firing order matches module load order, and that
+- [x] 2.3 Add a test asserting hook firing order matches module load order, and that
       teardown is its exact reverse
-- [ ] 2.4 Confirm these tests pass unchanged before any production code moves — if any
+- [x] 2.4 Confirm these tests pass unchanged before any production code moves — if any
       fails, the premise of this change is wrong and the proposal needs rewriting rather
       than the code
 
