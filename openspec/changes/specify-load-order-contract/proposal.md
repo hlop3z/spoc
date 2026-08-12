@@ -23,7 +23,24 @@ and it is a side effect of two facts that no document connects.
 The strong property is the one that matters. `Loader.initialize` walks `ordered()`, firing
 each kind's startup hook per module in load order, so a `views` hook that binds routes
 against every registered model would see a half-built world if another app's `models` hook
-had not yet run. Today it cannot. Nothing says so, and no test holds it.
+had not yet run. Nothing says so, and no test held it.
+
+Writing that test found where it already fails. The barrier holds only when every app
+declares every kind. An absent **optional** module is skipped before its node reaches the
+module graph, but the dependent's registration puts the name straight back with
+`setdefault(dep, set())` — a node with no predecessors, and therefore at level 0. That app's
+downstream modules then sit one phase too early. With kinds `models → views → urls` and an
+app omitting `views`:
+
+```
+apps = shop, blog   shop.models  blog.models  shop.urls  blog.views  blog.urls
+                                              ↑ a urls module, ahead of a views module
+```
+
+`required=False` exists precisely to let an app omit a kind, so this is not an exotic
+configuration. The change therefore states the guarantee **and** repairs it, and the repair
+is free: kind depth read from the declaration rather than from the module graph cannot be
+moved by a module that does not exist.
 
 Two forces make this urgent rather than tidy. The pre-stable allowance ends at the first
 stable major release and cannot be extended (`openspec/specs/release-policy/spec.md`), so
@@ -39,9 +56,13 @@ load timing implicit and an ecosystem had already built on the accident.
   installed apps and any two kinds where one depends on the other, no app's dependent
   module loads or initializes before any app's depended-on module.
 - The load order becomes a **stated total order** — kind depth first, app declaration order
-  as tiebreak — rather than a property emerging from a library's batching behaviour. The
-  observable behaviour is unchanged; what changes is that it is a contract instead of a
-  coincidence.
+  as tiebreak — rather than a property emerging from a library's batching behaviour. For a
+  project where every app declares every kind the observable order does not move; what
+  changes is that it is a contract instead of a coincidence.
+- The **absent-optional-module defect is fixed**: a kind's depth comes from the declaration,
+  so omitting an optional module moves that module's app forward in no phase but its own.
+  This is the one case where the order does change, and it changes to what the barrier
+  always claimed.
 - The `[spoc.apps]` declaration order becomes the stated tiebreak among modules of one
   kind, which it already is in practice.
 - A cross-phase dependency inversion is **refused by construction**: no declaration may
@@ -55,20 +76,24 @@ load timing implicit and an ecosystem had already built on the accident.
 
 ### New Capabilities
 
-<!-- None. This states a guarantee the implementation already provides. -->
+<!-- None. This states a guarantee the implementation provides for uniform apps, and
+     repairs the one case where it does not. -->
 
 ### Modified Capabilities
 
 - `framework-declaration`: the inter-kind ordering scenario is strengthened from a per-app
   chain to a cross-app barrier, so the declaration's meaning is stated once and completely.
 - `framework-lifecycle`: gains the load-order requirement — the total order, its tiebreak,
-  the barrier, and the refusal of any cross-phase inversion.
+  the barrier, the independence of the order from which optional modules happen to exist,
+  and the refusal of any cross-phase inversion.
 
 ## Impact
 
 - `src/spoc/core/loader.py` — `ordered()` delegates the entire order to
-  `graphlib.TopologicalSorter.static_order()`. Whether it continues to is Decision 1 in
-  `design.md`; either way its contract stops being a library's and becomes ours.
+  `graphlib.TopologicalSorter.static_order()`, and gains the explicit `(kind_depth,
+  app_index)` key settled at the gate; `graphlib` stays for cycle detection. This is also
+  where the absent-optional-module defect is repaired, because depth stops being read from
+  a graph a missing module can perturb.
 - `src/spoc/framework.py` — `_register_apps` is what makes every app's kind graph
   identical, which is the mechanism the barrier currently rests on. It is the site a future
   per-app kind subset would change, and therefore the site the new tests protect.

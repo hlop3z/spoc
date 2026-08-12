@@ -28,12 +28,15 @@
       raised from the same place with the same message
 - [ ] 3.2 Ensure the effective installed-app list is the tiebreak source, so mode cascade
       and duplicate-suppression continue to decide app order exactly as they do today
-- [ ] 3.3 Confirm absent optional modules do not perturb the order — an app that omits an
-      optional kind must not shift any other app's position
+- [ ] 3.3 Fix the absent-optional-module defect found in task 2: read kind depth from the
+      declaration so a module that does not exist cannot pull its app's remaining modules
+      into an earlier phase. Flip the strict xfail in `tests/test_load_order.py` to a plain
+      test in both app orders
 - [ ] 3.4 Confirm `[spoc.plugins]` registrations are unaffected: they populate the registry
       without participating in module load order
-- [ ] 3.5 Verify the observable order is byte-identical to the order recorded in task 2 —
-      this change alters no behaviour
+- [ ] 3.5 Verify the observable order is byte-identical to the order recorded in task 2 for
+      every project where each app declares each kind — the omitted-optional case in 3.3 is
+      the one intended difference, and nothing else may move
 
 ## 4. Refuse the inversion
 
@@ -50,8 +53,9 @@
 - [ ] 5.2 Document the `[spoc.apps]` order tiebreak where apps are declared, with the
       hook-ordering case as the motivating example
 - [ ] 5.3 Ensure any new doc example runs under `tests/test_docs_examples.py`
-- [ ] 5.4 Add the CHANGELOG entry — a stated guarantee, not a behaviour change; say so
-      explicitly so a reader does not go looking for what moved
+- [ ] 5.4 Add the CHANGELOG entry: a stated guarantee, plus the one fix — an app omitting
+      an optional kind no longer pulls its remaining modules into an earlier load phase.
+      Say which is which, so a reader knows exactly what moved and what did not
 
 ## 6. Validation
 
