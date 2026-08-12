@@ -23,6 +23,7 @@ from .scaffold import cli as scaffold_cli
 from .scaffold.cache import DirectoryCache
 from .scaffold.remote import HttpFetcher, HttpRevisionResolver
 from .scaffold.sources import InstalledTemplateSources, RemoteTemplateSource
+from .stubs import cli as stubs_cli
 from .testing import import_state
 
 __all__ = ["main"]
@@ -66,7 +67,8 @@ def _build_parser() -> argparse.ArgumentParser:
         description=(
             "Scaffold, validate, and inspect spoc projects: init generates a "
             "runnable project, app adds one to it; check dry-boots and reports "
-            "problems before runtime; list and explain read the registry."
+            "problems before runtime; list and explain read the registry; "
+            "stubs writes the types an editor needs to complete resolve()."
         ),
     )
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -74,6 +76,7 @@ def _build_parser() -> argparse.ArgumentParser:
         subcommands, derive_kinds=_derive_kinds, source_factory=_template_sources
     )
     diagnostics_cli.register(subcommands)
+    stubs_cli.register(subcommands)
     return parser
 
 

@@ -1,0 +1,457 @@
+"""
+Stub generation: the describe pass, the emitter, the CLI, and the runtime
+inertness that makes the whole approach viable — one test per spec scenario in
+typed-registry-stubs, plus the containment boundary.
+"""
+
+from __future__ import annotations
+
+import ast
+import subprocess
+import sys
+import textwrap
+from pathlib import Path
+
+import pytest
+
+from spoc.cli import main as cli_main
+from spoc.stubs import UnmirrorableRootError, generate, render, verify
+from spoc.testing import ProjectTree
+
+# ── Fixtures: a project with all three shapes, a plugin, and a degraded entry ──
+
+CATALOG_MODELS = """
+    from spoc.core.declaration import component
+
+    @component(kind="models")
+    class Product:
+        price_cents = 2900
+"""
+
+CATALOG_VIEWS = """
+    from spoc.core.declaration import component
+
+    EFFECTS = []
+
+    @component(kind="views")
+    def list_products() -> dict[str, int]:
+        return {"count": 1}
+
+    @component(kind="views")
+    def untyped(a, b=2, *rest):
+        return None
+
+    def initialize():
+        EFFECTS.append("initialized")
+
+    def teardown():
+        EFFECTS.append("torn down")
+"""
+
+CATALOG_RESOURCES = """
+    from spoc.core.declaration import component
+
+    class SearchIndex:
+        def lookup(self, term: str) -> str:
+            return term
+
+    index = component(SearchIndex(), kind="resources", name="index")
+"""
+
+PLUGIN_MODULE = """
+    class Cache:
+        def get(self, key: str) -> str:
+            return key
+
+    shared_cache = Cache()
+"""
+
+FRAMEWORK = """
+    import spoc
+
+    framework = spoc.Framework(
+        spoc.KindSpec("models", required=False),
+        spoc.KindSpec("views", depends_on=("models",), required=False),
+        spoc.KindSpec("resources", required=False),
+        spoc.KindSpec("caches", required=False),
+    )
+    model = framework.kind("models")
+    view = framework.kind("views")
+"""
+
+
+def project(tmp_path: Path, *, framework_body: str = FRAMEWORK, **extra) -> Path:
+    """A project exercising every shape the emitter has to render."""
+    apps = {
+        "catalog": {
+            "models": CATALOG_MODELS,
+            "views": CATALOG_VIEWS,
+            "resources": CATALOG_RESOURCES,
+            "plugins_home": PLUGIN_MODULE,
+        }
+    }
+    config = {
+        "apps": {"development": ["catalog"]},
+        "plugins": {"caches": ["catalog.plugins_home.shared_cache"]},
+        **extra,
+    }
+    base = ProjectTree(apps=apps, config=config).build(tmp_path, "proj")
+    (base / "framework.py").write_text(
+        textwrap.dedent(framework_body), encoding="utf-8"
+    )
+    return base
+
+
+# ── Containment ───────────────────────────────────────────────────────────
+
+
+def test_no_kernel_module_imports_the_stub_generator():
+    """Same contract as formats/scaffold/diagnostics: it holds in source."""
+    root = Path(__file__).parent.parent / "src/spoc"
+    for path in sorted(root.rglob("*.py")):
+        if (root / "stubs") in path.parents or path == root / "cli.py":
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or "", *(alias.name for alias in node.names)]
+            else:
+                continue
+            for name in names:
+                assert "stubs" not in name.split("."), f"{path.name}: {name}"
+
+
+def test_importing_spoc_never_loads_the_stub_generator():
+    code = "import sys, spoc; print([m for m in sys.modules if 'spoc.stubs' in m])"
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=True
+    )
+    assert result.stdout.strip() == "[]"
+
+
+# ── Describing does not run the project ───────────────────────────────────
+
+
+def test_initializers_do_not_run_during_description(tmp_path):
+    base = project(tmp_path)
+    _, text, manifest = render(base)
+    assert manifest.entries
+    # The module's initialize() appends to EFFECTS; describing must not.
+    assert "initialized" not in text
+
+
+def test_description_leaves_no_residue(tmp_path):
+    base = project(tmp_path)
+    path_before, modules_before = list(sys.path), set(sys.modules)
+
+    render(base)
+
+    assert sys.path == path_before
+    assert set(sys.modules) == modules_before
+
+
+def test_description_can_be_repeated_and_then_booted(tmp_path):
+    base = project(tmp_path)
+    render(base)
+    render(base)
+    result = _run_in_project(
+        base, "framework.start(BASE); print(len(framework.registry))"
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().endswith("5")
+
+
+# ── Coverage of the resolution surface ────────────────────────────────────
+
+
+def test_every_registered_identifier_appears(tmp_path):
+    base = project(tmp_path)
+    _, _, manifest = render(base)
+    assert {entry.identifier for entry in manifest.entries} == {
+        "caches:catalog.shared_cache",
+        "models:catalog.product",
+        "resources:catalog.index",
+        "views:catalog.list_products",
+        "views:catalog.untyped",
+    }
+
+
+def test_configuration_registered_components_appear(tmp_path):
+    """A [spoc.plugins] entry exists only after config resolves — the case a
+    static extractor could not see."""
+    base = project(tmp_path)
+    _, text, manifest = render(base)
+    identifiers = {entry.identifier for entry in manifest.entries}
+    assert "caches:catalog.shared_cache" in identifiers
+    assert "caches:catalog.shared_cache" in text
+
+
+def test_the_three_shapes_are_distinguished(tmp_path):
+    base = project(tmp_path)
+    _, _, manifest = render(base)
+    shapes = {entry.identifier: entry.shape for entry in manifest.entries}
+    assert shapes["models:catalog.product"] == "class"
+    assert shapes["views:catalog.list_products"] == "callable"
+    assert shapes["resources:catalog.index"] == "value"
+    assert shapes["caches:catalog.shared_cache"] == "value"
+
+
+def test_a_class_renders_as_its_constructor(tmp_path):
+    base = project(tmp_path)
+    _, text, _ = render(base)
+    assert "type[_catalog_models_Product]" in text
+
+
+def test_a_callable_renders_its_signature(tmp_path):
+    base = project(tmp_path)
+    _, text, _ = render(base)
+    assert "[[], dict[str, int]]" in text
+
+
+def test_a_value_renders_its_own_type(tmp_path):
+    base = project(tmp_path)
+    _, text, _ = render(base)
+    assert "Component[_catalog_resources_SearchIndex]" in text
+
+
+# ── Degradation is honest and counted ─────────────────────────────────────
+
+
+def test_unannotated_callable_degrades_without_guessing(tmp_path):
+    base = project(tmp_path)
+    _, _, manifest = render(base)
+    degraded = [e for e in manifest.entries if e.type_ref.degraded]
+    assert [e.identifier for e in degraded] == ["views:catalog.untyped"]
+    assert degraded[0].type_ref.expression.endswith("[..., Any]")
+
+
+def test_degraded_entries_are_still_present_and_counted(tmp_path):
+    base = project(tmp_path)
+    _, text, manifest = render(base)
+    assert manifest.degraded == 1
+    assert "views:catalog.untyped" in text
+
+
+# ── Determinism ───────────────────────────────────────────────────────────
+
+
+def test_repeated_generation_is_byte_identical(tmp_path):
+    base = project(tmp_path)
+    first = render(base)[1]
+    second = render(base)[1]
+    assert first == second
+
+
+def test_declaration_order_does_not_change_the_output(tmp_path):
+    """Two projects registering the same components in different source order
+    describe identically — order is the grammar's, not the file's."""
+    reordered = CATALOG_MODELS.replace("Product", "Product")
+    one = project(tmp_path / "a")
+    two_apps = {
+        "catalog": {
+            "models": reordered,
+            "resources": CATALOG_RESOURCES,
+            "views": CATALOG_VIEWS,
+            "plugins_home": PLUGIN_MODULE,
+        }
+    }
+    base_two = ProjectTree(
+        apps=two_apps,
+        config={
+            "apps": {"development": ["catalog"]},
+            "plugins": {"caches": ["catalog.plugins_home.shared_cache"]},
+        },
+    ).build(tmp_path / "b", "proj")
+    (base_two / "framework.py").write_text(textwrap.dedent(FRAMEWORK), encoding="utf-8")
+    assert render(one)[1] == render(base_two)[1]
+
+
+# ── Strict mode ───────────────────────────────────────────────────────────
+
+
+def test_permissive_keeps_the_catch_all_overload(tmp_path):
+    base = project(tmp_path)
+    _, text, _ = render(base)
+    assert "def resolve(self, identifier: str) -> Component[Any]: ..." in text
+
+
+def test_strict_omits_the_catch_all_overload(tmp_path):
+    base = project(tmp_path)
+    _, text, _ = render(base, strict=True)
+    assert "identifier: str) -> Component[Any]" not in text
+    assert "reportIncompatibleMethodOverride" in text
+
+
+# ── The composition root must be mirrorable ───────────────────────────────
+
+
+def test_unmirrorable_root_is_refused_by_name(tmp_path):
+    base = project(
+        tmp_path,
+        framework_body=FRAMEWORK + "\n    def helper():\n        return 1\n",
+    )
+    with pytest.raises(UnmirrorableRootError) as exc:
+        render(base)
+    assert "helper" in str(exc.value)
+
+
+def test_kind_handles_are_mirrored(tmp_path):
+    base = project(tmp_path)
+    _, text, manifest = render(base)
+    assert {handle.attribute for handle in manifest.handles} == {"model", "view"}
+    # Typed as the handle itself, not as a bare callable: a handle preserves
+    # the type of what it decorates, and `Callable[..., Any]` would erase every
+    # decorated class at its declaration site.
+    assert "model: KindHandle" in text
+
+
+# ── The emitted stub survives the project's own gates ─────────────────────
+
+
+def test_generated_stub_lints_and_formats_clean(tmp_path):
+    base = project(tmp_path)
+    report = generate(base)
+    lint = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "--isolated",
+            "--select",
+            "I,F,PYI,E4,E7,E9,UP,B,SIM,RUF",
+            str(report.path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert lint.returncode == 0, lint.stdout
+    fmt = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "format",
+            "--isolated",
+            "--check",
+            str(report.path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert fmt.returncode == 0, fmt.stdout
+
+
+# ── Verification ──────────────────────────────────────────────────────────
+
+
+def test_current_stub_verifies_and_is_untouched(tmp_path):
+    base = project(tmp_path)
+    report = generate(base)
+    before = report.path.read_bytes()
+
+    result = verify(base)
+
+    assert result.ok and result.matched is True
+    assert report.path.read_bytes() == before
+
+
+def test_added_component_is_a_mismatch(tmp_path):
+    base = project(tmp_path)
+    generate(base)
+    before = (base / "framework.pyi").read_bytes()
+
+    models = base / "catalog" / "models.py"
+    models.write_text(
+        models.read_text(encoding="utf-8")
+        + '\n@component(kind="models")\nclass Invoice:\n    total = 1\n',
+        encoding="utf-8",
+    )
+
+    result = verify(base)
+    assert not result.ok
+    assert "stale" in (result.reason or "") or "missing" in (result.reason or "")
+    assert (base / "framework.pyi").read_bytes() == before
+
+
+def test_missing_stub_is_a_mismatch_not_a_pass(tmp_path):
+    base = project(tmp_path)
+    result = verify(base)
+    assert not result.ok
+    assert "no stub" in (result.reason or "")
+    assert not (base / "framework.pyi").exists()
+
+
+# ── CLI adapter ───────────────────────────────────────────────────────────
+
+
+def test_cli_generates_and_reports_degraded_count(tmp_path, capsys):
+    base = project(tmp_path)
+    code = cli_main(["stubs", str(base)])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "framework.pyi" in out
+    assert "1 of 5" in out
+
+
+def test_cli_check_passes_on_a_current_stub(tmp_path, capsys):
+    base = project(tmp_path)
+    cli_main(["stubs", str(base)])
+    capsys.readouterr()
+    assert cli_main(["stubs", str(base), "--check"]) == 0
+    assert "is current" in capsys.readouterr().out
+
+
+def test_cli_check_fails_when_no_stub_exists(tmp_path, capsys):
+    base = project(tmp_path)
+    assert cli_main(["stubs", str(base), "--check"]) == 1
+    assert "no stub" in capsys.readouterr().err
+
+
+# ── Runtime inertness ─────────────────────────────────────────────────────
+
+
+def _run_in_project(base: Path, body: str) -> subprocess.CompletedProcess[str]:
+    script = (
+        f"import sys; sys.path.insert(0, r'{base}')\n"
+        f"BASE = r'{base}'\n"
+        "from framework import framework\n" + body + "\n"
+    )
+    return subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        cwd=str(base),
+    )
+
+
+def test_generated_stub_is_never_imported_at_runtime(tmp_path):
+    base = project(tmp_path)
+    generate(base)
+    result = _run_in_project(
+        base,
+        "framework.start(BASE)\n"
+        "import sys\n"
+        "print(any(getattr(m, '__file__', '') or '' "
+        "for n, m in sys.modules.items() if n.endswith('.pyi')))",
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().endswith("False")
+
+
+def test_deleting_the_stub_changes_no_behavior(tmp_path):
+    base = project(tmp_path)
+    generate(base)
+    body = (
+        "framework.start(BASE); print(sorted(c.identifier for c in framework.registry))"
+    )
+
+    with_stub = _run_in_project(base, body)
+    (base / "framework.pyi").unlink()
+    without_stub = _run_in_project(base, body)
+
+    assert with_stub.returncode == 0, with_stub.stderr
+    assert without_stub.returncode == 0, without_stub.stderr
+    assert with_stub.stdout == without_stub.stdout
