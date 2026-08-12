@@ -216,10 +216,15 @@ class TestMetadataContract:
             class Post: ...
 
     def test_there_is_no_second_free_form_channel(self):
-        """The removed `config=` escape hatch is gone, not renamed."""
+        """The removed `config=` escape hatch is gone, not renamed.
+
+        Now refused twice over: the handle's declared call signature rejects it
+        statically, and the runtime still raises. The ignore below is what makes
+        the static half visible — remove it and the type checker fails here.
+        """
         register = registrar(KindSpec("models", metadata=ModelMeta))
         with pytest.raises(TypeError):
-            register(config={"a": 1})
+            register(config={"a": 1})  # ty: ignore[no-matching-overload]
 
 
 class TestRegistrarHandle:

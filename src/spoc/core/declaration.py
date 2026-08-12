@@ -24,7 +24,7 @@ import inspect
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from types import ModuleType
-from typing import Any
+from typing import Any, Protocol, cast, overload
 
 from .exceptions import (
     ComponentKindMismatchError,
@@ -114,7 +114,41 @@ def component(
     return decorator(obj) if obj is not None else decorator
 
 
-def registrar(spec: KindSpec) -> Callable[..., Any]:
+class Decorator(Protocol):
+    """The decorator the parameterized form returns: identity, type preserved."""
+
+    def __call__[T](self, target: T, /) -> T: ...
+
+
+class KindHandle(Protocol):
+    """A kind's registration handle, which states the kind it registers.
+
+    Carrying the kind on the handle is what lets a reader tell one apart from
+    any other callable a module happens to export, without matching on names or
+    docstrings. Stub generation relies on exactly that when it mirrors a
+    composition root.
+
+    Registration is *identity*: marking an object returns that same object, so
+    the handle is typed to give back exactly what it was given. Typing it as
+    returning ``Any`` would erase every decorated class at its declaration site
+    — and then a generated stub promising ``type[Product]`` would be promising
+    ``type[Any]``, which is how a stub comes to lie while every assertion about
+    it still passes.
+    """
+
+    __spoc_kind__: str
+
+    @overload
+    def __call__[T](
+        self, obj: T, /, *, name: str | None = None, meta: Any = None
+    ) -> T: ...
+    @overload
+    def __call__(
+        self, obj: None = None, *, name: str | None = None, meta: Any = None
+    ) -> Decorator: ...
+
+
+def registrar(spec: KindSpec) -> KindHandle:
     """Build the registration handle for one declared kind."""
 
     def register(obj: Any = None, *, name: str | None = None, meta: Any = None) -> Any:
@@ -126,7 +160,9 @@ def registrar(spec: KindSpec) -> Callable[..., Any]:
         return decorator(obj) if obj is not None else decorator
 
     register.__doc__ = f"Register an object as a {spec.name!r} component."
-    return register
+    handle = cast("KindHandle", register)
+    handle.__spoc_kind__ = spec.name
+    return handle
 
 
 def is_spoc(obj: Any) -> bool:
