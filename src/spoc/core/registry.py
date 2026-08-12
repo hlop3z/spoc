@@ -50,19 +50,26 @@ _SHARED_VALUE_TYPES: Final[tuple[type, ...]] = (
 
 
 @dataclass(frozen=True)
-class Component:
+class Component[T]:
     """One registry record — the unit of enumeration and projection.
 
     The three segment fields carry the grammar's own names, so a projection
     reads ``kind``/``namespace``/``object_name`` here, in a parsed identifier,
     and in an error message alike.
+
+    The type parameter describes the registered object. Registration cannot know
+    it — :meth:`Registry.add` takes an object of any type and hands back
+    ``Component[Any]`` — so it exists for *readers* that do know: a generated
+    stub narrows ``resolve`` per identifier, and a typed accessor narrows it per
+    call. Written bare, ``Component`` places no constraint on ``object``, which
+    is what every unnarrowed reader means.
     """
 
     identifier: str
     kind: str
     namespace: str
     object_name: str
-    object: Any
+    object: T
     metadata: Any = field(default=None)
 
 
@@ -79,7 +86,7 @@ class Registry:
 
     def __init__(self, kinds: tuple[str, ...] = ()) -> None:
         self._kinds: tuple[str, ...] = tuple(validate_segment("kind", k) for k in kinds)
-        self._store: dict[str, Component] = {}
+        self._store: dict[str, Component[Any]] = {}
         # id() is stable here because _store holds a strong reference to every object.
         self._identifier_of: dict[int, str] = {}
         self._lock = threading.Lock()
@@ -96,7 +103,7 @@ class Registry:
         object_name: str,
         obj: Any,
         metadata: Any = None,
-    ) -> Component:
+    ) -> Component[Any]:
         """Register an object, building its record and canonical identifier.
 
         One object holds exactly one canonical identifier. Re-registering an
@@ -152,22 +159,22 @@ class Registry:
 
     # ── Reads: one store, derived views, deterministic order ──────────────
 
-    def _snapshot(self) -> list[Component]:
+    def _snapshot(self) -> list[Component[Any]]:
         with self._lock:
             return list(self._store.values())
 
-    def all(self) -> list[Component]:
+    def all(self) -> list[Component[Any]]:
         """Every record, ordered by identifier."""
         return sorted(self._snapshot(), key=lambda c: c.identifier)
 
-    def by_kind(self, kind: str) -> list[Component]:
+    def by_kind(self, kind: str) -> list[Component[Any]]:
         """Records of one kind, ordered by identifier."""
         return sorted(
             (c for c in self._snapshot() if c.kind == kind),
             key=lambda c: c.identifier,
         )
 
-    def by_namespace(self, namespace: str) -> list[Component]:
+    def by_namespace(self, namespace: str) -> list[Component[Any]]:
         """Records of one namespace, ordered by identifier."""
         return sorted(
             (c for c in self._snapshot() if c.namespace == namespace),
@@ -181,7 +188,7 @@ class Registry:
         }
         return tuple(sorted(found))
 
-    def __iter__(self) -> Iterator[Component]:
+    def __iter__(self) -> Iterator[Component[Any]]:
         return iter(self.all())
 
     def __len__(self) -> int:
@@ -194,7 +201,7 @@ class Registry:
 
     # ── Resolution: pure lookup, per-segment precise failure ──────────────
 
-    def resolve(self, identifier: str) -> Component:
+    def resolve(self, identifier: str) -> Component[Any]:
         """Resolve a canonical identifier to its record, failing per segment.
 
         Success is a single dict hit after the grammar check; the per-segment

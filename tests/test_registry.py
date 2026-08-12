@@ -131,6 +131,65 @@ class TestStore:
         assert all(isinstance(c, Component) for c in registry)
 
 
+class TestRecordTypeDescription:
+    """A record admits a description of its object's type without that
+    description constraining anything at runtime (spec: component-registry —
+    records carry projection-sufficient metadata)."""
+
+    def test_undescribed_record_is_unconstrained(self):
+        for obj in (object(), "a string", 42, lambda: None, type("K", (), {})):
+            record = Component(
+                identifier="models:blog.post",
+                kind="models",
+                namespace="blog",
+                object_name="post",
+                object=obj,
+            )
+            assert record.object is obj
+
+    def test_registration_hands_back_an_unconstrained_record(self, registry):
+        marker = object()
+        record = registry.add("models", "blog", "marker", marker)
+        assert record.object is marker
+
+    def test_described_record_carries_the_object_unchanged(self):
+        marker = object()
+        record: Component[object] = Component(
+            identifier="models:blog.post",
+            kind="models",
+            namespace="blog",
+            object_name="post",
+            object=marker,
+        )
+        assert record.object is marker
+
+    def test_description_does_not_alter_runtime_behavior(self):
+        marker = object()
+        fields = {
+            "identifier": "models:blog.post",
+            "kind": "models",
+            "namespace": "blog",
+            "object_name": "post",
+            "object": marker,
+        }
+        undescribed = Component(**fields)
+        described = Component[object](**fields)
+
+        assert described == undescribed
+        assert type(described) is type(undescribed)
+        assert isinstance(described, Component)
+        # Indirect so the assignment is a runtime question, which is the point:
+        # frozen-ness must hold for a described record exactly as it does today.
+        attr = "object_name"
+        for record in (described, undescribed):
+            with pytest.raises(AttributeError):
+                setattr(record, attr, "other")
+
+    def test_the_class_itself_is_the_isinstance_target(self, registry):
+        # A parameterized alias is for readers; isinstance still takes the class.
+        assert all(isinstance(c, Component) for c in registry)
+
+
 class TestResolution:
     def test_successful_resolution(self, registry):
         record = registry.resolve("models:blog.post")
