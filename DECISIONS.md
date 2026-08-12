@@ -886,3 +886,56 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   own reference syntax, so it would make one delimiter mean two things).
 - **Isolation**: parsed once where app entries are read, immediately validated by the
   existing `validate_segment("namespace", …)`, so the grammar keeps one enforcement point.
+
+### Decision: Per-app metadata location — Adopt Django's central app list, refuse a colocated manifest
+
+- **Status**: approved
+- **Why**: Odoo carries roughly thirty keys in a `__manifest__.py` beside each addon, and it
+  needs to: addons are acquired and installed independently of the project, so the manifest
+  is how a package the project did not write states its own facts. SPOC has no third-party
+  apps. Every app in every known project is written by whoever writes `spoc.toml`, so the
+  facts a manifest would carry — inter-app dependencies, external requirements, framework
+  version compatibility — are already known at the one place they would be read. Django,
+  whose app model this project otherwise follows, has run twenty-one years on a single list
+  of strings in `INSTALLED_APPS`: no per-app manifest, no per-app dependency declaration,
+  ordering needs met by declaration order plus a load-phase barrier. The asymmetry that
+  settles it is in our own release policy: the pre-stable allowance ends at the first stable
+  major release and cannot be extended, after which a configuration key can always be added
+  and can never be removed. A key added speculatively is an obligation for the life of the
+  project; a key added on demand costs one minor release.
+- **Considered**: a colocated `manifest.toml` per app (correct ownership — an app's author
+  states the app's facts — but there is no third-party app to own anything yet, and it adds
+  a second configuration location against the one-file simplicity this project holds);
+  `[spoc.app.<name>]` tables inside the existing `spoc.toml` (cheapest carrier and keeps one
+  file, but puts an app's own facts in the consumer's configuration, which is the wrong
+  owner the moment third-party apps exist — so it would have to be replaced rather than
+  extended, which is the worst of both); entry points advertising apps from installed
+  distributions (the mechanism this project already uses for scaffold templates and the
+  pytest plugin, and the right answer the day apps ship separately — recorded here as the
+  preferred future form so the question starts from it rather than from Odoo's manifest).
+- **Revisit when**: an app is distributed separately from the project that installs it. That
+  is the single fact this decision waits on; until it is true there is no owner for the file.
+
+### Decision: Per-app framework-version compatibility — Rent the packaging ecosystem's check
+
+- **Status**: approved
+- **Why**: Odoo's `adapt_version`/`check_version` refuse an addon whose release series does
+  not match the running Odoo, setting `installable = False`. Odoo needs that because an
+  addon arrives independently of the install and nothing else in the pipeline can catch the
+  mismatch. A SPOC app lives inside the project that depends on SPOC, so the project's own
+  dependency pin already is the check — enforced by the installer before any code runs,
+  which is earlier and more precise than a boot-time comparison could be. Renting beats
+  building here twice over: the packaging ecosystem already resolves version constraints,
+  and reproducing that inside the kernel would require PEP 440 comparison, which the
+  zero-runtime-dependency invariant forbids adopting `packaging` for and which hand-rolling
+  would repeat the `loc` mistake — epochs, pre-releases, and local versions are precisely
+  where a hand-written comparator is quietly wrong.
+- **Considered**: `requires-spoc = ">=0.8,<0.9"` in a per-app manifest (needs the version
+  comparison above, and depends on the manifest refused in the preceding decision); checking
+  the major segment alone as an integer (avoids PEP 440 entirely and is honest about what it
+  verifies, but what it verifies is exactly what the dependency pin already verified); a
+  boot-time warning rather than a refusal (a diagnostic nobody reads, and the project's rule
+  is loud failure or nothing).
+- **Revisit when**: apps ship independently — the same trigger as the preceding decision,
+  because this check only has work to do when the app and the framework are acquired
+  separately.
