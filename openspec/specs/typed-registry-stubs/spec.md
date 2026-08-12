@@ -38,6 +38,14 @@ project registers, keyed by the component's canonical identifier, and MUST inclu
 for an identifier the project does not register. Each entry MUST state the static type a
 consumer obtains when reading that record's object.
 
+The set of described identifiers MUST be derived from the project's own registry
+projection rather than from a separate enumeration of the registry, so that the stub and
+every other description of one project cannot disagree about what it registered. Deriving
+from the projection MUST NOT change what the description contains. The description MAY
+carry language-specific information the projection does not — the static type each
+identifier yields, and how an undescribable type degrades — because that information is
+meaningful only to a type checker and does not belong in a language-neutral projection.
+
 #### Scenario: Every registered component appears
 
 - **WHEN** a project registering components across several kinds and namespaces is described
@@ -49,6 +57,18 @@ consumer obtains when reading that record's object.
 - **WHEN** a project registers components through configuration rather than through module
   discovery
 - **THEN** those components appear in the description on equal terms with discovered ones
+
+#### Scenario: The description and the projection agree
+
+- **WHEN** one project is both described as a type description and projected as data
+- **THEN** the two cover exactly the same set of canonical identifiers, in the same order
+
+#### Scenario: Language-specific detail stays in the description
+
+- **WHEN** a project is projected as data
+- **THEN** the projection carries each component's shape
+- **AND** it does not carry the static type reference the description uses, which remains a
+  property of the description alone
 
 ### Requirement: The description MUST distinguish the three component shapes
 
