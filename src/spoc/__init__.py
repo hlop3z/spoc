@@ -18,6 +18,8 @@ Tiers for every name below are declared in ``[tool.spoc.stability]`` in ``pyproj
 and enforced by ``apicheck``. See the stability policy in the docs.
 """
 
+import logging
+
 from .__about__ import __version__
 from .core.declaration import KindHandle, KindSpec, component
 from .core.exceptions import (
@@ -43,6 +45,16 @@ from .core.exceptions import (
 from .core.identity import Identifier, compose, parse
 from .core.registry import Component, Registry
 from .framework import Config, Framework
+
+# A library configures nothing and prints nothing. Without this, Python's
+# `lastResort` handler writes WARNING and above straight to stderr, so an
+# application that never configured logging would see SPOC's records unbidden.
+#
+# `spoc` is the stable handle to configure: attach a handler or set a level on
+# it to receive them. Names *below* it follow module paths (`spoc.framework`,
+# `spoc.core.loader`) for per-subsystem control, and are internal — relocating
+# a module is not a breaking change to anyone's logging configuration.
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 __all__ = [
     # Package
