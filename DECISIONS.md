@@ -1066,3 +1066,65 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Considered**: `spoc.formats` (rejected on the containment boundary, not on capability);
   a third-party JSON encoder (nothing to gain, and `dependencies` stays empty).
 - **Isolation**: the projection module's emitter, with a test pinning the boundary.
+
+### Decision: A kernel lifecycle's state transitions — Build, hand-written flags under one lock
+
+- **Status**: approved
+- **Why**: `dependencies = []` is an enforced invariant, so a runtime state-machine library is
+  architecturally incompatible — the hierarchy's own stated ground for Build. The machine has
+  three states (inert, started, transitioning) and the `harden-failure-paths` change adds two
+  failure edges to it; an adopted framework would be larger than what it models. The defect
+  being fixed was never the representation, it was that the reset obligation lived in four
+  places instead of one.
+- **Considered**: `python-statemachine` 2.6.0 (released 1 Aug 2026, Production/Stable, guards
+  and validators, full async support — the strongest option on merit, and it would be the
+  kernel's first runtime dependency); `transitions` (long-standing, lightweight, extensible;
+  same fatal objection).
+- **Revisit trigger**: states beyond inert/started/transitioning, or conditional transitions.
+  The objection is the dependency invariant plus current size, not the libraries' quality.
+- **Isolation**: the private transition helper in `framework.py` — the one place the flags and
+  the lock are touched.
+
+### Decision: Exercising a race in the test suite — Extend the existing pattern with `threading.Barrier`
+
+- **Status**: approved
+- **Why**: test-only, so the runtime dependency invariant does not bind, and the stdlib
+  primitive is what the official Python free-threading guide recommends for this exact job —
+  a barrier before the suspected line releases the workers together. It exists because
+  `test_racing_duplicates_have_one_winner` called `.result()` on each submission before
+  submitting the next, so its two "racing" threads never overlapped and the test passed for
+  twenty iterations without testing a race at all. The lesson generalizes: a concurrency test
+  must *establish* the overlap, never assume it.
+- **Considered**: `blanket` (deterministic concurrency testing — wraps threading primitives and
+  drives execution from the main thread so a test chooses which thread takes the lock next;
+  better for inherently probabilistic races, but it intercepts threading primitives and is
+  new); `pytest-run-parallel` (Quansight-Labs; runs one test in many threads — strong for
+  broad thread-safety sweeps, cannot express "these two operations must overlap").
+- **Revisit trigger**: a concurrency test that cannot be made reliable with a barrier. Adopt
+  `blanket` for that test rather than tolerating flakiness or deleting the coverage.
+- **Isolation**: `tests/test_concurrency.py`. No barrier appears in `src/`.
+
+### Decision: Logging from a zero-dependency library — Adopt the standard library's `logging`, bridgeable but unbridged
+
+- **Status**: approved
+- **Why**: stdlib `logging` is the mature standard for a library's position in the stack. The
+  canon's never-hand-roll rule points at OpenTelemetry for observability, and the 2026 guidance
+  resolves the apparent conflict rather than overriding it: a *library* emits to a named logger
+  and the *application* owns the telemetry pipeline. Three consequences are taken deliberately:
+  a `NullHandler` on the `spoc` root logger, because otherwise Python's `lastResort` handler
+  prints WARNING and above to stderr and any error-level log ships as noise to every
+  application that never configured logging; `getLogger(__name__)` everywhere, replacing a
+  hardcoded `getLogger("spoc")` that coexisted with the `__name__` convention and denied
+  consumers per-subsystem control; and lazily-formatted `%s` arguments with `exc_info=True`
+  rather than pre-formatted text, which is what makes records OTel-bridgeable *without* an OTel
+  dependency — an application routing them through `LoggingHandler` gets a structured
+  exception record with attributes instead of a string to parse back apart.
+- **The logger-name contract**: `spoc` is the stable handle a consumer configures. Names below
+  it follow module paths and are internal, so relocating a module is not a silent breaking
+  change for someone's logging config. Recorded now to stop logger names becoming an
+  accidental part of the public surface.
+- **Considered**: bridging to OpenTelemetry in the library (needs an intercept layer plus OTel
+  packages — a runtime dependency for a concern the consuming application owns); `structlog`
+  (better structured-logging ergonomics, still a runtime dependency).
+- **Isolation**: one `NullHandler` registration at the package root; every module keeps its own
+  `__name__` logger and nothing else touches logging configuration.
