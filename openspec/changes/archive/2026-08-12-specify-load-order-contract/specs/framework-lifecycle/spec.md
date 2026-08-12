@@ -9,6 +9,11 @@ Kind depth decides first; the app list breaks every remaining tie. Two starts of
 project MUST produce the same order, and the order MUST NOT depend on filesystem layout,
 dictionary iteration, or the order in which modules happen to import one another.
 
+A kind's depth MUST be read from the declaration, never from which modules were found. An
+app that omits an optional kind therefore changes the position of no module but its own:
+the omission MUST NOT move that app's remaining modules into an earlier phase, and MUST NOT
+reorder any other app.
+
 Because kind depth is the first key, the modules of one kind form a load phase that
 completes across every installed app before the next phase begins. Because the installed-app
 list is the tiebreak, an author who needs one app's modules of a kind to load before
@@ -33,6 +38,15 @@ third-party ordering utility, so that a change of implementation cannot silently
 
 - **WHEN** the same project is started twice in one process, with a shutdown between
 - **THEN** both starts load and initialize modules in the same order
+
+#### Scenario: An omitted optional kind moves nothing else
+
+- **WHEN** kinds `models`, `views`, and `urls` each depend on the previous one, `views` is
+  optional, apps `blog` and `shop` are installed in that order, and `shop` has no `views`
+  module
+- **THEN** the order is `blog.models`, `shop.models`, `blog.views`, `blog.urls`, `shop.urls`
+- **AND** `shop.urls` is loaded and initialized after every app's `views` module, exactly as
+  it would be if `shop` had one
 
 #### Scenario: A cycle in the declared kind order is refused
 

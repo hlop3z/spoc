@@ -51,11 +51,34 @@ framework = spoc.Framework(
 )
 ```
 
-Within every app, `models.py` now loads before `views.py`. A dependency cycle
-is refused at boot, with the cycle named.
+A kind is a **phase**, and a phase spans every app. *All* apps' `models.py` load
+and initialize before *any* app's `views.py` — not just within one app. So a
+`views` hook that reads the registry sees every model in the project, never a
+half-built world. A dependency cycle is refused at boot, with the cycle named.
 
 An optional kind (`required=False`) may be missing from any app — every other
-kind's module must exist, so a forgotten file is an error, not a silent gap.
+kind's module must exist, so a forgotten file is an error, not a silent gap. An
+app that omits one moves nothing: its remaining modules stay in their own
+phases, exactly where they would be if it had the file.
+
+## Ordering two apps: the `[spoc.apps]` list
+
+Inside one phase, apps go in the order they are listed. That is the whole knob,
+and it is worth knowing about for exactly one reason — hooks fire in load order:
+
+```toml
+[spoc.apps]
+development = ["apps.core", "apps.blog"]   # core's hooks fire first
+```
+
+Both apps' `models` hooks run before either app's `views` hook (that is the
+phase rule above), and within the `models` phase `apps.core` runs before
+`apps.blog`. Reorder the list and you reorder the hooks. Shutdown runs the
+whole thing backwards.
+
+There is deliberately no way to say "all of `apps.core` before any of
+`apps.blog`" — that would put one app's `views` ahead of another's `models` and
+break the phase guarantee everything else here rests on.
 
 ## Talking across apps
 

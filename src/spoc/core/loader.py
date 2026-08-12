@@ -50,6 +50,11 @@ class LoadedModule:
     module: ModuleType
     kind: str
     namespace: str = ""
+    #: Where this module sits in the load order: the rank of its kind in the
+    #: declared inter-kind dependency order, then the position of its app in the
+    #: effective installed-app list. The loader carries this without interpreting
+    #: it, exactly as it carries `kind` — the framework owns what the numbers mean.
+    position: tuple[int, int] = (0, 0)
     #: The module's own ``initialize()`` completed, so its ``teardown()`` is owed.
     initialized: bool = False
     #: The startup phase completed for this module — the kind's startup hook ran,
@@ -60,7 +65,13 @@ class LoadedModule:
 
 
 class Loader:
-    """Imports modules, orders them by dependency, and runs their lifecycle."""
+    """Imports modules, walks them in a stated order, and runs their lifecycle.
+
+    The order is the caller's, carried on each module as `position`; the loader
+    ranks nothing itself. What it owns is the refusal: the dependency edges it
+    records exist so a cycle is caught, not so an order can be inferred from them.
+    A caller that states no position gets registration order.
+    """
 
     def __init__(self) -> None:
         self._modules: dict[str, LoadedModule] = {}
@@ -75,6 +86,7 @@ class Loader:
         namespace: str = "",
         dependencies: tuple[str, ...] = (),
         required: bool = True,
+        position: tuple[int, int] = (0, 0),
     ) -> ModuleType | None:
         """Import a module and record its dependencies. None if absent and optional.
 
@@ -114,7 +126,11 @@ class Loader:
             return None
 
         self._modules[name] = LoadedModule(
-            name=name, module=module, kind=kind, namespace=namespace
+            name=name,
+            module=module,
+            kind=kind,
+            namespace=namespace,
+            position=position,
         )
         self._graph.setdefault(name, set())
         # Edges are recorded even when the dependency is not loaded yet, or was an
@@ -149,12 +165,21 @@ class Loader:
         return getattr(module, attr)
 
     def ordered(self) -> list[LoadedModule]:
-        """Loaded modules in dependency order, dependencies first."""
+        """Loaded modules in load order: kind phase first, app position within it.
+
+        The order is the framework's, stated by each module's `position`, rather
+        than a library's. `graphlib` is kept for the one thing only it does here —
+        refusing a dependency cycle — because sorting by a key cannot notice that
+        the graph is not a DAG. Sorting an already-total key also means an absent
+        optional module cannot pull anything into an earlier phase, which reading
+        depth out of this graph would allow: the dependent's registration puts the
+        missing name back as a node with no predecessors.
+        """
         try:
-            order = graphlib.TopologicalSorter(self._graph).static_order()
-            return [self._modules[n] for n in order if n in self._modules]
+            graphlib.TopologicalSorter(self._graph).prepare()
         except graphlib.CycleError as e:
             raise CircularDependencyError([str(n) for n in e.args[1]]) from e
+        return sorted(self._modules.values(), key=lambda entry: entry.position)
 
     def __iter__(self) -> Iterator[LoadedModule]:
         return iter(self.ordered())

@@ -20,7 +20,29 @@ kind-*n+1* module.
 module, so load order is directly observable through hooks and through a module's own
 `initialize()`.
 
-Together these produce a cross-app phase barrier that the specification does not claim.
+**Four, found by writing the tests rather than by reading the code.** Fact one holds only
+for modules that exist. `Loader.register` returns an absent optional module *before*
+`self._graph.setdefault(name, set())` runs, so the module contributes no node and no edge of
+its own — but the dependent's registration then calls `self._graph.setdefault(dep, set())`
+and puts the name back as a node with **no predecessors**. `shop.views` absent therefore
+means `shop.views` sits at level 0 beside every app's `models`, and `shop.urls` at level 1
+beside every app's `views`. Measured, with `shop` omitting `views`:
+
+```
+apps = shop, blog   shop.models  blog.models  shop.urls  blog.views  blog.urls
+apps = blog, shop   blog.models  shop.models  blog.views shop.urls   blog.urls
+```
+
+The first breaks the barrier outright — a `urls` module initializes ahead of a `views`
+module. The second keeps the phases apart but violates the app-list tiebreak, putting
+`shop.urls` ahead of `blog.urls`. The disjoint-union-of-identical-chains reading of fact one
+is what fails: the chains are identical only when every app declares every kind, and
+`required=False` exists to permit exactly the opposite. This is why kind depth in Decision 1
+is read from the `KindSpec` graph and never from the module graph — a module that does not
+exist cannot change a declared kind's depth.
+
+Together facts one through three produce a cross-app phase barrier that the specification
+does not claim.
 `framework-declaration/spec.md` says only "in every app", which is the weaker per-app
 reading. Measured on the current build with apps `blog` and `shop` and kinds
 `models → views → urls`, the order is `blog.models, shop.models, blog.views, shop.views,
@@ -59,8 +81,11 @@ on them.
 - A graph abstraction of our own. The ordering key is a tuple over data the kernel already
   holds; anything that would need general graph algorithms is a signal to adopt a library,
   not to grow this one.
-- Any change to observable behaviour. If the implementation's order changes at all, this
-  change is wrong.
+- Any change to observable behaviour *for a project where every app declares every kind*.
+  There is exactly one intended exception, found while pinning the current order in task 2
+  and described under Context: an app that omits an optional kind currently drags its own
+  downstream modules a phase early, and that order does change. Outside that case, if the
+  order moves at all, this change is wrong.
 
 ## Decisions
 
@@ -207,6 +232,12 @@ here and there only — `specs/` stays abstract.
 - **Stating the barrier forecloses per-app kind subsets in their obvious form.** That
   feature would have to preserve the barrier deliberately. Making that constraint visible
   now, while nothing depends on either, is the point.
-- **The change is invisible if it works.** No user-facing behaviour moves, so its value is
-  entirely in what it prevents later. That is the correct shape for a one-way-door decision
-  taken before a stable release, and a poor shape for a change judged by its diff.
+- **The change is almost invisible if it works.** Apart from the optional-module repair, no
+  user-facing behaviour moves, so its value is mostly in what it prevents later. That is the
+  correct shape for a one-way-door decision taken before a stable release, and a poor shape
+  for a change judged by its diff.
+- **The repair is a behaviour change, pre-stable.** A project that omits an optional module
+  gets a different initialization order than it did — the one the barrier always claimed.
+  The pre-stable allowance covers it, and greenfield means there is nobody to break; after
+  the first stable release this same repair would have been a breaking change, which is the
+  argument for taking it now.
