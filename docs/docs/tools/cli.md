@@ -147,9 +147,13 @@ kind:        models
 namespace:   core
 object_name: example
 object:      apps.core.models:Example
+shape:       constructible
 ```
 
 Both boot, read, and tear down — nothing stays running.
+
+`shape` is what you may *do* with the block: `constructible` if it is a class you can
+build, `callable` if it is a function you can call, `value` if it is just a thing.
 
 ## `spoc stubs` — teach your editor the registry
 
@@ -173,6 +177,53 @@ apps, and deleting it changes nothing about how your program runs.
 Full walkthrough: [Get Editor Autocomplete](../how-to/get-editor-autocomplete.md).
 
 {{ cli_help("stubs") }}
+
+## `spoc projection` — hand your registry to another tool
+
+```bash
+spoc projection                      # the whole registry, as JSON, on stdout
+spoc projection > registry.json      # save it
+spoc projection | jq '.components[] | select(.kind == "models")'
+```
+
+```json
+{
+  "format_version": "1.0",
+  "kinds": ["models", "views"],
+  "components": [
+    {
+      "identifier": "models:blog.post",
+      "kind": "models",
+      "namespace": "blog",
+      "object_name": "post",
+      "location": "apps.blog.models:Post",
+      "shape": "constructible"
+    }
+  ]
+}
+```
+
+`spoc list` is for you; this is for your other programs. Anything that wants to know what
+your project registered — a router generator, an admin page, a docs build, a script in
+another language entirely — reads this instead of importing your code.
+
+Three things make it safe to build on:
+
+- **It validates.** A JSON Schema ships with SPOC, so a consumer can check what it got
+  without reading any Python. Find it at `spoc/projection/schema.json` inside the installed
+  package, or via `spoc.projection.schema_path()`.
+- **It doesn't start your app.** Discovery runs; your startup hooks do not. A project that
+  needs a database to boot is still describable on a laptop that has none. The flip side:
+  it describes the registry as of the end of discovery, so anything a startup hook
+  registers afterwards is not in here.
+- **It doesn't churn.** Entries come out in identifier order every time, so two runs of an
+  unchanged project produce identical bytes and a diff means something really changed —
+  not that you reordered your `[spoc.apps]` list.
+
+`format_version` is the version of *this document shape*, not of SPOC. Branch on it, not on
+the release you happen to have installed.
+
+{{ cli_help("projection") }}
 
 ## Where's the framework?
 

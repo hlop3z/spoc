@@ -986,3 +986,83 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   cycle becomes unbounded recursion or a silently truncated order — the rule here is loud
   failure or nothing).
 - **Isolation**: unchanged — the `except graphlib.CycleError` clause in `Loader.ordered()`.
+
+### Decision: The registry projection's schema — Adopt JSON Schema 2020-12, hand-written
+
+- **Status**: approved
+- **Why**: Rule 9 settles the language; the gate had to settle authorship and the draft.
+  Pinned to `https://json-schema.org/draft/2020-12/schema` — the current published draft,
+  where its successor is still an unexpired IETF Internet-Draft and could yet change. The
+  schema is hand-written and checked in because the change's design makes the *document* the
+  format and the Python dataclass one producer of it; a generator inverts that authority.
+  Generation also cannot express what carries the most meaning — the
+  `kind:namespace.object_name` pattern, the closed shape vocabulary, and a format version
+  independent of the release version — without annotating the dataclass into a schema DSL,
+  which is the same inversion by another route.
+- **Considered**: `dc_schema` (tiny, stdlib-only, emits 2020-12 — the closest fit if
+  generation were wanted; micro-library with thin maintenance signal, and it inverts the
+  design's Decision 2); pydantic (mature, 2020-12 capable, but it lives in the `examples`
+  group and this would promote it to a build-time dependency of the published artifact);
+  draft 07 (broadest legacy support, rejected as legacy for a format meant to outlive the
+  implementation).
+- **Drift control**: hand-authoring is a restatement, and it is paid for by verification
+  rather than generation — every projection the suite produces is validated, a malformed
+  document is asserted to fail, and a parity test asserts the producer's field set equals
+  the schema's `properties`/`required` keys.
+- **Isolation**: the published schema file and the projection module that produces the
+  document. Nothing in the kernel imports a validator.
+
+### Decision: Validating the projection in the suite — Adopt `jsonschema`, dev group only
+
+- **Status**: approved
+- **Why**: Standard-format validation is on the never-hand-roll list, so the question is
+  which validator, never whether to write one. `jsonschema` (python-jsonschema, 4.26.0,
+  January 2026) is the reference implementation, fully supports 2020-12, and is pure Python
+  — so it installs across the whole gated platform matrix without a wheel question. Dev
+  group only, on the same precedent as `hypothesis` and `pytest-examples`: `dependencies`
+  stays empty and no downstream framework inherits it.
+- **Reconciles with the earlier rejection**: "Configuration validation — Adopt `tomllib`,
+  build the four-key check" rejected `jsonschema` for pulling four transitive dependencies
+  to describe a four-key contract. That rejection stands. It was a *runtime* dependency
+  there and is a *test* dependency here, so the zero-`Requires-Dist` invariant behind it is
+  untouched; and that ADR scoped Rule 9 to "contracts and identifiers exchanged with the
+  outside world, not a four-key internal config file" — the registry projection is exactly
+  such a contract, which is why the same rule now points the other way on the same tool.
+- **Considered**: `jsonschema-rs` (Rust-backed, much faster; throughput is irrelevant for a
+  suite validating small documents, and a compiled extension adds wheel risk across three
+  OSes and three Python versions); `check-jsonschema` as a command in `.canon/checks.md`
+  (matches the tokei/`ensure` precedent, but the suite builds projections in `tmp_path` and
+  a CLI forces file marshalling for every case, including the negative ones).
+- **Isolation**: the test module asserting conformance. No source module imports it, and the
+  schema file stays validatable by any external tool.
+
+### Decision: A domain vocabulary for the projection — none applies
+
+- **Status**: approved
+- **Why**: Rule 9 points at Schema.org/RDF for vocabularies, so the question was asked and
+  the answer is negative: nothing standard describes *what an application registered
+  in-process*. Schema.org `SoftwareApplication` describes software products for search and
+  discovery; SPDX (ISO/IEC 5962) and CycloneDX describe dependency inventories keyed by
+  Package URL for licence compliance and supply-chain use; OpenAPI and AsyncAPI describe API
+  surfaces. Each models a different subject, and adopting one would bend this format to an
+  ill-fitting vocabulary for interoperability no consumer would exercise. JSON Schema alone
+  is the whole of the adoption.
+- **Recorded so it is not re-asked**: the negative answer is the deliverable. The revisit
+  trigger is a change of *subject*, not of scale — if the projection ever describes packages
+  rather than in-process components, adopt CycloneDX plus purl at that point.
+- **Considered**: aligning field names with Schema.org properties for familiarity (buys no
+  interoperability while constraining naming; `shape` has no analogue at all).
+- **Isolation**: not applicable — nothing is adopted.
+
+### Decision: Serializing the projection — Adopt the standard library's `json`
+
+- **Status**: approved
+- **Why**: Standard-format serialization is on the never-hand-roll list and the standard
+  library covers it, so there is nothing to acquire. It also holds the containment boundary:
+  `spoc.formats` is a contained subpackage the kernel never imports, and the kernel's own
+  surfaces already use stdlib `json` directly — `scaffold`'s provenance and remote-template
+  modules are the existing precedent. Routing the projection through `formats` would make an
+  optional-extra subpackage load-bearing for a core surface.
+- **Considered**: `spoc.formats` (rejected on the containment boundary, not on capability);
+  a third-party JSON encoder (nothing to gain, and `dependencies` stays empty).
+- **Isolation**: the projection module's emitter, with a test pinning the boundary.

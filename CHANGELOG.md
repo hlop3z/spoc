@@ -12,6 +12,33 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 ### Added
 
+- **`spoc projection` — the registry as data, with a published schema.** The registry
+  already had a machine-readable projection: it was a type stub. Any tool wanting to know
+  what a project registered — a router generator, an admin surface, a docs build, a
+  client in another language — had to parse a `.pyi`, turning an artifact designed for
+  type checking into an interface, and its emission rules into a compatibility
+  obligation. The new command writes the registry to standard output as JSON: every
+  component's canonical identifier and the three facets composing it, where its object is
+  defined, its shape, and the project's declared kind set. `spoc.projection.project()` is
+  the same operation as a library call.
+
+  **A JSON Schema ships with the package** (`spoc/projection/schema.json`, located at
+  runtime by `spoc.projection.schema_path()`), so a consumer in any language validates
+  what it received without reading Python. `kind:namespace.object_name` is the most
+  durable thing this project owns — a naming standard, not a Python API — and a documented
+  data projection is what makes it portable.
+
+  Producing one is a **collect-only boot**: discovery runs, initialization does not, so a
+  project whose startup hook needs a database is still describable on a machine that has
+  none. The document therefore describes the registry as of the completion of discovery —
+  ready callbacks are included, anything a startup hook registers afterwards is not, and
+  the schema says so rather than leaving a consumer to assume completeness.
+
+  Entries are emitted in canonical identifier order, so two projections of an unchanged
+  project are byte-identical and a diff reflects the registry rather than declaration
+  order, load order, or filesystem layout. The document carries `format_version`,
+  independent of the SPOC release, so a file found years later still says what it is.
+
 - **`spoc stubs` — typed registry access with no source changes.** `resolve()` returned
   `Any`, so every consumption site lost the type it had just looked up and a mistyped
   identifier failed at runtime instead of in the editor. The new command dry-boots a
@@ -48,6 +75,24 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   on the claim that VS Code completion works.
 
 ### Changed
+
+- **One registry now has one description.** `spoc.diagnostics.RecordInfo` is gone,
+  replaced by `spoc.projection.ComponentEntry`; `list_records` and `explain` return the
+  latter, still after a full boot. Two private structures described the same components
+  with four fields in common and neither able to leave the process — and they had already
+  drifted: `RecordInfo` located an object by its `repr` when it carried no `__qualname__`,
+  which for a registered *instance* embeds a memory address. Untidy in prose output; in a
+  document meant to be diffed it would have made two projections of one unchanged registry
+  differ. Components are now located by their type in that case, in the one place the rule
+  lives. `spoc explain` also reports `shape` now.
+
+- **BREAKING: the shape vocabulary is `constructible` / `callable` / `value` everywhere.**
+  `spoc.stubs.Shape` spelled the first one `"class"` while typed access's errors said
+  "a constructible object", and the two classifiers were separate implementations of one
+  rule. There is now a single classifier (`spoc.core.shape`), and the projection publishes
+  its tokens — `constructible` says what a consumer may *do* with an object, where
+  `"class"` named a Python spelling and would mean nothing to a reader in another
+  language. No stub output changes; the token is not emitted into a `.pyi`.
 
 - **The load order is now a stated guarantee rather than an emergent one.** A kind is a
   phase, and a phase spans every app: every app's `models` modules load, discover, and
