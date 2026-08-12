@@ -631,8 +631,10 @@ class Framework:
             # A cycle among declared kinds, which the module graph only surfaces
             # when some app actually provides both modules of the cycle.
             raise CircularDependencyError([str(n) for n in e.args[1]]) from e
-        declared = list(self._specs)
-        ordered = sorted(declared, key=lambda name: (depth[name], declared.index(name)))
+        # Declaration order as a lookup rather than a list scanned per comparison:
+        # `index()` inside a sort key is quadratic in the number of kinds.
+        declared = {name: position for position, name in enumerate(self._specs)}
+        ordered = sorted(declared, key=lambda name: (depth[name], declared[name]))
         return {name: rank for rank, name in enumerate(ordered)}
 
     def _register_apps(self, entries: list[_AppEntry]) -> None:
