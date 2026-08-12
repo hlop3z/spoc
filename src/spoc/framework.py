@@ -172,8 +172,16 @@ class Framework:
     is thread-safe (a mark only sets an attribute on the target). Start and
     shutdown are serialized against each other and against themselves — when
     callers race to start, exactly one boot proceeds and the rest fail with
-    the already-started error. Reads after a completed start need no
-    coordination, because nothing writes to the registry after boot.
+    the already-started error. Reads between a completed start and a shutdown
+    need no coordination, because nothing writes to the registry in that window.
+
+    Shutdown is the end of that window, and a read racing it is *not* covered.
+    Reset swaps in a fresh registry rather than emptying the live one, so such
+    a read observes one whole registry — the populated one or the empty one,
+    never a torn state — but which of the two is a race, and the empty one
+    reports the same unknown-segment failure any absent component would. A
+    caller that resolves concurrently with shutdown must order the two itself;
+    the kernel serializes transitions, not a transition against a read.
 
     A transition invoked from *inside* a transition — a ready callback or
     lifecycle hook calling ``start`` or ``shutdown`` — fails immediately
