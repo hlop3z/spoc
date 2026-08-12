@@ -80,6 +80,18 @@ def test_the_fixture_exercises_every_shape_and_a_degraded_entry():
     assert report.degraded == 1, "the fixture must keep one honestly-degraded entry"
 
 
+def test_the_fixture_app_is_nested_under_a_container_package():
+    """Nesting apps under a container directory is what projects do past a
+    handful of apps, and it is the layout where the emitter's module-path
+    aliasing earns its keep — `apps.shop.models.Product` must alias distinctly
+    while the identifier stays `models:shop.product`. Flattening the fixture
+    would leave that untested, so the layout is asserted rather than assumed."""
+    assert (FIXTURE / "apps" / "shop" / "models.py").is_file()
+    stub = (FIXTURE / "framework.pyi").read_text(encoding="utf-8")
+    assert "from apps.shop.models import Product as _apps_shop_models_Product" in stub
+    assert '"models:shop.product"' in stub
+
+
 # ── All three checkers agree ──────────────────────────────────────────────
 
 

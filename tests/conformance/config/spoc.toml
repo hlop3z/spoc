@@ -3,4 +3,4 @@ mode = "development"
 debug = true
 
 [spoc.apps]
-development = ["shop"]
+development = ["apps.shop"]

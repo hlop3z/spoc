@@ -4,19 +4,19 @@
 from collections.abc import Callable as _collections_abc_Callable
 from typing import Any, Literal, overload
 
-from shop.models import Product as _shop_models_Product
-from shop.resources import SearchIndex as _shop_resources_SearchIndex
+from apps.shop.models import Product as _apps_shop_models_Product
+from apps.shop.resources import SearchIndex as _apps_shop_resources_SearchIndex
 from spoc import Component, Framework, KindHandle
 
 class _Root(Framework):
     @overload
     def resolve(
         self, identifier: Literal["models:shop.product"]
-    ) -> Component[type[_shop_models_Product]]: ...
+    ) -> Component[type[_apps_shop_models_Product]]: ...
     @overload
     def resolve(
         self, identifier: Literal["resources:shop.search_index"]
-    ) -> Component[_shop_resources_SearchIndex]: ...
+    ) -> Component[_apps_shop_resources_SearchIndex]: ...
     @overload
     def resolve(
         self, identifier: Literal["views:shop.find_product"]

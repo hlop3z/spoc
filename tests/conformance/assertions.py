@@ -15,8 +15,8 @@ from collections.abc import Callable
 from typing import Any, assert_type
 
 from framework import framework
-from shop.models import Product
-from shop.resources import SearchIndex
+from apps.shop.models import Product
+from apps.shop.resources import SearchIndex
 
 # ── The three shapes resolve to the three static types ────────────────────
 
