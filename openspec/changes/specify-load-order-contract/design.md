@@ -56,6 +56,9 @@ on them.
 - Per-app kind subsets (an app declaring it participates in only some kinds). That feature
   is what would break the barrier, and this change exists partly to make that constraint
   visible before anyone builds it.
+- A graph abstraction of our own. The ordering key is a tuple over data the kernel already
+  holds; anything that would need general graph algorithms is a signal to adopt a library,
+  not to grow this one.
 - Any change to observable behaviour. If the implementation's order changes at all, this
   change is wrong.
 
@@ -85,8 +88,9 @@ previous kind, forcing the levels structurally. It works and is explicit, but it
 non-module nodes into a graph whose every other node is a module, and `ordered()` would
 have to filter them back out.
 
-`/ai:decide` runs before implementation and settles this; the recommendation above is
-input to that gate, not a conclusion of it.
+`/ai:decide` has settled this in favour of the explicit key; the reasoning, the rejected
+alternatives, and the boundary the choice lives behind are recorded under Build-vs-Adopt
+Decisions below.
 
 ### Decision 2: A cross-phase inversion is inexpressible, not merely refused
 
@@ -133,6 +137,63 @@ author sees the whole list; `spoc.toml` has exactly one author who sees exactly 
 Adding an ordering key later is additive and cheap. Removing one after the stable release
 is impossible. The stated tiebreak in Decision 1 is the escape hatch in the meantime: an
 author who needs one app's hooks before another's reorders `[spoc.apps]`.
+
+## Build-vs-Adopt Decisions
+
+Recorded by `/ai:decide`; mirrored project-wide in `DECISIONS.md`. Concrete tool names live
+here and there only — `specs/` stays abstract.
+
+### Decision: The load-ordering guarantee — Extend `graphlib` with an explicit `(kind_depth, app_index)` key
+
+- **Status**: approved
+- **Why**: CPython defines `static_order()` as the `get_ready()`/`done()` loop, so kind-phase
+  batching is documented behaviour and the barrier itself is not an accident. Within a level
+  the documentation promises nothing — it says only that the order "may depend on the
+  specific order in which the items were inserted in the graph", a caveat rather than a
+  contract. The app-list tiebreak this change states is exactly that unpromised half, and it
+  holds today only because `_register_apps` happens to insert app-major. Sorting by
+  `(kind_depth, app_index)` puts the guarantee where a reader of our code can check it, and
+  satisfies every edge by construction, since `depends_on` runs only from a lower depth to a
+  higher one. The shape is standard rather than invented: Odoo's module graph sorts by
+  `(phase, depth, order_name)`, and networkx exposes the same idea as
+  `lexicographical_topological_sort(key=…)`.
+- **Considered**: adopt `graphlib` as-is and document the level-order behaviour (zero code
+  change and not wrong, but the guarantee then holds for a reason invisible in our source,
+  and rests on a documented caveat); canonicalise graph insertion order so `static_order()`
+  yields the intended sequence (makes the artifact deliberate instead of replacing it, and
+  still leans on insertion order being honoured within a level);
+  `networkx.lexicographical_topological_sort(key=…)` (precisely the primitive wanted, mature
+  and well documented — hard-rejected on the zero-runtime-dependency invariant,
+  `dependencies = []`, not on quality).
+- **Scope — borrow the idea, not the library**: what is taken from networkx is the `key=`
+  parameter's premise, that a topological order with a stated tiebreak is a sort by an
+  explicit key. What is deliberately not taken is anything that would amount to
+  reimplementing a graph library: no general graph type, no traversal API, no second sort
+  strategy, no path or reachability helpers. The whole of it is one two-element tuple over
+  data the kernel already holds — the kind's depth and the app's position — and a `sorted()`
+  call. If a future need pulls toward general graph algorithms, that is the signal to revisit
+  this decision and adopt rather than grow this one.
+- **Isolation**: `Loader.ordered()`, the single method that turns the module graph into a
+  sequence. `_register_apps` keeps building the graph exactly as it does now, and nothing
+  else in the kernel learns what a kind depth is.
+
+### Decision: Cycle detection and its error — Adopt `graphlib`, unchanged
+
+- **Status**: approved
+- **Why**: an ordering key sorts a DAG but cannot notice that the kind graph is not one.
+  `graphlib.TopologicalSorter.prepare()` already detects cycles and reports one with its
+  first and last node identical, which is what `CircularDependencyError` names today. Keeping
+  it means the sort key never has to prove acyclicity and the error contract does not move.
+  This also settles task 1.2: both candidates were standard library, so the
+  zero-runtime-dependency invariant was never in tension and the gate turned on ownership of
+  the guarantee rather than on acquiring anything.
+- **Considered**: finding cycles inside the depth computation (a longest-path walk can detect
+  a back edge, but it restates what `prepare()` does and would have to reproduce the cycle
+  report the existing error message is built on); no detection at all, trusting declaration
+  validation (a cycle becomes unbounded recursion or a silently truncated order — the
+  project's rule is loud failure or nothing).
+- **Isolation**: unchanged — the `except graphlib.CycleError` clause in `Loader.ordered()`,
+  raising `CircularDependencyError` with the same message from the same place.
 
 ## Risks / Trade-offs
 

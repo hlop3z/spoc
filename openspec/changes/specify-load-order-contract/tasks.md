@@ -1,11 +1,11 @@
 ## 1. Build-vs-adopt gate
 
-- [ ] 1.1 Run `/ai:decide` and record the ADR for Decision 1 — whether the order is owned
+- [x] 1.1 Run `/ai:decide` and record the ADR for Decision 1 — whether the order is owned
       as an explicit `(kind_depth, app_index)` key or left to
       `graphlib.TopologicalSorter.static_order()`'s level batching with the behaviour
       documented. `graphlib` stays adopted for cycle detection either way; the decision is
       only about who owns the ordering guarantee.
-- [ ] 1.2 Confirm the decision against the zero-runtime-dependency invariant — both
+- [x] 1.2 Confirm the decision against the zero-runtime-dependency invariant — both
       candidates are standard library, so the gate turns on ownership of the contract, not
       on acquisition.
 

@@ -939,3 +939,50 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Revisit when**: apps ship independently — the same trigger as the preceding decision,
   because this check only has work to do when the app and the framework are acquired
   separately.
+
+### Decision: The load-ordering guarantee — Extend `graphlib` with an explicit `(kind_depth, app_index)` key
+
+- **Status**: approved
+- **Why**: CPython defines `static_order()` as the `get_ready()`/`done()` loop, so the
+  cross-app kind-phase barrier is documented behaviour rather than an accident. Within a
+  level the documentation promises nothing — only that the order "may depend on the specific
+  order in which the items were inserted in the graph", which is a caveat, not a contract.
+  The app-list tiebreak is exactly that unpromised half, and it holds today only because
+  `Framework._register_apps` happens to insert app-major. Sorting by `(kind_depth,
+  app_index)` moves the guarantee into code a reader can check, and satisfies every edge by
+  construction because `depends_on` runs only from a lower depth to a higher one. The shape
+  is standard: Odoo's module graph sorts by `(phase, depth, order_name)` and networkx
+  exposes the same idea as `lexicographical_topological_sort(key=…)`.
+- **Considered**: adopt `graphlib` as-is and document the level-order behaviour (zero code
+  change and not wrong, but the guarantee then holds for a reason invisible in our source);
+  canonicalise graph insertion order so `static_order()` yields the intended sequence (makes
+  the artifact deliberate instead of replacing it);
+  `networkx.lexicographical_topological_sort(key=…)` (precisely the primitive wanted, mature
+  and well documented — hard-rejected on the zero-runtime-dependency invariant, not on
+  quality).
+- **Scope — borrow the idea, not the library**: what is taken from networkx is the premise
+  behind `key=`, that a topological order with a stated tiebreak is a sort by an explicit
+  key. What is not taken is anything amounting to a graph library — no general graph type,
+  no traversal API, no path or reachability helpers. It is one two-element tuple over data
+  the kernel already holds, and a `sorted()` call. A future need for general graph
+  algorithms is the signal to revisit this and adopt one, not to grow this.
+- **Isolation**: `Loader.ordered()`, the one method turning the module graph into a
+  sequence. Graph construction is untouched and nothing else in the kernel learns what a
+  kind depth is.
+
+### Decision: Cycle detection in the kind graph — Adopt `graphlib`, unchanged
+
+- **Status**: approved
+- **Why**: an ordering key sorts a DAG but cannot notice that the graph is not one.
+  `graphlib.TopologicalSorter.prepare()` already detects cycles and reports one with its
+  first and last node identical, which is what `CircularDependencyError` names today.
+  Keeping it means the sort key never has to prove acyclicity and the error contract does
+  not move. Both candidates for the ordering decision above were standard library, so the
+  zero-runtime-dependency invariant was never in tension — that gate turned on ownership of
+  the guarantee, not on acquiring anything.
+- **Considered**: detecting cycles inside the depth computation (a longest-path walk can
+  find a back edge, but it restates `prepare()` and would have to reproduce the cycle report
+  the existing error message is built on); no detection, trusting declaration validation (a
+  cycle becomes unbounded recursion or a silently truncated order — the rule here is loud
+  failure or nothing).
+- **Isolation**: unchanged — the `except graphlib.CycleError` clause in `Loader.ordered()`.
