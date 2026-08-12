@@ -10,7 +10,54 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 ## [Unreleased]
 
+### Added
+
+- **`spoc stubs` — typed registry access with no source changes.** `resolve()` returned
+  `Any`, so every consumption site lost the type it had just looked up and a mistyped
+  identifier failed at runtime instead of in the editor. The new command dry-boots a
+  project and writes a type stub beside its composition root: `resolve()` now yields the
+  real type of each component, and editors complete both the identifier string and the
+  object. Existing call sites are untouched — the stub is the whole change. `--check`
+  verifies a committed stub without writing it (a missing stub is a mismatch, not a
+  pass), and `--strict` drops the catch-all overload so a misspelled identifier becomes a
+  type error, at the cost of requiring literal identifiers.
+
+  A **stub** rather than a generated module, deliberately: a `.pyi` never executes, so it
+  can name another app's classes for the type checker while the apps stay exactly as
+  decoupled at runtime as before. Deleting it changes no behaviour.
+
+  Types that cannot be determined faithfully degrade to `Any` and are counted rather than
+  guessed at, and the command reports how many.
+
+- **`Framework.resolve_type` and `Framework.resolve_object`** — typed access without
+  generating anything. Each takes a caller-owned contract (typically a `Protocol` the
+  *calling* app declares), so a consumer can type what it resolves without importing the
+  module that provides it. Shape — constructible, value, or callable — is checked at
+  access time and raises the new `ComponentShapeError`; structure is deliberately left to
+  the type checker rather than re-verified at runtime.
+
+- **`spoc.KindHandle`** is now exported, and `Framework.kind()` returns it instead of an
+  untyped callable. Registration is identity, so the handle is typed to return exactly
+  what it was given — meaning `@model class Product` no longer erases `Product` to `Any`
+  at its declaration site.
+
+- **A three-checker conformance gate** (`tests/test_conformance.py`). mypy, pyright, and
+  ty each read one generated stub and must agree. `ty` alone could not hold this
+  contract: it is beta at 0.0.x and runs in no user's editor, so a stub could pass CI and
+  still fail everyone. pyright is the engine behind Pylance, which makes it the authority
+  on the claim that VS Code completion works.
+
 ### Changed
+
+- **`Component` is now generic** (`Component[T]`, with `object: T`). Written bare,
+  `Component` places no constraint on `object` and means exactly what it meant before, so
+  no existing annotation or call site changes meaning; the parameter exists for readers
+  that know more — a generated stub narrows it per identifier, a typed accessor per call.
+
+- **Framework location moved from `spoc.diagnostics.locate` to `spoc.locate`.** Locating a
+  project's composition root is shared tooling, needed by both the diagnostics and the
+  stub generator, and only `spoc.cli` may import the diagnostics. `spoc.diagnostics` still
+  re-exports `DEFAULT_FRAMEWORK_REF` and `LocateError`, so its public surface is unchanged.
 
 - **SPOC is described as a component registry, not a kernel.** The package
   description, the README, the documentation home, and the architecture title all

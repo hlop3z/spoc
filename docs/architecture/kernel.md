@@ -280,18 +280,42 @@ flowchart TB
     console["spoc console script"] --> cli["spoc.cli — composed parser<br/><i>parse · dispatch · map refusals to exit codes</i>"]
     cli -->|init| scaffold["spoc.scaffold"]
     cli -->|check · list · explain| diag
+    cli -->|stubs| stubs
 
     subgraph diag ["spoc.diagnostics — contained subpackage"]
         direction TB
         dcli["cli — subcommand adapters"]
         dcore["core<br/>check · list_records · explain"]
-        locate["locate<br/>framework:framework convention · mod:attr override"]
-        dcli --> dcore --> locate
+        dcli --> dcore
     end
 
+    subgraph stubs ["spoc.stubs — contained subpackage"]
+        direction TB
+        scli["cli — subcommand adapter"]
+        sman["manifest — describe(): collect-only boot"]
+        sext["extract — live objects → type references"]
+        semit["emit — manifest → stub text (pure)"]
+        scli --> sman --> sext
+        sman --> semit
+    end
+
+    locate["spoc.locate<br/>framework:framework convention · mod:attr override"]
+    dcore --> locate
+    sman --> locate
+
     dcore -->|isolated dry boot| harness["spoc.testing scopes"]
+    sman -->|isolated dry boot| harness
     dcore --> kernel["Kernel public API<br/>start · registry · resolve · typed errors"]
+    sman --> kernel
 ```
+
+`spoc.stubs` is the fifth contained subpackage and the second isolated dry boot,
+stopped one phase earlier: discovery runs, initialization does not. Its product is
+a `.pyi` beside the project's composition root, which narrows `resolve` per
+identifier. A stub never executes, so naming one app's classes for the type checker
+adds no runtime coupling between apps — the decoupling the registry exists to provide
+survives being described. `spoc.locate` sits outside both subpackages because both
+need it and only `spoc.cli` may import the diagnostics.
 
 The findings never rephrase anything: `check` reports the kernel's own error
 text (failing segment, valid candidates), gathered instead of raised. The

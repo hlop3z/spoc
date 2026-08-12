@@ -771,3 +771,78 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: the `python` job matrix in `.github/workflows/ci.yml`, derived from the platform
   scope stated in `.canon/checks.md`. The `go`, `docs-build`, and `doc-links` rows stay
   single-platform, which the capability permits for checks whose outcome cannot differ by platform.
+
+### Decision: Type-reference extraction for stub generation — Build on stdlib
+
+- **Status**: approved
+- **Why**: the describe pass holds the *live* registered objects, so `__module__` /
+  `__qualname__` and `inspect.signature` answer the question directly and exactly. Every
+  candidate tool reads source statically — the wrong side of the boundary: a static reader
+  would re-derive what the registry already knows, and could not see components registered
+  through `[spoc.plugins]` at all, since those exist only after configuration is resolved.
+  This is a Build decision, justified by the absence of any tool that consumes a runtime
+  registry rather than a source tree. Scope is small and stdlib-only, so the
+  zero-runtime-dependency invariant holds without an extra.
+- **Considered**: extending griffe, this project's already-adopted API extractor (static
+  source analysis, blind to config-registered components, and duplicating knowledge the
+  registry holds); adopting mypy `stubgen` (mature, but generates from module structure with
+  most types defaulting to `Any`, and cannot emit registry-derived `Literal` overloads —
+  a different problem).
+- **Isolation**: one extraction module inside `src/spoc/stubs/`, consumed only by the
+  describe pass. Nothing in `src/spoc/core/` or `src/spoc/framework.py` imports it.
+
+### Decision: Stub emission and byte-stable formatting — Build the emitter, Adopt ruff
+
+- **Status**: approved
+- **Why**: the emitter is a pure function over our own manifest IR — roughly one stdlib
+  module — and no tool can generate it, since the overload set is derived from a booted
+  registry. Everything around it is rented from a tool already in the repo: byte-stability
+  comes from `ruff format`, and stub-specific linting comes free by enabling ruff's `PYI`
+  rules, which vendor flake8-pyi. Net new dependencies: none. Determinism is then a property
+  of the formatter rather than of hand-written alignment logic.
+- **Considered**: hand-rolling formatting inside the emitter (full control, but re-implements
+  normalization a formatter already in the toolchain performs correctly — the `loc`/tokei
+  mistake shape); adopting `stubgen` for a base stub and injecting overloads afterwards (two
+  sources of truth for one file, and stubgen's `Any`-defaulting output would need rewriting
+  more extensive than emitting from scratch).
+- **Isolation**: `emit(manifest) -> str` stays pure; the formatter is invoked through the
+  file-writing adapter in `src/spoc/stubs/`, and the `PYI` rule selection lives in
+  `[tool.ruff.lint]` in `pyproject.toml`.
+
+### Decision: Stub conformance verification — Adopt `assert_type` under mypy, pyright, and ty
+
+- **Status**: approved
+- **Why**: the feature's entire promise is that a type checker resolves the promised type, so
+  the gate must be run by the checkers users actually run. CI today runs only `ty`, which is
+  beta at `0.0.x` with an explicit upstream warning to expect bugs, missing features, and
+  fatal errors, and which no editor runs by default — a stub could pass CI and fail every
+  user. The verification is a fixture project of `typing.assert_type` assertions over the
+  generated stub, checked under all three: mypy and ty for `assert_type`, pyright with
+  `reveal_type(expr, expected_text=...)` for the exact rendered type. This mirrors how the
+  Python typing specification's own conformance suite is written, so it stays portable if a
+  fourth checker matters later.
+- **Considered**: mypy `stubtest` — purpose-built for stub/runtime drift, but wrong here on
+  two counts: it introspects the runtime and would flag the generated `_Root` class, which
+  deliberately does not exist at runtime, and it documents that it cannot verify a return
+  type is accurate, which is precisely the claim being made. Restricting the matrix to mypy
+  and pyright (drops beta-checker noise, but loses early warning when ty regresses on stubs
+  while ty remains this project's own gate).
+- **Isolation**: one fixture project plus one CI job; the three checkers are dev-group
+  dependencies only and nothing in `src/spoc` imports them. `ty` remains the checker for
+  ordinary source; the two additions check the generated stub, not the library.
+
+### Decision: IDE autocomplete verification — Adopt pyright as the proxy
+
+- **Status**: approved
+- **Why**: Pylance, the extension supplying completion in VS Code, is built on pyright, so
+  pyright resolving a type correctly *is* the evidence that completion works — there is no
+  separate Pylance behavior to test. `reveal_type(expr, expected_text=...)` asserts the
+  rendered type a hover would show, which is the closest programmatic analogue to what the
+  user sees. A one-time manual check in VS Code is recorded in the docs so the human-visible
+  claim has been observed at least once by a person.
+- **Considered**: driving a real `pyright-langserver` LSP session and asserting on returned
+  completion items (proves the end-user experience literally, but adds a heavy and
+  flake-prone harness to determine something pyright already decides); a manual smoke test
+  alone (cheapest, but nothing then prevents a silent regression).
+- **Isolation**: the same fixture project and CI job as the conformance decision above; the
+  manual check is a documented step, not a gate.

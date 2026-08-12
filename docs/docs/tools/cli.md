@@ -151,6 +151,29 @@ object:      apps.core.models:Example
 
 Both boot, read, and tear down — nothing stays running.
 
+## `spoc stubs` — teach your editor the registry
+
+```bash
+spoc stubs
+spoc stubs --check     # verify the committed stub is current; never writes
+spoc stubs --strict    # make a misspelled identifier a type error
+```
+
+```text
+wrote /home/you/myproject/framework.pyi (5 identifiers)
+```
+
+This writes `framework.pyi` beside your `framework.py`. After it, `resolve()` returns the
+real type of each block and your editor completes both the identifier string and the
+object you get back — with no change to your own code.
+
+The stub is a type stub, so it never executes: it adds no runtime coupling between your
+apps, and deleting it changes nothing about how your program runs.
+
+Full walkthrough: [Get Editor Autocomplete](../how-to/get-editor-autocomplete.md).
+
+{{ cli_help("stubs") }}
+
 ## Where's the framework?
 
 The inspect commands accept a project path and, if your declaration doesn't

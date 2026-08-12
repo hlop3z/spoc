@@ -26,6 +26,7 @@ nav:
           - Add a Database: how-to/add-a-database.md
           - Bind a Transport: how-to/bind-a-transport.md
           - Validate Your Settings: how-to/validate-settings.md
+          - Get Editor Autocomplete: how-to/get-editor-autocomplete.md
           - Test Your App: how-to/test-your-app.md
           - Ship a Reusable App: how-to/ship-a-reusable-app.md
       - Tools:

@@ -1,9 +1,17 @@
 # Idea: typed projection — the registry compiled into types
 
-> **Status: reference.** Nothing is scheduled against this — it is not a pending task and
-> carries no OpenSpec change. It is kept for the reasoning: the three-stage shape borrowed
-> from Strawberry and FastAPI, and the schema-vocabulary call. Read it if typed access to
-> the registry ever comes up; otherwise ignore it.
+> **Status: partially realized; the remainder is reference.** The `add-typed-registry-access`
+> change shipped the typed-access half of this: a collect-only describe pass, a manifest IR,
+> and one emitter — but as a **`.pyi` stub** rather than the `types.py` module sketched below.
+> That substitution dissolved the import-cycle open question at the end of this document
+> instead of answering it: a stub never executes, so nothing constrains which modules may
+> import it.
+>
+> What remains unscheduled is everything downstream of the manifest boundary: the JSON Schema
+> serialization, the OpenAPI 3.1 vocabulary call, the per-kind contract seam, and any emitter
+> beyond the stub. Those are still kept for the reasoning, not as pending work. See
+> `openspec/changes/archive/` for what actually shipped and `docs/docs/how-to/get-editor-autocomplete.md`
+> for how it is used.
 
 ## Problem
 
