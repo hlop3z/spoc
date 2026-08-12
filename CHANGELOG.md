@@ -49,6 +49,26 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 ### Changed
 
+- **BREAKING: two apps can no longer share a namespace.** A namespace derives from an app
+  path's final segment, so `apps.shop` and `vendor.shop` both answered to `shop` — and
+  merged silently unless they also happened to declare the same object name, at which
+  point the resulting duplicate-identifier error named a third place entirely. Nesting
+  apps under a container package is what every project does past a handful of apps, which
+  is exactly what makes the clash likely. Start now fails naming the contested namespace
+  and both packages, before anything is imported.
+
+  Settle it with an `as` clause rather than by renaming a package you may not own:
+
+  ```toml
+  [spoc.apps]
+  development = ["apps.shop", "vendor.shop as vendor_shop"]
+  ```
+
+  A `[spoc.plugins]` reference follows the same rule — and inside an aliased app it
+  follows the alias, because the package owns the name. Registering into your own app's
+  namespace from a plugin group is unaffected; so is a plugin reference into a package
+  that is not an installed app at all.
+
 - **`Component` is now generic** (`Component[T]`, with `object: T`). Written bare,
   `Component` places no constraint on `object` and means exactly what it meant before, so
   no existing annotation or call site changes meaning; the parameter exists for readers

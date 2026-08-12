@@ -846,3 +846,43 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   alone (cheapest, but nothing then prevents a silent regression).
 - **Isolation**: the same fixture project and CI job as the conformance decision above; the
   manual check is a documented step, not a gate.
+
+### Decision: Namespace-collision model — Adopt Django's app-label contract, build the check
+
+- **Status**: approved
+- **Why**: Django solved this exact problem with this exact derivation. `AppConfig.label`
+  defaults to the last component of the app's dotted path, and two apps resolving to one
+  label raise `ImproperlyConfigured: Application labels aren't unique, duplicates: <label>`
+  at startup; the documented fix is a custom `AppConfig` stating an explicit `label`. The
+  model — derive by default, fail loudly on contest, allow an explicit override — is what
+  is adopted. The *code* is built, because there is nothing to install: the enforcement is
+  a `dict[str, str]` from namespace to owning package inside `Framework`, and it is domain
+  logic about SPOC's own identifier grammar (Rule 11), not a general concern any library
+  could hold. One improvement on the precedent: Django's error names the duplicated label
+  but not which apps produced it — a recurring complaint in its issue tracker — so ours
+  names the namespace *and* both claiming paths.
+- **Considered**: auto-disambiguating a collision by prefixing the parent segment
+  (`vendor_shop`) — rejected because a component's identity would then change depending on
+  which other apps happen to be installed, which is a worse failure than the one being
+  fixed. Leaving the merge and relying on the existing duplicate-identifier error — rejected
+  because that error only fires when object names also coincide, and names a third place
+  when it does.
+- **Isolation**: one ownership map built in `Framework._register_apps` before any import,
+  consulted by `_register_plugins`. No new module, no dependency, no public type.
+
+### Decision: Explicit-namespace syntax — Adopt Python's `as` convention, build the split
+
+- **Status**: approved
+- **Why**: `"vendor.shop as vendor_shop"` reuses the language's own vocabulary for rebinding
+  a name to avoid a clash, so there is nothing new to learn — the DX bar this project holds.
+  It also avoids overloading `:`, which already means "attribute" in `module.path:attribute`
+  (the `--framework` reference and the plugin reference form). Parsing is a split on ` as `
+  with surrounding whitespace, which a dotted module path cannot contain; a parser library
+  for this would be more code to configure than to write, and would be the `loc` mistake
+  again.
+- **Considered**: a separate `[spoc.namespaces]` table (explicit, but puts the alias far
+  from the entry it modifies, so a reader consults two places to learn one app's namespace);
+  a `:` suffix (consistent punctuation, but `:` already means "attribute" in this project's
+  own reference syntax, so it would make one delimiter mean two things).
+- **Isolation**: parsed once where app entries are read, immediately validated by the
+  existing `validate_segment("namespace", …)`, so the grammar keeps one enforcement point.

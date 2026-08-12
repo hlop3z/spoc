@@ -60,6 +60,39 @@ production = ["apps.core"]
 test = ["apps.fakes"]
 ```
 
+## Namespaces: one name, one package
+
+An app entry is a dotted module path, imported exactly as written. Its **final
+segment** becomes the namespace your components register under — so
+`apps.shop` gives you `models:shop.product`, no matter how deep the folder
+sits.
+
+That means two apps under different parents can want the same name:
+
+```toml
+[spoc.apps]
+development = ["apps.shop", "vendor.shop"]   # both would be "shop"
+```
+
+SPOC refuses to boot this, and names both packages. Silently merging them
+would leave you with a working system whose identifiers lie — `models:shop.*`
+pointing into two unrelated packages, and no way to tell which.
+
+Say which one you meant with `as`:
+
+```toml
+[spoc.apps]
+development = ["apps.shop", "vendor.shop as vendor_shop"]
+```
+
+Now `vendor.shop` registers under `vendor_shop` — `models:vendor_shop.order` —
+and `apps.shop` keeps `shop`. The `as` clause exists so you can settle this
+without renaming a package you may not own, like a vendored tree or something
+installed from PyPI. Any `[spoc.plugins]` reference inside an aliased app
+follows the alias too, because the *package* owns the name.
+
+You only ever write `as` when there is a clash. Everything else keeps deriving.
+
 ## Your own tables: app-owned settings
 
 SPOC claims exactly **one** top-level table: `[spoc]`. Every other top-level
