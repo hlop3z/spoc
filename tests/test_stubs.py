@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from spoc.cli import main as cli_main
+from spoc.projection import project as projection
 from spoc.stubs import UnmirrorableRootError, generate, render, verify
 from spoc.testing import ProjectTree
 
@@ -178,6 +179,33 @@ def test_every_registered_identifier_appears(tmp_path):
     }
 
 
+def test_the_stub_and_the_projection_agree(tmp_path):
+    """The stub derives from the projection, so the two descriptions of one
+    registry cover the same identifiers in the same order by construction."""
+    base = project(tmp_path)
+    _, _, manifest = render(base)
+
+    projected = projection(base)
+
+    assert [entry.identifier for entry in manifest.entries] == [
+        component.identifier for component in projected.components
+    ]
+    assert manifest.kinds == projected.kinds
+
+
+def test_the_stub_carries_a_type_the_projection_does_not(tmp_path):
+    """Language-specific detail belongs to the description, not the format."""
+    base = project(tmp_path)
+    _, _, manifest = render(base)
+
+    entry = next(
+        e for e in manifest.entries if e.identifier == "models:catalog.product"
+    )
+
+    assert entry.type_ref.expression.startswith("type[")
+    assert not hasattr(entry.component, "type_ref")
+
+
 def test_configuration_registered_components_appear(tmp_path):
     """A [spoc.plugins] entry exists only after config resolves — the case a
     static extractor could not see."""
@@ -192,7 +220,7 @@ def test_the_three_shapes_are_distinguished(tmp_path):
     base = project(tmp_path)
     _, _, manifest = render(base)
     shapes = {entry.identifier: entry.shape for entry in manifest.entries}
-    assert shapes["models:catalog.product"] == "class"
+    assert shapes["models:catalog.product"] == "constructible"
     assert shapes["views:catalog.list_products"] == "callable"
     assert shapes["resources:catalog.index"] == "value"
     assert shapes["caches:catalog.shared_cache"] == "value"
