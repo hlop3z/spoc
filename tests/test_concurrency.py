@@ -6,15 +6,17 @@ guarantees hold under any interleaving; lifecycle transitions are mutually
 exclusive with exactly one winner.
 """
 
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from spoc import Framework
+from spoc import Framework, KindSpec
 from spoc.core.exceptions import DuplicateComponentError, SpocError, UnknownObjectError
 from spoc.core.registry import Registry
-from tests.conftest import make_project
+from spoc.testing import ProjectTree
+from tests.conftest import MODELS_BODY, make_project
 
 pytestmark = pytest.mark.usefixtures("clean_sys_path_and_modules")
 
@@ -182,6 +184,49 @@ def test_resolution_failures_stay_consistent_under_concurrent_registration():
         assert late == list(range(len(late))), (
             f"candidates skip a registration, so they span observations: {late[:12]}"
         )
+
+
+def test_hook_dispatch_observes_the_registry_once_per_phase(tmp_path, monkeypatch):
+    """A lifecycle phase reads the store once, however many modules it dispatches to.
+
+    Counted rather than timed, for the same reason the resolution test above
+    counts: the observation is the mechanism, and a stopwatch would assert a
+    machine's speed instead of the property. Dispatch used to ask the registry
+    per module, which made a phase quadratic in a project's own size — 400
+    modules over 50k components spent four seconds walking the store — and made
+    each hook's payload a *different* observation from its neighbour's.
+
+    ``on_ready`` fires at the end of discovery and before dispatch begins, so
+    zeroing the counter there separates the two phases exactly, without either
+    the test or the assertion reaching into how dispatch is implemented.
+    """
+    apps = {f"app{i}": {"models": MODELS_BODY} for i in range(12)}
+    base = ProjectTree(apps=apps).build(tmp_path, "dispatch_observations")
+    sys.path.insert(0, str(base))
+
+    fw = Framework(
+        KindSpec(
+            "models",
+            on_startup=lambda objects: None,
+            on_shutdown=lambda objects: None,
+        )
+    )
+    lock = CountingLock()
+    monkeypatch.setattr(fw.registry, "_lock", lock)
+    fw.on_ready(lambda registry: setattr(lock, "acquisitions", 0))
+
+    fw.start(base)
+    assert lock.acquisitions == 1, (
+        f"startup dispatch observed the store {lock.acquisitions} times for "
+        f"{len(apps)} modules; a phase groups once and looks up per module"
+    )
+
+    lock.acquisitions = 0
+    fw.shutdown()
+    assert lock.acquisitions == 1, (
+        f"shutdown dispatch observed the store {lock.acquisitions} times for "
+        f"{len(apps)} modules; both phases share the one grouping rule"
+    )
 
 
 def test_racing_starts_have_one_winner(tmp_path):

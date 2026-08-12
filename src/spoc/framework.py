@@ -323,7 +323,7 @@ class Framework:
             base_dir = Path(base_dir)
             try:
                 self._boot_discovery(base_dir)
-                self.loader.initialize(self._hooks(), self._components_for)
+                self.loader.initialize(self._hooks(), self._components_for())
             except BaseException:
                 self._rollback()
                 raise
@@ -351,7 +351,7 @@ class Framework:
             base_dir = Path(base_dir)
             try:
                 self._boot_discovery(base_dir)
-                await self.loader.ainitialize(self._hooks(), self._components_for)
+                await self.loader.ainitialize(self._hooks(), self._components_for())
             except BaseException:
                 await self._arollback()
                 raise
@@ -375,7 +375,7 @@ class Framework:
             if not self._started:
                 return self
             try:
-                self.loader.shutdown(self._hooks(), self._components_for)
+                self.loader.shutdown(self._hooks(), self._components_for())
             finally:
                 # Owed whether or not teardown succeeded: propagating the
                 # failure and reaching the inert state are not alternatives.
@@ -392,7 +392,7 @@ class Framework:
             if not self._started:
                 return self
             try:
-                await self.loader.ashutdown(self._hooks(), self._components_for)
+                await self.loader.ashutdown(self._hooks(), self._components_for())
             finally:
                 self._reset()
             return self
@@ -410,7 +410,7 @@ class Framework:
         outlive the failure that produced it.
         """
         try:
-            self.loader.shutdown(self._hooks(), self._components_for)
+            self.loader.shutdown(self._hooks(), self._components_for())
         except BaseException:
             logger.error(_ROLLBACK_FAILED, exc_info=True)
         finally:
@@ -419,7 +419,7 @@ class Framework:
     async def _arollback(self) -> None:
         """Asynchronous :meth:`_rollback`, with the same unconditional guarantee."""
         try:
-            await self.loader.ashutdown(self._hooks(), self._components_for)
+            await self.loader.ashutdown(self._hooks(), self._components_for())
         except BaseException:
             logger.error(_ROLLBACK_FAILED, exc_info=True)
         finally:
@@ -473,14 +473,42 @@ class Framework:
             for name, spec in self._specs.items()
         }
 
-    def _components_for(self, entry: LoadedModule) -> tuple[Any, ...]:
-        # by_kind enumerates in canonical-identifier order; the tuple hands
-        # hooks that same deterministic, immutable view.
-        return tuple(
-            c.object
-            for c in self.registry.by_kind(entry.kind)
-            if c.namespace == entry.namespace
-        )
+    def _components_for(self) -> Callable[[LoadedModule], tuple[Any, ...]]:
+        """Build the lookup hook dispatch reads, grouped once for the phase.
+
+        Dispatch asks per loaded module, and the registry answers each ask by
+        scanning: M modules over N components is M scans, which made a phase
+        quadratic in a project's own size. Grouping once turns the phase linear.
+
+        The grouping is derived on read and lives only as long as the phase that
+        reads it — it is never registry state, so there is nothing that could
+        drift from the store. Deriving it from a single ``all()`` also means
+        every hook in a phase reads *one* observation of the registry, the same
+        guarantee :meth:`Registry.resolve` gives its failures.
+
+        Built on first use rather than eagerly: only a kind that declares a hook
+        ever asks, so a project with no hooks still pays nothing. The *registry*
+        is bound now even though the grouping is not, so the phase reads the
+        store it began with — ``_reset`` swaps the attribute rather than emptying
+        the object, and binding at first call instead would make which registry a
+        phase read depend on when its first hook happened to fire.
+        """
+        registry = self.registry
+        grouped: dict[tuple[str, str], tuple[Any, ...]] | None = None
+
+        def components_for(entry: LoadedModule) -> tuple[Any, ...]:
+            nonlocal grouped
+            if grouped is None:
+                # all() enumerates in canonical-identifier order and grouping
+                # preserves it, so each hook receives that same deterministic,
+                # immutable view.
+                collected: dict[tuple[str, str], list[Any]] = {}
+                for c in registry.all():
+                    collected.setdefault((c.kind, c.namespace), []).append(c.object)
+                grouped = {key: tuple(objs) for key, objs in collected.items()}
+            return grouped.get((entry.kind, entry.namespace), ())
+
+        return components_for
 
     def _register_plugins(
         self,
