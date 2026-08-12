@@ -51,9 +51,11 @@ Three fine points:
 - **Resolve at call time, not import time.** A module that grabs a resource at import
   runs before `start()` and gets nothing. Inside a view/command/hook body, the
   resource is always live.
-- **If a module's own `initialize()` needs a resource from its app**, declare the
-  order: `spoc.KindSpec("models", depends_on=("resources",))`. Cross-app
-  `initialize()` use isn't orderable — resolve lazily instead.
+- **If a module's own `initialize()` needs a resource**, declare the order:
+  `spoc.KindSpec("models", depends_on=("resources",))`. That works across apps too —
+  a kind is a phase, so every app's `resources` is up before any app's `models`. What
+  you cannot order that way is two apps' modules of the *same* kind; for those, the
+  `[spoc.apps]` list decides, or resolve lazily.
 - **Async projects** declare coroutine `open`/`close` hooks and boot with
   `astart()`/`ashutdown()` — same recipe, awaited. See
   [Start & Stop](lifecycle.md).

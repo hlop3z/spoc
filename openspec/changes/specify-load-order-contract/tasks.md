@@ -47,20 +47,20 @@
 
 ## 5. Docs and specs
 
-- [ ] 5.1 Add the ordering contract to the invariants list in
+- [x] 5.1 Add the ordering contract to the invariants list in
       `docs/architecture/kernel.md`, and update any diagram that describes load order so it
       describes what is (Rule 1)
-- [ ] 5.2 Document the `[spoc.apps]` order tiebreak where apps are declared, with the
+- [x] 5.2 Document the `[spoc.apps]` order tiebreak where apps are declared, with the
       hook-ordering case as the motivating example
-- [ ] 5.3 Ensure any new doc example runs under `tests/test_docs_examples.py`
-- [ ] 5.4 Add the CHANGELOG entry: a stated guarantee, plus the one fix — an app omitting
+- [x] 5.3 Ensure any new doc example runs under `tests/test_docs_examples.py`
+- [x] 5.4 Add the CHANGELOG entry: a stated guarantee, plus the one fix — an app omitting
       an optional kind no longer pulls its remaining modules into an earlier load phase.
       Say which is which, so a reader knows exactly what moved and what did not
 
 ## 6. Validation
 
-- [ ] 6.1 Confirm `apicheck` reports no new public name (this change adds none) and review
+- [x] 6.1 Confirm `apicheck` reports no new public name (this change adds none) and review
       the `apidiff` surface delta for the same
-- [ ] 6.2 Run the full check suite from `.canon/checks.md`; report anything unrunnable as
+- [x] 6.2 Run the full check suite from `.canon/checks.md`; report anything unrunnable as
       unverified rather than assumed passing
-- [ ] 6.3 Run `openspec validate specify-load-order-contract --strict`
+- [x] 6.3 Run `openspec validate specify-load-order-contract --strict`

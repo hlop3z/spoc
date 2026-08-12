@@ -353,3 +353,12 @@ console script runs.
    lifecycle transitions are serialized with exactly one winner, and reads after
    a completed start need no coordination. One object, one identity: divergent
    re-registration raises.
+10. **A stated load order** — modules load, discover, and initialize in one
+    total order: the rank of a kind in the declared `depends_on` order, then the
+    position of the app in the effective `[spoc.apps]` list. Kind rank comes from
+    the declaration, so it is identical for every app and no absent optional
+    module can shift it. A kind is therefore a **phase** that completes across
+    every app before the next begins, and the app list only ever orders modules
+    *within* a phase — which is why no declaration can ask for one app's later
+    kind ahead of another app's earlier one. `graphlib` is kept for refusing a
+    cycle, not for producing the order.

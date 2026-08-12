@@ -21,6 +21,7 @@ violation.
 
 import sys
 from importlib import import_module
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -111,7 +112,7 @@ def assert_phases_do_not_interleave(order: list[str], kinds=KIND_CHAIN) -> None:
         kind: [i for i, module in enumerate(order) if phase_of(module) == kind]
         for kind in kinds
     }
-    for earlier, later in zip(kinds, kinds[1:]):
+    for earlier, later in pairwise(kinds):
         assert positions[earlier] and positions[later], (earlier, later, order)
         assert max(positions[earlier]) < min(positions[later]), order
 
@@ -304,7 +305,9 @@ def test_hooks_fire_in_load_order_and_teardown_reverses_it(tmp_path):
     order = only(trace.events, "init")
 
     # Per module the kind's hook fires, then the module's own initialize().
-    assert startup == [part for module in order for part in (f"hook:{module}", f"init:{module}")]
+    assert startup == [
+        part for module in order for part in (f"hook:{module}", f"init:{module}")
+    ]
 
     # A dependent kind's hook sees every app's contribution to the kind below.
     assert only(trace.events, "hook") == order

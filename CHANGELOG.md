@@ -49,6 +49,17 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 ### Changed
 
+- **The load order is now a stated guarantee rather than an emergent one.** A kind is a
+  phase, and a phase spans every app: every app's `models` modules load, discover, and
+  initialize before any app's `views` modules, so a `views` startup hook always sees a
+  fully registered world. Within a phase, the effective `[spoc.apps]` order decides, and
+  shutdown reverses the whole order exactly. **Nothing moves for a project whose apps
+  each declare each kind** — this was already the behaviour, but it came from
+  `graphlib`'s batching, which documents no order among modules of one phase. The order
+  is now computed from the declaration and pinned by tests; `graphlib` is kept for
+  refusing a dependency cycle. The one knob this exposes is documented under
+  [Apps](https://hlop3z.github.io/spoc/learn/apps/).
+
 - **BREAKING: two apps can no longer share a namespace.** A namespace derives from an app
   path's final segment, so `apps.shop` and `vendor.shop` both answered to `shop` — and
   merged silently unless they also happened to declare the same object name, at which
@@ -105,6 +116,23 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   correctly described as evidence for one platform rather than for the pipeline.
 
 ### Fixed
+
+- **An app omitting an optional module pulled its remaining modules a phase early.** With
+  kinds `models → views → urls` where `views` is optional, an app without a `views.py`
+  had its `urls.py` initialize one phase too soon — ahead of another app's `views.py`,
+  breaking the phase guarantee, and ahead of an earlier-listed app's `urls.py`, breaking
+  the app order. The absent module was skipped before it reached the dependency graph,
+  but the module depending on it put the name straight back as a node with nothing
+  before it, which made everything downstream of the gap look shallower than it is. Kind
+  order now comes from the declaration, where a module that does not exist has no say.
+  This is the only case whose order changes; a project where each app declares each kind
+  boots in exactly the order it did.
+
+- **A cycle among declared kinds went unnoticed when no app provided both modules.**
+  `KindSpec("a", depends_on=("b",))` with `KindSpec("b", depends_on=("a",))` was only
+  caught through the modules the apps happened to have, so a cycle between two optional
+  kinds nobody had files for started cleanly. It is now refused at start, naming the
+  cycle, with the same `CircularDependencyError`.
 
 - **A revision could be served another revision's cached template set.** Retained
   content is keyed by the exact revision it was retrieved for, but the key was built
