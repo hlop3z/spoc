@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hlop3z.github.io/spoc/schema/registry-projection-1.0.schema.json",
+  "title": "SPOC registry projection",
+  "description": "A booted SPOC registry described as data: every registered component, the three facets of its canonical identifier, where its object is defined, and its shape; plus the project's declared kind set. Describes the registry as of the completion of discovery, so components registered by a startup hook after initialization are not included.",
+  "type": "object",
+  "required": ["format_version", "kinds", "components"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "description": "The version of this document format, independent of the SPOC release that produced it. A consumer branches on this rather than on a release number.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "kinds": {
+      "description": "The project's declared kind set, in declaration order. A kind appears here even when no component was registered under it, because 'declared and empty' and 'never declared' are different facts.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/segment" },
+      "uniqueItems": true
+    },
+    "components": {
+      "description": "One entry per registered component, in canonical identifier order.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/component" }
+    }
+  },
+  "$defs": {
+    "segment": {
+      "description": "One segment of a canonical identifier: lowercase snake_case, starting with a letter.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "component": {
+      "type": "object",
+      "required": [
+        "identifier",
+        "kind",
+        "namespace",
+        "object_name",
+        "location",
+        "shape"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "identifier": {
+          "description": "The canonical identifier, composed as kind:namespace.object_name.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
+        },
+        "kind": {
+          "description": "The identifier's kind facet. Always a member of the document's declared kind set.",
+          "$ref": "#/$defs/segment"
+        },
+        "namespace": {
+          "description": "The identifier's namespace facet, normally the app that registered the component.",
+          "$ref": "#/$defs/segment"
+        },
+        "object_name": {
+          "description": "The identifier's object-name facet.",
+          "$ref": "#/$defs/segment"
+        },
+        "location": {
+          "description": "Where the registered object is defined, as module:qualname. A registered instance is not itself defined anywhere, so its location names the definition site of its type. Never derived from an object's repr, which would embed a memory address and make two projections of one unchanged registry differ.",
+          "type": "string",
+          "minLength": 1
+        },
+        "shape": {
+          "description": "What a consumer may do with the registered object. Constructible objects are also callable, so the vocabulary is ordered and exclusive: anything constructible is reported as such.",
+          "enum": ["constructible", "callable", "value"]
+        }
+      }
+    }
+  }
+}

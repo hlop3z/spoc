@@ -33,15 +33,17 @@ def test_no_kernel_module_imports_the_test_harness():
 
     Allowed importers are surfaces, never kernel: `spoc.diagnostics` (a
     diagnostic run is an isolated dry boot composing the harness's scopes —
-    design ADR), `spoc.stubs` (describing a project is the same isolated dry
-    boot, stopped before initialization), and `spoc.cli` (the composition root,
-    deriving kinds for `spoc app` the same way).
+    design ADR), `spoc.projection` (which owns the collect-only dry boot that
+    stops before initialization), `spoc.stubs` (which borrows that same boot),
+    and `spoc.cli` (the composition root, deriving kinds for `spoc app` the
+    same way).
     """
     root = Path(__file__).parent.parent / "src/spoc"
     for path in sorted(root.rglob("*.py")):
         if (
             (root / "testing") in path.parents
             or (root / "diagnostics") in path.parents
+            or (root / "projection") in path.parents
             or (root / "stubs") in path.parents
             or path == root / "cli.py"
         ):

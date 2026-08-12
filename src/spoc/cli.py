@@ -2,8 +2,9 @@
 The composed ``spoc`` program.
 
 One parser; each surface registers its own subcommands (`spoc.scaffold.cli`
-mounts ``init``, `spoc.diagnostics.cli` mounts ``check``/``list``/``explain``)
-and attaches a handler. This module only parses, dispatches, and maps the
+mounts ``init``, `spoc.diagnostics.cli` mounts ``check``/``list``/``explain``,
+`spoc.projection.cli` mounts ``projection``) and attaches a handler. This
+module only parses, dispatches, and maps the
 library's refusals to exit codes — a SPOC or scaffold refusal is a clean
 one-line error, while an exception raised by an app's own module code
 propagates untouched (that error is the app author's, traceback and all).
@@ -19,6 +20,7 @@ from pathlib import Path
 from .core.exceptions import SpocError
 from .diagnostics import cli as diagnostics_cli
 from .locate import LocateError, locate_framework
+from .projection import cli as projection_cli
 from .scaffold import cli as scaffold_cli
 from .scaffold.cache import DirectoryCache
 from .scaffold.remote import HttpFetcher, HttpRevisionResolver
@@ -68,7 +70,8 @@ def _build_parser() -> argparse.ArgumentParser:
             "Scaffold, validate, and inspect spoc projects: init generates a "
             "runnable project, app adds one to it; check dry-boots and reports "
             "problems before runtime; list and explain read the registry; "
-            "stubs writes the types an editor needs to complete resolve()."
+            "stubs writes the types an editor needs to complete resolve(); "
+            "projection writes the registry as JSON for any other tool."
         ),
     )
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -77,6 +80,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     diagnostics_cli.register(subcommands)
     stubs_cli.register(subcommands)
+    projection_cli.register(subcommands)
     return parser
 
 
