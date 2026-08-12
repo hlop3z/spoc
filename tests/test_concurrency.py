@@ -6,12 +6,13 @@ guarantees hold under any interleaving; lifecycle transitions are mutually
 exclusive with exactly one winner.
 """
 
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
 from spoc import Framework
-from spoc.core.exceptions import DuplicateComponentError, SpocError
+from spoc.core.exceptions import DuplicateComponentError, SpocError, UnknownObjectError
 from spoc.core.registry import Registry
 from tests.conftest import make_project
 
@@ -35,12 +36,22 @@ def test_parallel_registration_loses_nothing():
 
 
 def test_racing_duplicates_have_one_winner():
-    """Two objects racing the same identifier: one record, one loud loser."""
+    """Two objects racing the same identifier: one record, one loud loser.
+
+    A barrier releases both threads together, which is what makes this a race
+    at all. It previously called ``.result()`` on each submission before
+    submitting the next — and ``.result()`` blocks, so the two "racing" threads
+    ran to completion in sequence and twenty repetitions exercised nothing the
+    sequential duplicate test does not already cover. A concurrency test must
+    establish the overlap, never assume it.
+    """
     for _ in range(20):  # a race needs repetitions to be a test at all
         registry = Registry(("models",))
         outcomes: list[str] = []
+        barrier = threading.Barrier(2)
 
-        def attempt(registry=registry, outcomes=outcomes):
+        def attempt(registry=registry, outcomes=outcomes, barrier=barrier):
+            barrier.wait(timeout=5)  # bounded: a broken barrier fails, never hangs
             try:
                 registry.add("models", "app", "contested", object())
                 outcomes.append("won")
@@ -48,8 +59,9 @@ def test_racing_duplicates_have_one_winner():
                 outcomes.append("lost")
 
         with ThreadPoolExecutor(max_workers=2) as pool:
-            pool.submit(attempt).result()
-            pool.submit(attempt).result()
+            futures = [pool.submit(attempt), pool.submit(attempt)]
+            for f in futures:
+                f.result()
 
         assert sorted(outcomes) == ["lost", "won"]
         assert len(registry) == 1
@@ -76,6 +88,100 @@ def test_reads_concurrent_with_writes_see_only_complete_records():
 
     assert not seen_bad
     assert len(registry) == 300
+
+
+class CountingLock:
+    """A lock that records how many times it was acquired as a context manager."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.acquisitions = 0
+
+    def __enter__(self):
+        self.acquisitions += 1
+        return self._lock.__enter__()
+
+    def __exit__(self, *exc_info):
+        return self._lock.__exit__(*exc_info)
+
+
+def test_a_resolution_failure_is_composed_from_one_observation(monkeypatch):
+    """The failure path observes the store exactly once.
+
+    Counting acquisitions rather than racing threads is deliberate. The store
+    only ever grows, so a multi-snapshot failure could only ever name candidates
+    that appeared *after* the lookup — and exposing that requires suspending
+    execution between the lookup and the candidate scan, which no barrier placed
+    outside ``resolve`` can reach. The single acquisition is the mechanism that
+    makes the guarantee true, and it is checkable exactly.
+    """
+    registry = Registry(("models",))
+    registry.add("models", "app", "present", object())
+    lock = CountingLock()
+    monkeypatch.setattr(registry, "_lock", lock)
+
+    with pytest.raises(UnknownObjectError) as exc:
+        registry.resolve("models:app.absent")
+
+    assert lock.acquisitions == 1, (
+        f"the failure path observed the store {lock.acquisitions} times; "
+        "candidates and the segment verdict must come from one observation"
+    )
+    assert "present" in str(exc.value), "the failure must still name candidates"
+
+    lock.acquisitions = 0
+    registry.resolve("models:app.present")
+    assert lock.acquisitions == 1, "the success path must stay a single lookup"
+
+
+def test_resolution_failures_stay_consistent_under_concurrent_registration():
+    """Whatever a failure names, it names from a store state that lacked the target.
+
+    Both sides are bounded on purpose. An unbounded writer makes this quadratic —
+    every failing resolve snapshots the store, so a store growing without limit
+    turns 400 resolves into an unbounded amount of work. That is a property of
+    the failure path at any registry size, not a regression.
+    """
+    registry = Registry(("models",))
+    registry.add("models", "app", "seed", object())
+    failures: list[UnknownObjectError] = []
+    barrier = threading.Barrier(2)
+    ROUNDS = 200
+
+    def register():
+        barrier.wait(timeout=5)
+        for i in range(ROUNDS):
+            registry.add("models", "app", f"late_{i}", object())
+
+    def resolve_missing():
+        barrier.wait(timeout=5)
+        for _ in range(ROUNDS):
+            try:
+                registry.resolve("models:app.never_registered")
+            except UnknownObjectError as e:
+                failures.append(e)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(register), pool.submit(resolve_missing)]
+        for f in futures:
+            f.result()
+
+    assert len(failures) == ROUNDS, "every resolve of a missing name must fail"
+    for failure in failures:
+        assert "never_registered" not in failure.candidates, (
+            "a failure offered the very identifier its observation lacked"
+        )
+        # The writer adds late_0..late_n in order and the store only grows, so
+        # any single observation holds a contiguous prefix of them. A gap would
+        # mean the candidates were assembled from more than one observation.
+        late = sorted(
+            int(name.removeprefix("late_"))
+            for name in failure.candidates
+            if name.startswith("late_")
+        )
+        assert late == list(range(len(late))), (
+            f"candidates skip a registration, so they span observations: {late[:12]}"
+        )
 
 
 def test_racing_starts_have_one_winner(tmp_path):

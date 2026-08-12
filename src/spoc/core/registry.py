@@ -82,6 +82,12 @@ class Registry:
     a read concurrent with writers observes only complete records. After
     boot, when nothing writes, reads contend on nothing but an uncontested
     lock acquisition.
+
+    The guarantee covers failure *messages*, not only records: a failed
+    :meth:`resolve` describes one observation of the store rather than several
+    stitched together. That is stated here because the obvious implementation —
+    asking the faceted readers for candidates once the lookup has released the
+    lock — quietly does not hold it.
     """
 
     def __init__(self, kinds: tuple[str, ...] = ()) -> None:
@@ -206,25 +212,34 @@ class Registry:
 
         Success is a single dict hit after the grammar check; the per-segment
         scans run only on the failure path, where precision is worth the walk.
+
+        A failure is composed from **one** observation of the store — the same
+        one that failed to find the identifier — so it can never name a
+        candidate that did not exist at lookup time, nor report a segment as
+        unknown that the observation contains. The scans run over that snapshot
+        in pure code rather than re-acquiring the lock per segment, which is
+        also strictly fewer acquisitions than deriving them from the faceted
+        readers.
         """
         parsed = parse(identifier)
 
         with self._lock:
             record = self._store.get(str(parsed))
-        if record is not None:
-            return record
+            if record is not None:
+                return record
+            observed = list(self._store.values())
 
+        # The declared kind set is fixed at construction, so it needs no lock.
         if parsed.kind not in self._kinds:
             raise UnknownKindError(parsed.kind, self._kinds)
 
-        namespaces = self.namespaces(kind=parsed.kind)
+        of_kind = [c for c in observed if c.kind == parsed.kind]
+        namespaces = tuple(sorted({c.namespace for c in of_kind}))
         if parsed.namespace not in namespaces:
             raise UnknownNamespaceError(parsed.namespace, parsed.kind, namespaces)
 
         candidates = tuple(
-            c.object_name
-            for c in self.by_kind(parsed.kind)
-            if c.namespace == parsed.namespace
+            sorted(c.object_name for c in of_kind if c.namespace == parsed.namespace)
         )
         raise UnknownObjectError(
             parsed.object_name, parsed.kind, parsed.namespace, candidates

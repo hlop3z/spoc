@@ -115,6 +115,40 @@ per project.
   → error. The boot is half-built; there is nothing correct that call could do.
 - **Two threads racing to start** → exactly one boots; the other gets the
   already-started error.
+- **A `teardown()` that raises** → the error reaches you unchanged, *and* the
+  framework still goes back to sleep. You can fix the cause and `start()` again;
+  it never gets stuck reporting itself running.
+- **An `async def` hook or `initialize()` on the synchronous path** → refused
+  before anything runs, naming every one it found. Use `astart()`.
+
+!!! warning "A failing `teardown()` skips the ones behind it"
+
+    Teardown stops at the module that raised, so modules earlier in the reverse
+    order do not get torn down — and because shutdown resets the framework, they
+    will not get a second chance. Anything they held open stays open for the life
+    of the process.
+
+    This is deliberate. The alternative is to keep going and hand you a bundle of
+    errors, which would mean you no longer receive the exact exception your code
+    raised. So the kernel gives you the real error and a framework you can
+    restart, and leaves the leak to you: a `teardown()` that can raise should
+    catch its own failures if what it releases matters.
+
+## Reading SPOC's own log records
+
+SPOC configures no logging and prints nothing. It writes to the **`spoc`**
+logger, which is the handle to configure:
+
+```python
+import logging
+
+logging.getLogger("spoc").addHandler(logging.StreamHandler())
+logging.getLogger("spoc").setLevel(logging.DEBUG)
+```
+
+Names below `spoc` follow the module path — `spoc.framework`, `spoc.core.loader`
+— so you can turn one subsystem up without the rest. Treat those as internal:
+they can move between releases. `spoc` itself will not.
 
 ## The whole life, at a glance
 
@@ -124,6 +158,7 @@ stateDiagram-v2
     Asleep --> Running: start() — settings, apps, shelf, ready, initialize
     Running --> Asleep: shutdown() — teardown in reverse, reset
     Asleep --> Asleep: failed start() rolls itself back
+    Running --> Asleep: failed teardown() — error raised, reset happens anyway
 ```
 
 Next: [plugins — blocks declared in settings](plugins.md).

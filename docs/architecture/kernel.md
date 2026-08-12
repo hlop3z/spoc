@@ -376,7 +376,9 @@ console script runs.
 9. **A stated concurrency contract** — registration is atomic under one lock,
    lifecycle transitions are serialized with exactly one winner, and reads after
    a completed start need no coordination. One object, one identity: divergent
-   re-registration raises.
+   re-registration raises. The contract covers failure *messages* too: a failed
+   `resolve` is composed from one observation of the store, so it never names a
+   candidate that did not exist when the lookup ran.
 10. **A stated load order** — modules load, discover, and initialize in one
     total order: the rank of a kind in the declared `depends_on` order, then the
     position of the app in the effective `[spoc.apps]` list. Kind rank comes from
@@ -386,3 +388,22 @@ console script runs.
     *within* a phase — which is why no declaration can ask for one app's later
     kind ahead of another app's earlier one. `graphlib` is kept for refusing a
     cycle, not for producing the order.
+11. **The inert state is unconditional** — every transition out of `started`
+    reaches the inert state, whether or not the app-authored code it invoked
+    succeeded and whether or not the rollback of a failed boot succeeded. A
+    failing `teardown()` still propagates unwrapped, but the framework is
+    restartable rather than stuck reporting itself started. Resetting kernel
+    state and clearing the started flag are one operation for exactly this
+    reason: as two steps, one of them was skipped.
+
+    The cost is stated rather than hidden: a `teardown()` that raises aborts the
+    walk, so modules behind it are not torn down and — because the loader is
+    discarded by the reset — never will be. That is a resource leak, chosen over
+    the alternative of swallowing failures or reporting them as a group, which
+    would break the promise that the caller sees the exact exception the app
+    raised. Fix the failing teardown; the kernel will not paper over it.
+12. **The synchronous path refuses coroutines before running anything** — it
+    establishes that no hook or module function it is about to run is a
+    coroutine, and names every one it finds, before invoking the first. A
+    coroutine declared by the last module in load order therefore costs no
+    earlier module's side effects.

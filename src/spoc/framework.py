@@ -31,9 +31,10 @@ from __future__ import annotations
 
 import graphlib
 import importlib
+import logging
 import threading
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -62,6 +63,16 @@ from .core.identity import to_snake_case, validate_segment
 from .core.loader import KindHooks, LoadedModule, Loader
 from .core.registry import Component, Registry
 from .core.shape import shape_prose
+
+logger = logging.getLogger(__name__)
+
+#: Logged when a rollback fails while unwinding a failed boot. The boot's own
+#: failure is the one the caller must act on, so this one is recorded rather
+#: than raised — but it is never discarded silently.
+_ROLLBACK_FAILED = (
+    "Rollback failed while unwinding a failed boot; the framework was still "
+    "returned to its inert state, and the boot's own failure is the one raised"
+)
 
 
 @dataclass(frozen=True)
@@ -314,11 +325,7 @@ class Framework:
                 self._boot_discovery(base_dir)
                 self.loader.initialize(self._hooks(), self._components_for)
             except BaseException:
-                # Tear down what did come up (never-initialized modules are
-                # skipped), reset to inert, then let the cause escape untouched.
-                with suppress(Exception):
-                    self.loader.shutdown(self._hooks(), self._components_for)
-                self._reset()
+                self._rollback()
                 raise
 
             self._started = True
@@ -346,9 +353,7 @@ class Framework:
                 self._boot_discovery(base_dir)
                 await self.loader.ainitialize(self._hooks(), self._components_for)
             except BaseException:
-                with suppress(Exception):
-                    await self.loader.ashutdown(self._hooks(), self._components_for)
-                self._reset()
+                await self._arollback()
                 raise
 
             self._started = True
@@ -369,9 +374,12 @@ class Framework:
         with self._transition("shutdown()"):
             if not self._started:
                 return self
-            self.loader.shutdown(self._hooks(), self._components_for)
-            self._reset()
-            self._started = False
+            try:
+                self.loader.shutdown(self._hooks(), self._components_for)
+            finally:
+                # Owed whether or not teardown succeeded: propagating the
+                # failure and reaching the inert state are not alternatives.
+                self._reset()
             return self
 
     async def ashutdown(self) -> Framework:
@@ -383,21 +391,54 @@ class Framework:
         try:
             if not self._started:
                 return self
-            await self.loader.ashutdown(self._hooks(), self._components_for)
-            self._reset()
-            self._started = False
+            try:
+                await self.loader.ashutdown(self._hooks(), self._components_for)
+            finally:
+                self._reset()
             return self
         finally:
             self._transition_owner = None
             self._transition_lock.release()
 
+    def _rollback(self) -> None:
+        """Tear down what came up, then reach the inert state whatever happened.
+
+        A rollback runs while a boot failure is already unwinding, so its own
+        failure must not replace the cause the caller has to act on. It is
+        logged rather than raised — including a ``BaseException``, because the
+        inert state is owed unconditionally and a stranded registry would
+        outlive the failure that produced it.
+        """
+        try:
+            self.loader.shutdown(self._hooks(), self._components_for)
+        except BaseException:
+            logger.error(_ROLLBACK_FAILED, exc_info=True)
+        finally:
+            self._reset()
+
+    async def _arollback(self) -> None:
+        """Asynchronous :meth:`_rollback`, with the same unconditional guarantee."""
+        try:
+            await self.loader.ashutdown(self._hooks(), self._components_for)
+        except BaseException:
+            logger.error(_ROLLBACK_FAILED, exc_info=True)
+        finally:
+            self._reset()
+
     def _reset(self) -> None:
-        """Return every owned piece to its inert pre-start state."""
+        """Return every owned piece to its inert pre-start state.
+
+        Clearing ``_started`` belongs here rather than at the call sites: they
+        were two steps that both had to happen, which is precisely how one came
+        to be skipped when a teardown raised. Reaching the inert state is now
+        one operation that cannot be half-performed.
+        """
         self.registry = Registry(self.kinds)
         self.loader = Loader()
         self.installed_apps = []
         self.config = None
         self.base_dir = None
+        self._started = False
 
     # ── Boot steps (private) ──────────────────────────────────────────────
 
