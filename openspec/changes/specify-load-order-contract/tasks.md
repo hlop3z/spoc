@@ -24,25 +24,25 @@
 
 ## 3. Own the ordering rule
 
-- [ ] 3.1 Implement whichever form task 1.1 settled on, keeping `CircularDependencyError`
+- [x] 3.1 Implement whichever form task 1.1 settled on, keeping `CircularDependencyError`
       raised from the same place with the same message
-- [ ] 3.2 Ensure the effective installed-app list is the tiebreak source, so mode cascade
+- [x] 3.2 Ensure the effective installed-app list is the tiebreak source, so mode cascade
       and duplicate-suppression continue to decide app order exactly as they do today
-- [ ] 3.3 Fix the absent-optional-module defect found in task 2: read kind depth from the
+- [x] 3.3 Fix the absent-optional-module defect found in task 2: read kind depth from the
       declaration so a module that does not exist cannot pull its app's remaining modules
       into an earlier phase. Flip the strict xfail in `tests/test_load_order.py` to a plain
       test in both app orders
-- [ ] 3.4 Confirm `[spoc.plugins]` registrations are unaffected: they populate the registry
+- [x] 3.4 Confirm `[spoc.plugins]` registrations are unaffected: they populate the registry
       without participating in module load order
-- [ ] 3.5 Verify the observable order is byte-identical to the order recorded in task 2 for
+- [x] 3.5 Verify the observable order is byte-identical to the order recorded in task 2 for
       every project where each app declares each kind — the omitted-optional case in 3.3 is
       the one intended difference, and nothing else may move
 
 ## 4. Refuse the inversion
 
-- [ ] 4.1 Confirm by inspection that no declaration form can express an edge from a deeper
+- [x] 4.1 Confirm by inspection that no declaration form can express an edge from a deeper
       kind to a shallower one, and record where that is enforced
-- [ ] 4.2 Add a test that whatever ordering exists between apps is confined to one kind
+- [x] 4.2 Add a test that whatever ordering exists between apps is confined to one kind
       phase, so a future per-app ordering feature fails here if it breaks the barrier
 
 ## 5. Docs and specs

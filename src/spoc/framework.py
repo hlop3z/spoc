@@ -29,6 +29,7 @@ to the surfaces built on top.
 
 from __future__ import annotations
 
+import graphlib
 import importlib
 import threading
 from collections.abc import Callable, Iterator
@@ -51,6 +52,7 @@ from .core.declaration import (
     registrar,
 )
 from .core.exceptions import (
+    CircularDependencyError,
     ComponentShapeError,
     ConfigurationError,
     SpocError,
@@ -554,8 +556,31 @@ class Framework:
             )
         ]
 
+    def _kind_ranks(self) -> dict[str, int]:
+        """Each declared kind's place in the load order, deepest dependency first.
+
+        Rank comes from the declaration and nothing else, so it is the same for
+        every app and cannot be moved by a module that happens not to exist. Kinds
+        at equal depth keep their declaration order, which makes the rank total:
+        two kinds never tie, so the app position below is the only remaining
+        tiebreak.
+        """
+        graph = {name: set(spec.depends_on) for name, spec in self._specs.items()}
+        depth: dict[str, int] = {}
+        try:
+            for name in graphlib.TopologicalSorter(graph).static_order():
+                depth[name] = 1 + max((depth[d] for d in graph[name]), default=-1)
+        except graphlib.CycleError as e:
+            # A cycle among declared kinds, which the module graph only surfaces
+            # when some app actually provides both modules of the cycle.
+            raise CircularDependencyError([str(n) for n in e.args[1]]) from e
+        declared = list(self._specs)
+        ordered = sorted(declared, key=lambda name: (depth[name], declared.index(name)))
+        return {name: rank for rank, name in enumerate(ordered)}
+
     def _register_apps(self, entries: list[_AppEntry]) -> None:
-        for entry in entries:
+        ranks = self._kind_ranks()
+        for app_index, entry in enumerate(entries):
             # The path is imported exactly as written; the namespace was either
             # derived from its final segment or stated by the entry, and has
             # already been validated and claimed.
@@ -567,5 +592,9 @@ class Framework:
                     namespace=entry.namespace,
                     dependencies=tuple(f"{entry.path}.{d}" for d in spec.depends_on),
                     required=spec.required,
+                    # The effective list decides: mode cascade and duplicate
+                    # suppression have already produced `entries`, so reordering
+                    # `[spoc.apps]` is what reorders modules within a kind phase.
+                    position=(ranks[spec.name], app_index),
                 )
         self.installed_apps = [entry.path for entry in entries]

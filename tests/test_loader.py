@@ -73,11 +73,21 @@ class TestRegistration:
         assert "full.models" in loader._graph["full.views"]
 
     def test_edges_recorded_before_the_dependency_is_loaded(self, loader, app_tree):
-        """Registration order must not silently drop an edge."""
+        """Registration order must not silently drop an edge.
+
+        The edge is what cycle detection reads; the load order is the caller's
+        `position`, so both are asserted here — a dependency registered after its
+        dependent is still recorded, and still walked second.
+        """
         loader.register(
-            "full.views", kind="views", app="full", dependencies=("full.models",)
+            "full.views",
+            kind="views",
+            app="full",
+            dependencies=("full.models",),
+            position=(1, 0),
         )
-        loader.register("full.models", kind="models", app="full")
+        loader.register("full.models", kind="models", app="full", position=(0, 0))
+        assert "full.models" in loader._graph["full.views"]
         assert [e.name for e in loader.ordered()] == ["full.models", "full.views"]
 
     def test_registering_twice_is_idempotent(self, loader, app_tree):

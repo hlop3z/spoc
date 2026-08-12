@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from spoc import Framework, KindSpec
+from spoc.core.exceptions import CircularDependencyError
 from spoc.testing import ProjectTree
 
 pytestmark = pytest.mark.usefixtures("clean_sys_path_and_modules")
@@ -200,24 +201,17 @@ def test_app_list_order_breaks_ties_within_a_phase(tmp_path, apps):
         fw.shutdown()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Known defect this change fixes, found while pinning section 2. An absent "
-        "optional module is never added to the module graph by its own registration, "
-        "but the dependent's registration adds it back as a bare node with no "
-        "predecessors (loader.py `setdefault(dep, set())`). That node sits at level 0, "
-        "so the app's downstream modules sit one phase too early: with kinds "
-        "models->views->urls and `shop` omitting `views`, `shop.urls` initializes "
-        "before `blog.views`. The barrier holds only when every app declares every "
-        "kind. Deriving kind depth from the KindSpec declaration instead of the module "
-        "graph removes the defect, because an absent module cannot change a declared "
-        "kind's depth. Flip to a plain test in task 3.3."
-    ),
-)
 @pytest.mark.parametrize("apps", [("blog", "shop"), ("shop", "blog")])
 def test_absent_optional_module_does_not_shift_the_others(tmp_path, apps):
-    """An app that omits an optional kind leaves every other position untouched."""
+    """An app that omits an optional kind leaves every other position untouched.
+
+    This was a defect until kind rank came from the declaration. An absent optional
+    module never reaches the module graph through its own registration, but the
+    dependent's registration put the name back as a node with no predecessors, which
+    landed it at level 0 — so with `shop` omitting `views`, `shop.urls` initialized
+    a whole phase early, ahead of `blog.views`. A rank read from the declaration
+    cannot be moved by a module that does not exist.
+    """
     trace_name = f"tr_optional_{apps[0]}"
     base = ProjectTree(
         apps={
@@ -254,6 +248,47 @@ def test_absent_optional_module_does_not_shift_the_others(tmp_path, apps):
         assert_phases_do_not_interleave(order, kinds=("models", "urls"))
     finally:
         fw.shutdown()
+
+
+# ── 4. The inversion is inexpressible ─────────────────────────────────────
+
+
+def test_app_ordering_cannot_cross_a_kind_phase(tmp_path):
+    """Every module of a kind shares one rank, and no two kinds share one.
+
+    This is the structural reason a cross-phase inversion cannot be declared: the
+    app axis only ever reaches the *second* element of the key. A future per-app
+    ordering knob, or a per-app kind subset, can move a module inside its phase and
+    nowhere else — and if one is ever built to do more, this test is what fails.
+    """
+    base = build(tmp_path, "tr_phase")
+    trace = import_module("tr_phase")
+    fw = framework(trace)
+    fw.start(base)
+    try:
+        ranks: dict[str, set[int]] = {}
+        for entry in fw.loader.ordered():
+            ranks.setdefault(entry.kind, set()).add(entry.position[0])
+        assert all(len(seen) == 1 for seen in ranks.values()), ranks
+        by_kind = [next(iter(ranks[kind])) for kind in KIND_CHAIN]
+        assert by_kind == sorted(by_kind)
+        assert len(set(by_kind)) == len(by_kind)
+    finally:
+        fw.shutdown()
+
+
+def test_declared_kind_cycle_is_refused_naming_the_cycle(tmp_path):
+    """A cycle among declared kinds fails the start, before any module is imported."""
+    base = build(tmp_path, "tr_kindcycle", kinds=("models",))
+    fw = Framework(
+        KindSpec("models", depends_on=("views",)),
+        KindSpec("views", depends_on=("models",)),
+    )
+    with pytest.raises(CircularDependencyError) as exc:
+        fw.start(base)
+    message = str(exc.value)
+    assert "models" in message and "views" in message
+    assert fw.started is False
 
 
 # ── 2.3 Hooks follow the same order, and reverse exactly ──────────────────
