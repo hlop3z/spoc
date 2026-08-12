@@ -119,6 +119,19 @@ class TestParse:
         with pytest.raises(MalformedIdentifierError):
             parse(None)  # ty: ignore[invalid-argument-type]
 
+    @pytest.mark.parametrize("value", [[], {}, set(), bytearray(b"models:a.b")])
+    def test_unhashable_input_still_gets_the_grammar_error(self, value):
+        """An unhashable identifier is refused as an identifier, not as a key.
+
+        Parsing is memoized, and a cache hashes its argument before the body
+        runs — so without the type check standing in front of it, these would
+        raise ``TypeError: unhashable type`` from the cache machinery and the
+        caller would learn that a list cannot be hashed rather than that it is
+        not an identifier. ``None`` above cannot catch this: it hashes fine.
+        """
+        with pytest.raises(MalformedIdentifierError):
+            parse(value)
+
 
 class TestCompose:
     def test_round_trip(self):

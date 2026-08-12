@@ -94,10 +94,37 @@ def compose(kind: str, namespace: str, object_name: str) -> str:
 
 
 def parse(identifier: str) -> Identifier:
-    """Parse a canonical identifier into its three segments."""
+    """Parse a canonical identifier into its three segments.
+
+    The type check stays *outside* the cache. ``lru_cache`` hashes its argument
+    before the body runs, so an unhashable identifier would raise ``TypeError``
+    from the cache machinery instead of this module's own grammar error — the
+    caller would learn that a list is unhashable rather than that it is not an
+    identifier.
+    """
     if not isinstance(identifier, str):
         raise MalformedIdentifierError(repr(identifier), "identifier must be a string")
+    return _parse(identifier)
 
+
+@lru_cache(maxsize=_CACHE_SIZE)
+def _parse(identifier: str) -> Identifier:
+    """Parse a string identifier, memoized on the exact string.
+
+    Parsing is pure and :class:`Identifier` is immutable, so a repeat parse can
+    only produce a value equal to the first — resolution is the kernel's hottest
+    path and it was spending four fifths of its time re-deriving that value from
+    a string that had already passed the grammar once.
+
+    Bounded exactly as :func:`to_snake_case` is, and for the same reason: an
+    application may resolve identifiers built from user input, and a cache
+    without a ceiling would be the place that grows. Past the ceiling this
+    degrades to the cost of not having cached, never to unbounded memory.
+
+    Failures are not memoized — ``lru_cache`` does not store exceptions — so a
+    malformed identifier is re-derived and re-reported every time, with the
+    message it always had, and cannot occupy an entry.
+    """
     kind, sep, rest = identifier.partition(":")
     if not sep:
         raise MalformedIdentifierError(
