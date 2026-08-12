@@ -25,9 +25,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Final, Literal
 
-#: The three shapes a registered object can have. A class is constructible even
-#: though it is also callable, so these are tested in this order.
-Shape = Literal["class", "value", "callable"]
+from ..core.shape import shape_of
 
 #: Builtins that need no import and render as their own name.
 _BUILTINS: Final[frozenset[type]] = frozenset(
@@ -74,15 +72,6 @@ class _Render:
             imports=tuple(sorted(self.imports)),
             degraded=self.degraded,
         )
-
-
-def shape_of(obj: object) -> Shape:
-    """Classify a registered object. Order matters: a class is also callable."""
-    if isinstance(obj, type):
-        return "class"
-    if callable(obj):
-        return "callable"
-    return "value"
 
 
 def _named_type(state: _Render, tp: type) -> str:
@@ -180,7 +169,7 @@ def reference_for(obj: object) -> TypeRef:
     signature, as precisely as its annotations allow.
     """
     kind = shape_of(obj)
-    if kind == "class":
+    if kind == "constructible":
         state = _Render()
         rendered = _named_type(state, typing.cast("type", obj))
         if state.degraded:

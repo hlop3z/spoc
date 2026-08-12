@@ -61,6 +61,7 @@ from .core.exceptions import (
 from .core.identity import to_snake_case, validate_segment
 from .core.loader import KindHooks, LoadedModule, Loader
 from .core.registry import Component, Registry
+from .core.shape import shape_prose
 
 
 @dataclass(frozen=True)
@@ -139,19 +140,6 @@ def _claim(owners: dict[str, str], namespace: str, package: str) -> None:
             "claim a different one: give that app an 'as' clause in "
             '[spoc.apps], as in "pkg.thing as other_name"'
         )
-
-
-def _shape_of(obj: Any) -> str:
-    """Name a component's shape in the vocabulary typed access reports.
-
-    The three shapes are exhaustive and ordered: a class is constructible even
-    though it is also callable, so the checks cannot be reversed.
-    """
-    if isinstance(obj, type):
-        return "a constructible object"
-    if callable(obj):
-        return "a callable"
-    return "a value"
 
 
 def _build_config(base_dir: Path, echo: bool = False) -> Config:
@@ -263,7 +251,7 @@ class Framework:
         obj = self.registry.resolve(identifier).object
         if not isinstance(obj, type):
             raise ComponentShapeError(
-                identifier, "a constructible object", _shape_of(obj)
+                identifier, "a constructible object", shape_prose(obj)
             )
         return obj
 
@@ -283,7 +271,7 @@ class Framework:
         obj = self.registry.resolve(identifier).object
         if isinstance(obj, type):
             raise ComponentShapeError(
-                identifier, "a value or a callable", _shape_of(obj)
+                identifier, "a value or a callable", shape_prose(obj)
             )
         return obj
 
