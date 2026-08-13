@@ -8,6 +8,31 @@ from apps.shop.models import Product as _apps_shop_models_Product
 from apps.shop.resources import SearchIndex as _apps_shop_resources_SearchIndex
 from spoc import Component, Framework, KindHandle
 
+class _ns_models_shop:
+    product: Component[type[_apps_shop_models_Product]]
+
+class _kind_models:
+    shop: _ns_models_shop
+
+class _ns_resources_shop:
+    search_index: Component[_apps_shop_resources_SearchIndex]
+
+class _kind_resources:
+    shop: _ns_resources_shop
+
+class _ns_views_shop:
+    find_product: Component[_collections_abc_Callable[[str], str]]
+    list_products: Component[_collections_abc_Callable[[], dict[str, int]]]
+    unannotated: Component[_collections_abc_Callable[..., Any]]
+
+class _kind_views:
+    shop: _ns_views_shop
+
+class _Objects:
+    models: _kind_models
+    resources: _kind_resources
+    views: _kind_views
+
 class _Root(Framework):
     @overload
     def resolve(
@@ -31,6 +56,8 @@ class _Root(Framework):
     ) -> Component[_collections_abc_Callable[..., Any]]: ...
     @overload
     def resolve(self, identifier: str) -> Component[Any]: ...
+    @property
+    def objects(self) -> _Objects: ...
 
 framework: _Root
 model: KindHandle
