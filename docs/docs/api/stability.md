@@ -165,9 +165,14 @@ completed".
 These are the criteria, and they are checkable rather than a matter of taste:
 
 - [x] Every element of the surface resolves to a tier, and `apicheck` passes.
-- [x] Nothing intended to be `public` at 1.0 is still `provisional`. Every name
-      `spoc.scaffold` exposed has had its intended tier decided; the handful that
-      remain `provisional` are meant to stay that way past 1.0, and each says why.
+- [x] Nothing intended to be `public` at 1.0 is still `provisional`. Every
+      exposed name has had its intended tier decided, and each name still
+      `provisional` states the condition that would settle it. Two kinds remain,
+      both deliberately: elements whose shape is genuinely undecided, and the four
+      command mount points, which stay open until a framework outside SPOC has
+      mounted them or SPOC commits to a parser choice. Neither is waiting on a
+      decision nobody has made — being unsettled past 1.0 is what `provisional`
+      is for.
 - [ ] The deprecation lifecycle has been exercised on a real element, not only
       documented and tested. **In progress.** `spoc.scaffold.extract_archive` is
       deprecated and warning today — steps 1 and 2 above. Steps 3 and 4 span

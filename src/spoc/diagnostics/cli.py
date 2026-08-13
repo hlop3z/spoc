@@ -69,7 +69,21 @@ def _run_explain(args: argparse.Namespace) -> int:
 
 
 def register(subcommands: argparse._SubParsersAction) -> None:
-    """Mount check/list/explain on the composed ``spoc`` parser."""
+    """Mount ``check``/``list``/``explain`` on a parser you own.
+
+    The inspection half of what a framework built on SPOC publishes under its own
+    command name. A downstream CLI that can generate a project but not validate
+    one is half a CLI, which is why this mount carries the same tier as the
+    generation line. The shipped ``spoc`` program mounts these commands the same
+    way.
+
+    Provisional: may change incompatibly in a minor release. What is promised is
+    which commands the mount contributes and what invoking them does; the type of
+    ``subcommands`` is ``argparse``'s and not SPOC's, so promising it would commit
+    every downstream framework to ``argparse`` too. It settles when a framework
+    outside this package has actually mounted it, or when SPOC commits to its
+    parser choice and the mount can take a type it owns.
+    """
     check_parser = subcommands.add_parser(
         "check",
         help="Validate the project before runtime.",

@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 
 from ..locate import DEFAULT_FRAMEWORK_REF
-from . import generate, verify
 
 __all__ = ["register"]
 
@@ -27,6 +26,14 @@ def _degraded_note(degraded: int, entries: int) -> str:
 
 
 def _run_stubs(args: argparse.Namespace) -> int:
+    # Imported when a command runs rather than when one is mounted. These
+    # operations are defined in this package's __init__, which now publishes
+    # `register`, so importing them at module scope would have the surface
+    # import its own adapter while still initializing. Deferring also keeps the
+    # mount free of work: mounting describes commands, it does not load the
+    # machinery behind them.
+    from . import generate, verify
+
     if args.check:
         report = verify(args.path, args.framework, strict=args.strict)
         if report.ok:
@@ -48,7 +55,19 @@ def _run_stubs(args: argparse.Namespace) -> int:
 
 
 def register(subcommands: argparse._SubParsersAction) -> None:
-    """Mount ``stubs`` on the composed ``spoc`` parser."""
+    """Mount ``stubs`` on a parser you own.
+
+    Lets a framework built on SPOC give its own users editor autocomplete under
+    its own command name. The shipped ``spoc`` program mounts this command the
+    same way.
+
+    Provisional: may change incompatibly in a minor release. What is promised is
+    which commands the mount contributes and what invoking them does; the type of
+    ``subcommands`` is ``argparse``'s and not SPOC's, so promising it would commit
+    every downstream framework to ``argparse`` too. It settles when a framework
+    outside this package has actually mounted it, or when SPOC commits to its
+    parser choice and the mount can take a type it owns.
+    """
     parser = subcommands.add_parser(
         "stubs",
         help="Generate a type stub for the project's resolution surface.",

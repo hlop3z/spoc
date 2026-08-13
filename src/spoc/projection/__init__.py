@@ -25,6 +25,7 @@ from __future__ import annotations
 from importlib.resources import files
 from pathlib import Path
 
+from .cli import register
 from .document import (
     FORMAT_VERSION,
     ComponentEntry,
@@ -45,6 +46,11 @@ __all__ = [
     "Projection",
     "dumps",
     "project",
+    # Mounting the command under a downstream framework's own command name. The
+    # mount is promised weakly and the document it writes strongly — a consumer
+    # reading the projection depends on the schema, not on how the command that
+    # produced it was reached.
+    "register",
     "schema_path",
     "schema_text",
 ]
