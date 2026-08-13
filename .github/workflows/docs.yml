@@ -2,8 +2,18 @@ name: Update Docs
 
 on:
   workflow_dispatch: # Allows manual triggering
-  release:
-    types: [published] # Automatically triggers on new release
+  # Called by release.yml after publishing, NOT triggered by the `release`
+  # event. A release created with the default GITHUB_TOKEN raises no event that
+  # starts another workflow — GitHub's recursion guard — so a `release:
+  # published` trigger here would sit silent through every release and the site
+  # would only ever move when someone remembered to dispatch it by hand. It did
+  # exactly that, until the published docs were several releases behind the code.
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag the docs are being built for.
+        required: false
+        type: string
 
 permissions:
   contents: write # Grants write permissions to push changes to the repository
@@ -27,11 +37,14 @@ jobs:
       - name: Install Dependencies
         run: uv sync --group docs
 
+      # The tag arrives from the caller; a manual dispatch has none, and then the
+      # repo_url stays as committed rather than being rewritten to point at
+      # `tree/` with nothing after it.
       - name: Update mkdocs.yml with Latest Tag
+        if: inputs.tag != ''
         run: |
-          TAG_NAME="${{ github.event.release.tag_name }}"
           cd docs
-          sed -i "s|repo_url: https://github.com/${{ github.repository }}/.*|repo_url: https://github.com/${{ github.repository }}/tree/${TAG_NAME}|" mkdocs.yml
+          sed -i "s|repo_url: https://github.com/${{ github.repository }}/.*|repo_url: https://github.com/${{ github.repository }}/tree/${{ inputs.tag }}|" mkdocs.yml
 
       - name: Deploy MkDocs
         working-directory: docs

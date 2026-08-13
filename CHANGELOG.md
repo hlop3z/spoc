@@ -11,6 +11,53 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 ## [1.0.0] — 2026-08-13
 
+### Added
+
+- **`framework.objects` — the registry, navigated instead of spelled.** An identifier is
+  `kind:namespace.object_name`. You can write it as that string, or walk those same three
+  facets as attributes: `framework.objects.models.shop.product` reaches the identical
+  record `framework.resolve("models:shop.product")` returns. Nothing is declared twice —
+  the surface reads the registry when asked, so it cannot drift from what your apps
+  registered, and a component registered later is visible to the next walk.
+
+  **Why a second spelling exists at all: the first one does not scale.** The generated
+  stub narrows `resolve` once per identifier, and past a few thousand components the type
+  checkers a developer actually runs either crawl or stop answering. Measured on one file
+  importing the stub: mypy takes 2.7 s at 500 identifiers, 27.5 s at 2,000, and over 300 s
+  at 10,000; pyright exhausts its runtime's heap at 50,000; editor completion in pyright
+  reaches 18.8 s per keystroke at 10,000, where ty stops offering completions entirely.
+  The same registry described as nested members checks in 1–2 s at **50,000** components
+  and completes in 0.02 s, because a member lookup is the shape every checker has
+  optimized for decades.
+
+  The practical wins beyond scale: completion arrives **per segment** — type
+  `framework.objects.` and your editor offers your kinds, then that kind's namespaces,
+  then its components, instead of one flat list of every identifier inside a pair of
+  quotes. A wrong segment is a one-line error naming that member (mypy volunteers
+  near-misses: *maybe `product`?*) rather than a wall enumerating every overload — that
+  wall reaches 232 KB and 2,002 lines at 2,000 components. And the path is **always
+  strict**: an undeclared member is an error in every emission mode, because it is absent
+  rather than withheld, so typo detection no longer costs you `--strict`.
+
+  `resolve()` keeps what the path cannot express: identifiers built at runtime. A kind or
+  namespace named for a Python keyword takes the language's own escape — a kind `class` is
+  `framework.objects.class_` — while the identifier string keeps the plain name. Failures
+  are the registry's existing per-segment errors, so the same mistake gives the same answer
+  by either route.
+
+- **`spoc.FrameworkTransitioningError`** — raised when a read arrives from outside an
+  in-flight lifecycle transition. Previously such a caller was told it had reentered a
+  transition on its own thread, which was the wrong diagnosis with the opposite remedy: a
+  racing caller may retry once the window closes, a genuinely reentrant one never can.
+  Membership is now decided by context rather than thread identity, so a task that merely
+  shares an event loop with a transition is told it is racing.
+
+- **`spoc.stubs.NARROWING_LIMIT`** — the documented point (1,000 identifiers) past which
+  `spoc stubs` reports that the per-identifier narrowing has outgrown the checkers, naming
+  the count, the threshold, and the navigation surface. The stub is still written and the
+  exit code stays `0`: a project checked only by ty is fine well beyond this, and a build
+  that generates stubs should not begin failing because a project grew.
+
 ### Changed
 
 - **The pre-1.0 allowance is spent.** Until now a `public` element could change
@@ -37,6 +84,26 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   **What a consumer must do:** nothing to keep working. `spoc>=1.0,<2` is now the pin
   that means something — a minor bound no longer buys extra protection, because
   minors no longer break `public` names.
+
+- **The generated stub carries the navigation surface**, in both emission modes, so
+  `spoc stubs --check` reports a stored stub from before this release as stale.
+  Regenerate with `spoc stubs`; nothing else changes, and the stub remains inert at
+  runtime.
+
+### Fixed
+
+- **`spoc stubs --strict` emitted a stub that failed mypy.** The override suppression sat
+  on the first overload's `def` line, but mypy anchors `[override]` on the `@overload`
+  decorator above it, so every strict stub arrived with an unsuppressed error. The
+  suppression now sits where mypy reads it. The pyright suppression is gone entirely —
+  probing showed pyright reports nothing for this narrowing, making the comment a claim no
+  checker verified. Conformance now checks *valid* code against a strict stub in all three
+  checkers, which is the leg whose absence let this ship.
+
+- **The published documentation site stopped updating.** Its workflow listened for a
+  release event that a release created with the default CI token never raises, so the site
+  only moved when someone dispatched it by hand and drifted several releases behind the
+  code. The release now calls the docs deploy directly, after publishing.
 
 ### Removed
 
