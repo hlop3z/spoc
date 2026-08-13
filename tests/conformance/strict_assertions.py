@@ -40,3 +40,12 @@ assert_type(product.price_cents, int)
 
 lister = framework.resolve("views:shop.list_products").object
 assert_type(lister(), dict[str, int])
+
+# ── Navigation is identical in both emission modes ────────────────────────
+#
+# The tree is emitted the same way strict or permissive: an undeclared member
+# is an error because it is absent, not because an overload was withheld.
+
+assert_type(framework.objects.models.shop.product.object, type[Product])
+assert_type(framework.objects.resources.shop.search_index.object, SearchIndex)
+assert_type(framework.objects.views.shop.unannotated.object, Callable[..., Any])

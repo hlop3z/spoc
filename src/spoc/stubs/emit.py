@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sys
 
+from ..core.identity import escape_keyword
 from .extract import alias_for
 from .manifest import Manifest
 
@@ -131,6 +132,53 @@ def _resolve_lines(manifest: Manifest, strict: bool) -> list[str]:
     return lines
 
 
+def _navigation_lines(manifest: Manifest) -> list[str]:
+    """The navigation surface as nested classes of typed members.
+
+    Plain attributes on plain classes — the shape a checker resolves in one
+    member lookup, at any size. That is the whole reason this exists beside the
+    narrowed ``resolve``: an overload set makes a checker weigh every
+    alternative on each call, and past a few thousand entries the ones a
+    developer actually runs either crawl or stop answering.
+
+    Emitted identically in both modes. There is nothing to loosen: an undeclared
+    member is an error because it is absent, not because an overload was
+    withheld, so the tree is strict by nature and needs no suppression.
+
+    Class names are derived from the grammar segments they describe, prefixed
+    and separated so ``_ns_models_shop`` cannot collide with a kind's own class
+    however the segments are spelled.
+    """
+    navigation = manifest.navigation
+    if not navigation:
+        # Nothing registered: an empty marker class still lets `objects`
+        # resolve, so a consumer's editor says "no members" rather than
+        # "unknown attribute" on a project that has not registered yet.
+        return ["class _Objects:", "    pass", "", ""]
+
+    lines: list[str] = []
+    for kind, namespaces in navigation.items():
+        for namespace, entries in namespaces.items():
+            lines.append(f"class _ns_{kind}_{namespace}:")
+            lines.extend(
+                f"    {escape_keyword(entry.object_name)}: "
+                f"Component[{entry.type_ref.expression}]"
+                for entry in entries
+            )
+            lines.extend(["", ""])
+        lines.append(f"class _kind_{kind}:")
+        lines.extend(
+            f"    {escape_keyword(namespace)}: _ns_{kind}_{namespace}"
+            for namespace in namespaces
+        )
+        lines.extend(["", ""])
+
+    lines.append("class _Objects:")
+    lines.extend(f"    {escape_keyword(kind)}: _kind_{kind}" for kind in navigation)
+    lines.extend(["", ""])
+    return lines
+
+
 def emit(manifest: Manifest, strict: bool = False) -> str:
     """Render `manifest` as stub source text.
 
@@ -139,8 +187,12 @@ def emit(manifest: Manifest, strict: bool = False) -> str:
     """
     lines = [_HEADER, ""]
     lines.extend(_import_lines(manifest))
-    lines.extend(["", "", "class _Root(Framework):"])
+    lines.extend(["", ""])
+    lines.extend(_navigation_lines(manifest))
+    lines.append("class _Root(Framework):")
     lines.extend(_resolve_lines(manifest, strict))
+    lines.append("    @property")
+    lines.append("    def objects(self) -> _Objects: ...")
     lines.extend(["", ""])
     lines.append(f"{manifest.framework_attribute}: _Root")
 

@@ -63,6 +63,7 @@ from .core.exceptions import (
 )
 from .core.identity import to_snake_case, validate_segment
 from .core.loader import KindHooks, LoadedModule, Loader
+from .core.navigation import navigator
 from .core.registry import Component, Registry
 from .core.shape import shape_prose
 
@@ -312,6 +313,25 @@ class Framework:
         """Resolve ``kind:namespace.object_name`` to its registry record."""
         self._refuse_racing_read(identifier)
         return self.registry.resolve(identifier)
+
+    @property
+    def objects(self) -> Any:
+        """The registry navigated by grammar segment: ``objects.models.shop.product``.
+
+        The same records :meth:`resolve` returns, reached by walking the three
+        facets of the identifier instead of spelling it as a string. Use this
+        when the identifier is known as you write the code — a generated stub
+        describes every step, so an editor completes each segment and a checker
+        knows the component's type. Use :meth:`resolve` when the identifier is
+        built at runtime, which no attribute path can express.
+
+        A property, not an attribute set in ``__init__``: the walk reads the
+        registry when asked, so there is nothing to keep in sync and no cost for
+        a project that never navigates. Typed as ``Any`` because the accurate
+        type is the generated stub's description of *this* project's registry.
+        """
+        self._refuse_racing_read("objects")
+        return navigator(self.registry)
 
     def resolve_type[T](self, identifier: str, contract: type[T]) -> type[T]:
         """Resolve a constructible component under a caller-owned contract.

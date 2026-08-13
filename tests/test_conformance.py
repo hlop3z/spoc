@@ -213,6 +213,72 @@ def test_permissive_mode_accepts_a_misspelled_identifier(permissive_project):
     assert check_ty(permissive_project, "probe.py").returncode == 0
 
 
+# ── Navigation stays answerable at a scale the narrowing does not ─────────
+
+
+SCALE_ENTRIES = 2000
+
+
+@pytest.fixture(scope="module")
+def scale_project(tmp_path_factory):
+    """A registry far past what the narrowing can carry, described as a tree.
+
+    Built by emitting the description directly rather than booting a project
+    with thousands of modules: what is under test is whether a checker can
+    answer against a tree of this size, and a real boot would spend the
+    runtime on imports rather than on the question.
+    """
+    base = tmp_path_factory.mktemp("scale")
+    (base / "lib.py").write_text(
+        "\n".join(f"class C{k}:\n    a: int" for k in range(10)),
+        encoding="utf-8",
+    )
+
+    lines = ["from lib import " + ", ".join(f"C{k}" for k in range(10))]
+    lines.append("from spoc import Component")
+    lines.append("")
+    per_namespace = SCALE_ENTRIES // 20
+    for namespace in range(20):
+        lines.append(f"class _ns_models_app{namespace}:")
+        lines += [
+            f"    model_{i}: Component[type[C{i % 10}]]"
+            for i in range(namespace * per_namespace, (namespace + 1) * per_namespace)
+        ]
+        lines.append("")
+    lines.append("class _kind_models:")
+    lines += [
+        f"    app{namespace}: _ns_models_app{namespace}" for namespace in range(20)
+    ]
+    lines.append("")
+    lines.append("class _Objects:")
+    lines.append("    models: _kind_models")
+    lines.append("")
+    lines.append("objects: _Objects")
+    (base / "big.pyi").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    (base / "probe.py").write_text(
+        "from typing import assert_type\n"
+        "from big import objects\n"
+        f"from lib import C0, C{(SCALE_ENTRIES - 1) % 10}\n\n"
+        "assert_type(objects.models.app0.model_0.object, type[C0])\n"
+        f"assert_type(objects.models.app19.model_{SCALE_ENTRIES - 1}.object,"
+        f" type[C{(SCALE_ENTRIES - 1) % 10}])\n",
+        encoding="utf-8",
+    )
+    return base
+
+
+@pytest.mark.parametrize("checker", ["mypy", "pyright", "ty"])
+def test_navigation_stays_answerable_at_scale(scale_project, checker):
+    """The reason this surface exists. A per-identifier narrowing of this size
+    takes mypy past five minutes and exhausts pyright's runtime; the tree is
+    the shape that keeps every checker answering, and that claim is gated here
+    rather than trusted."""
+    runner = {"mypy": check_mypy, "pyright": check_pyright, "ty": check_ty}[checker]
+    result = runner(scale_project, "probe.py")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_strict_mode_rejects_a_runtime_built_identifier_everywhere(strict_project):
     """The documented cost of --strict: only literal identifiers type-check.
     An identifier arriving as `str` is indistinguishable from a typo."""

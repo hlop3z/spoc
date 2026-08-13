@@ -11,12 +11,21 @@ import subprocess
 import sys
 import textwrap
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
+from spoc import stubs
 from spoc.cli import main as cli_main
 from spoc.projection import project as projection
-from spoc.stubs import UnmirrorableRootError, generate, render, verify
+from spoc.stubs import (
+    NARROWING_LIMIT,
+    StubReport,
+    UnmirrorableRootError,
+    generate,
+    render,
+    verify,
+)
 from spoc.testing import ProjectTree
 
 # ── Fixtures: a project with all three shapes, a plugin, and a degraded entry ──
@@ -339,6 +348,145 @@ def test_strict_single_entry_pins_the_suppression_to_the_def_line(tmp_path):
     _, text, _ = render(base, strict=True)
     assert "def resolve(  # type: ignore[override]" in text
     assert "    @overload" not in text
+
+
+# ── Navigation surface ────────────────────────────────────────────────────
+
+
+def test_navigation_renders_nested_members_per_grammar_segment(tmp_path):
+    base = project(tmp_path)
+    _, text, _ = render(base)
+
+    assert "class _ns_models_catalog:" in text
+    assert "    product: Component[type[_catalog_models_Product]]" in text
+    assert "class _kind_models:" in text
+    assert "    catalog: _ns_models_catalog" in text
+    assert "class _Objects:" in text
+    assert "    models: _kind_models" in text
+    assert "    def objects(self) -> _Objects: ..." in text
+
+
+def test_navigation_covers_exactly_the_registered_identifiers(tmp_path):
+    """The tree and the overloads describe one registry; neither may carry a
+    component the other does not."""
+    base = project(tmp_path)
+    _, _, manifest = render(base)
+
+    navigated = {
+        f"{kind}:{namespace}.{entry.object_name}"
+        for kind, namespaces in manifest.navigation.items()
+        for namespace, entries in namespaces.items()
+        for entry in entries
+    }
+    assert navigated == {entry.identifier for entry in manifest.entries}
+
+
+def test_navigation_is_identical_in_both_modes(tmp_path):
+    """Strict withholds an overload; it has nothing to withhold from the tree,
+    where an undeclared member is an error by absence."""
+    base = project(tmp_path)
+    permissive = render(base)[1]
+    strict = render(base, strict=True)[1]
+
+    def tree(text: str) -> str:
+        return text.split("class _Root(Framework):")[0]
+
+    assert tree(permissive) == tree(strict)
+
+
+def test_navigation_escapes_a_reserved_word_segment(tmp_path):
+    """`class` is not spellable as a member; `class_` is — and the identifier
+    the overload narrows on keeps the unescaped name."""
+    models = """
+        from spoc.core.declaration import component
+
+        @component(kind="class")
+        class Seminar:
+            pass
+    """
+    framework_body = """
+        import spoc
+
+        framework = spoc.Framework(spoc.KindSpec("class", required=False))
+    """
+    apps = {"school": {"class": textwrap.dedent(models)}}
+    base = ProjectTree(apps=apps, config={"apps": {"development": ["school"]}}).build(
+        tmp_path, "proj"
+    )
+    (base / "framework.py").write_text(
+        textwrap.dedent(framework_body), encoding="utf-8"
+    )
+
+    _, text, _ = render(base)
+
+    assert "    class_: _kind_class" in text
+    assert '"class:school.seminar"' in text
+
+
+def test_an_empty_project_still_offers_the_navigation_root(tmp_path):
+    """A project that has registered nothing yet must say "no members", not
+    "unknown attribute"."""
+    framework_body = """
+        import spoc
+
+        framework = spoc.Framework(spoc.KindSpec("models", required=False))
+    """
+    base = ProjectTree(apps={}, config={"apps": {"development": []}}).build(
+        tmp_path, "proj"
+    )
+    (base / "framework.py").write_text(
+        textwrap.dedent(framework_body), encoding="utf-8"
+    )
+
+    _, text, _ = render(base)
+
+    assert "class _Objects:" in text
+    assert "    def objects(self) -> _Objects: ..." in text
+
+
+# ── Size guard ────────────────────────────────────────────────────────────
+
+
+def test_a_registry_within_the_limit_reports_nothing(tmp_path):
+    base = project(tmp_path)
+    report = generate(base)
+    assert report.entries <= NARROWING_LIMIT
+    assert report.oversized is None
+
+
+def test_the_guard_names_the_count_threshold_and_alternative():
+    """The report is composed on the report object, so every surface renders
+    one sentence rather than writing its own."""
+    oversized = StubReport(
+        path=Path("framework.pyi"), entries=NARROWING_LIMIT + 1, degraded=0
+    )
+    message = oversized.oversized or ""
+    assert str(NARROWING_LIMIT + 1) in message
+    assert str(NARROWING_LIMIT) in message
+    assert "framework.objects" in message
+    assert "still written" in message
+
+
+def test_the_guard_does_not_change_the_emitted_bytes(tmp_path):
+    """Below or above the threshold, the stub is the same artifact — the guard
+    informs a decision, it does not make one."""
+    base = project(tmp_path)
+    _, text, manifest = render(base)
+    assert len(manifest.entries) <= NARROWING_LIMIT
+
+    with mock.patch.object(stubs, "NARROWING_LIMIT", 1):
+        report = generate(base)
+        assert report.oversized is not None
+        assert report.path.read_text(encoding="utf-8") == text
+
+
+def test_the_cli_reports_the_guard_without_failing(tmp_path, capsys):
+    with mock.patch.object(stubs, "NARROWING_LIMIT", 1):
+        code = cli_main(["stubs", str(project(tmp_path))])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "wrote" in captured.out
+    assert "framework.objects" in captured.err
 
 
 # ── The composition root must be mirrorable ───────────────────────────────

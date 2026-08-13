@@ -51,6 +51,11 @@ def _run_stubs(args: argparse.Namespace) -> int:
         f"wrote {report.path} ({report.entries} identifiers)"
         f"{_degraded_note(report.degraded, report.entries)}"
     )
+    # A note, not a failure: the stub is written and usable, and the exit code
+    # stays 0 so a build that generates stubs does not start failing on a
+    # project that merely grew.
+    if report.oversized:
+        print(f"stubs: {report.oversized}", file=sys.stderr)
     return 0
 
 

@@ -50,3 +50,20 @@ _product = framework.resolve("models:shop.product").object(
     id=1, name="mouse", price_cents=2900
 )
 reveal_type(_product.price_cents, expected_text="int")  # type: ignore[name-defined]
+
+# Navigating renders exactly what resolving renders. Two routes that hovered
+# differently would make one of them the wrong one to teach.
+reveal_type(  # type: ignore[name-defined]
+    framework.objects.models.shop.product.object,
+    expected_text="type[Product]",
+)
+
+reveal_type(  # type: ignore[name-defined]
+    framework.objects.views.shop.find_product.object,
+    expected_text="(str) -> str",
+)
+
+reveal_type(  # type: ignore[name-defined]
+    framework.objects.resources.shop.search_index.object,
+    expected_text="SearchIndex",
+)

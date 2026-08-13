@@ -7,6 +7,10 @@ shows up when you run the program.
 `spoc stubs` fixes both. It boots your project once, writes down what every identifier
 resolves to, and saves it in a file your editor reads. **You do not change any code.**
 
+It also gives you a second way to say the same name — `framework.objects.models.shop.product`
+— which completes one step at a time and is what you want in a large project. Both are
+covered below.
+
 ## Generate the stub
 
 ```bash
@@ -82,6 +86,23 @@ from typing import Any, Literal, overload
 from shop.models import Product as _shop_models_Product
 from spoc import Component, Framework, KindHandle
 
+class _ns_models_shop:
+    product: Component[type[_shop_models_Product]]
+
+class _kind_models:
+    shop: _ns_models_shop
+
+class _ns_views_shop:
+    list_products: Component[_collections_abc_Callable[[], dict[str, int]]]
+    whatever: Component[_collections_abc_Callable[[Any], Any]]
+
+class _kind_views:
+    shop: _ns_views_shop
+
+class _Objects:
+    models: _kind_models
+    views: _kind_views
+
 class _Root(Framework):
     @overload
     def resolve(
@@ -97,6 +118,8 @@ class _Root(Framework):
     ) -> Component[_collections_abc_Callable[[Any], Any]]: ...
     @overload
     def resolve(self, identifier: str) -> Component[Any]: ...
+    @property
+    def objects(self) -> _Objects: ...
 
 framework: _Root
 model: KindHandle
@@ -126,7 +149,42 @@ print(lister())
 kind = "models"
 print(framework.resolve(f"{kind}:shop.product").object is product_cls)
 #> True
+
+# The same name, walked as attributes instead of spelled as a string.
+# `objects` -> kind -> namespace -> object name. Identical record.
+print(framework.objects.models.shop.product.object is product_cls)
+#> True
 ```
+
+## Two spellings of the same name
+
+An identifier is `kind:namespace.object_name`. You can write it as that string, or walk
+those same three parts as attributes — the last two lines of `main.py` above are the same
+component reached both ways.
+
+They return the identical record, so pick per call site:
+
+| | `resolve("...")` | `objects.models.shop.product` |
+| --- | --- | --- |
+| Identifier known as you write it | works | works |
+| Identifier built at runtime | **works** | impossible — a path is literal |
+| Completion offers | the whole project, inside quotes | one step at a time |
+| Typo says | see "Catching typos" | `has no attribute "prodcut"; maybe "product"?` |
+
+The path completes **per segment** — type `framework.objects.` and your editor offers your
+kinds, then that kind's namespaces, then that namespace's components. You do not have to
+remember any of it.
+
+!!! tip "Reach for the path in a large project"
+    Past about a thousand components, the `resolve` overloads make type checkers slow
+    down: they weigh every alternative on each call. The attribute path is one member
+    lookup however large your registry gets — SPOC's own gate checks a 2,000-component
+    path-based stub in about a second, where the overload equivalent takes mypy half a
+    minute. `spoc stubs` tells you when you cross that line.
+
+If a kind or namespace is named for a Python keyword, its attribute takes the usual
+trailing underscore — a kind `class` is `framework.objects.class_` — while the identifier
+string keeps the plain name.
 
 ## Why a stub and not a module
 
@@ -166,6 +224,11 @@ spoc stubs --strict
 
 Now `framework.resolve("models:shop.prodcut")` is a type error. Pick one: dynamic
 identifiers, or typo detection.
+
+There is a third option that costs you neither: **the attribute path is always strict**.
+`framework.objects.models.shop.prodcut` is an error in every mode, because the member
+simply is not there — nothing had to be turned off to catch it, and `resolve` stays
+available for the identifiers you build at runtime.
 
 ## When a type cannot be worked out
 

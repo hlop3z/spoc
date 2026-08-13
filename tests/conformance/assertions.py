@@ -63,3 +63,26 @@ assert_type(finder("mouse"), str)
 
 index = framework.resolve("resources:shop.search_index").object
 assert_type(index.lookup("mouse"), str)
+
+# ── The same registry, navigated instead of spelled ───────────────────────
+#
+# `objects.<kind>.<namespace>.<object_name>` is the identifier's own facets as
+# members. The types must be identical to the ones above — a second route to a
+# component that described it differently would be worse than no second route.
+
+assert_type(framework.objects.models.shop.product.object, type[Product])
+assert_type(framework.objects.resources.shop.search_index.object, SearchIndex)
+assert_type(
+    framework.objects.views.shop.list_products.object, Callable[[], dict[str, int]]
+)
+assert_type(framework.objects.views.shop.find_product.object, Callable[[str], str])
+
+# Degradation stays honest by this route too.
+assert_type(framework.objects.views.shop.unannotated.object, Callable[..., Any])
+
+# And the result is usable, not merely typed.
+navigated = framework.objects.models.shop.product.object(
+    id=2, name="keyboard", price_cents=4500
+)
+assert_type(navigated.price_cents, int)
+assert_type(framework.objects.views.shop.list_products.object(), dict[str, int])
