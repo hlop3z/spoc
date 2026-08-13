@@ -11,11 +11,11 @@ authors = [
 requires-python = ">=3.12"
 keywords = ["framework", "kernel", "registry", "modular-monolith", "plugins"]
 classifiers = [
-    # Tracks the stability policy, not a mood: Beta for as long as the pre-1.0
-    # allowance stands (a public element may still break in a minor). It becomes
-    # "5 - Production/Stable" in the same release that cuts 1.0, and only once the
-    # criteria in [tool.spoc.stability] and the docs' Stability page all hold.
-    "Development Status :: 4 - Beta",
+    # Tracks the stability policy, not a mood: it went "5 - Production/Stable" in
+    # the release that cut 1.0, once the criteria in the docs' Stability page all
+    # held. The pre-1.0 allowance is spent — a public element now breaks only in a
+    # major release, after a completed deprecation lifecycle.
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     # The platforms the gate actually runs on. "OS Independent" was a claim no
     # gate can satisfy — see the platform-support capability, which requires the

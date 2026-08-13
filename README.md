@@ -111,17 +111,17 @@ For detailed documentation, tutorials, and examples:
 
 ## Stability
 
-SPOC is pre-1.0. Every name, command, and extra carries one of three tiers —
+SPOC is 1.0. Every name, command, and extra carries one of three tiers —
 `public`, `provisional`, or `internal`. For an importable name the tier follows from
 how it is exposed: exported from a package is `public`, saying so in its own docstring
 makes it `provisional`, and reachable only through a submodule is `internal`. Both the
 tiers and every change to them since the last release are checked on every CI run.
-Until 1.0 a `public` element may still change in a minor release, so pin a minor if
-that matters: `spoc>=0.5,<0.6`.
+A `public` element now changes incompatibly only in a major release, and only after a
+completed deprecation lifecycle, so `spoc>=1.0,<2` is the pin that matters.
 
 **[Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/)** — the
-tiers, what they exclude, the deprecation lifecycle, and what has to be true before
-1.0 is cut.
+tiers, what they exclude, the deprecation lifecycle, and the criteria 1.0 was cut
+against.
 
 ## Links
 
