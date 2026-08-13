@@ -375,11 +375,14 @@ console script runs.
    cache (which is why restart re-runs discovery, never module-level code).
 9. **A stated concurrency contract** — registration is atomic under one lock,
    lifecycle transitions are serialized with exactly one winner, and reads
-   between a completed start and a shutdown need no coordination. Shutdown ends
-   that window and a read racing it is not covered: reset swaps in a fresh
-   registry rather than emptying the live one, so such a read still observes one
-   whole registry, but which of the two it observes is a race the caller must
-   order itself. One object, one identity: divergent re-registration raises.
+   between a completed start and a shutdown need no coordination. A transition
+   has an inside and an outside: code the transition invoked resolves normally,
+   every other caller is refused with `FrameworkTransitioningError` until the
+   transition ends. That refusal is not a drain — draining in-flight readers
+   belongs to whoever admitted the work, which is why a served application never
+   sees the error at all, and why a component resolved before a transition and
+   used after it stays the caller's responsibility.
+   One object, one identity: divergent re-registration raises.
    The contract covers *derived* reads too, not only records: a failed `resolve`
    is composed from one observation of the store, so it never names a candidate
    that did not exist when the lookup ran, and a lifecycle phase groups the

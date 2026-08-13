@@ -7,11 +7,13 @@ what failed without parsing text. Failures authored by app code are not the kern
 module that raises while importing propagates its own exception, because the author
 needs their traceback, not a wrapper around it.
 
-Two properties are contractual, not stylistic. Resolution fails **per segment**, in the
+Three properties are contractual, not stylistic. Resolution fails **per segment**, in the
 order kind → namespace → object_name, and each error names the failing segment, the value
-it received, and the candidates that were valid at that step. Discovery is **loud**: a
+it received, and the candidates that were valid at that step. A segment failure **means the
+segment**: a read refused because a lifecycle transition is in flight is its own error, so
+"unknown namespace" is never how the kernel reports its own timing. Discovery is **loud**: a
 declared component that cannot be registered raises rather than being dropped. The
-messages below are the user-visible surface of both promises.
+messages below are the user-visible surface of all three promises.
 """
 
 from __future__ import annotations
@@ -135,6 +137,32 @@ class UnknownObjectError(SpocError):
         super().__init__(
             f"Unknown object_name {object_name!r} in {kind}:{namespace}. "
             f"Registered: {', '.join(candidates) or '(none)'}"
+        )
+
+
+class FrameworkTransitioningError(SpocError):
+    """A read arrived from outside an in-flight lifecycle transition.
+
+    The identifier is not the problem; the timing is. This is deliberately not
+    one of the unknown-segment errors above: during a transition the registry is
+    half-built or already replaced, so answering "unknown namespace" would report
+    a typo the caller did not make, and answering successfully would hand back a
+    component whose teardown has already run.
+
+    `transition` names the phase in flight — the same word the caller invoked —
+    so the remedy points at a specific call rather than at lifecycle in general.
+    """
+
+    def __init__(self, identifier: str, transition: str) -> None:
+        self.identifier, self.transition = identifier, transition
+        super().__init__(
+            f"Cannot resolve {identifier!r} while the framework is inside "
+            f"{transition}: this call is not part of that transition, and a "
+            "component reached "
+            "during one may already have been torn down. Order the read against "
+            "the transition — a served application usually gets that ordering "
+            "from its server, which finishes in-flight work before shutting the "
+            "application down"
         )
 
 

@@ -1,24 +1,4 @@
-# Component Resolution
-
-## Purpose
-
-Resolution turns a canonical identifier into its registry record — a pure
-lookup that never executes what it returns, and whose failures are precise:
-each names the exact segment that didn't resolve and the candidates that
-would have. A typo never falls through to undefined behavior.
-
-## Requirements
-
-### Requirement: Resolution by canonical identifier
-
-The system MUST resolve a canonical identifier string (`kind:namespace.object_name`) to
-the corresponding registry record. Resolution MUST proceed segment by segment in the
-fixed order kind → namespace → object_name.
-
-#### Scenario: Successful resolution
-
-- **WHEN** `model:blog.post` is resolved and a component with that identifier is registered
-- **THEN** the corresponding registry record is returned
+## MODIFIED Requirements
 
 ### Requirement: Failures name the failing segment
 
@@ -68,25 +48,3 @@ them apart by the error's type.
   a started framework with that component registered
 - **THEN** it resolves successfully, confirming the earlier failure described the
   framework's state and not the identifier
-
-### Requirement: Resolution never executes
-
-Resolution MUST be a pure lookup: it MUST NOT call, construct, or otherwise execute the
-resolved object, and MUST NOT trigger side effects beyond the lookup itself. Invocation
-is the caller's responsibility and is outside this capability.
-
-#### Scenario: Lookup without invocation
-
-- **WHEN** an identifier bound to a callable object is resolved
-- **THEN** the callable is returned unexecuted
-
-### Requirement: No operation segment
-
-The resolution grammar MUST NOT accept an operation suffix (a fourth segment); an
-identifier with more segments than `kind:namespace.object_name` MUST be rejected as
-malformed.
-
-#### Scenario: Operation suffix rejected
-
-- **WHEN** `model:blog.post.create` is resolved
-- **THEN** an error is raised describing the expected three-segment grammar
