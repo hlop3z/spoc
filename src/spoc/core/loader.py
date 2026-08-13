@@ -216,11 +216,12 @@ class Loader:
 
     def _startup_steps(
         self,
+        entries: Sequence[LoadedModule],
         hooks: dict[str, KindHooks],
         components_for: Callable[[LoadedModule], Sequence[Any]],
     ) -> Iterator[_Step]:
         """The startup phase in load order: each kind's hook, then the module's own."""
-        for entry in self.ordered():
+        for entry in entries:
             logger.debug("Initializing module: %s", entry.name)
             on_startup, _ = hooks.get(entry.kind, (None, None))
             if on_startup is not None:
@@ -233,6 +234,7 @@ class Loader:
 
     def _shutdown_steps(
         self,
+        entries: Sequence[LoadedModule],
         hooks: dict[str, KindHooks],
         components_for: Callable[[LoadedModule], Sequence[Any]],
     ) -> Iterator[_Step]:
@@ -243,7 +245,7 @@ class Loader:
         startup hook fired still gets the paired shutdown hook, but not a
         ``teardown()`` for an initialize that never completed.
         """
-        for entry in reversed(self.ordered()):
+        for entry in reversed(entries):
             logger.debug("Tearing down module: %s", entry.name)
             if entry.started:
                 _, on_shutdown = hooks.get(entry.kind, (None, None))
@@ -257,7 +259,11 @@ class Loader:
                 entry.initialized = False
 
     def _coroutines_in(
-        self, hooks: dict[str, KindHooks], *, startup: bool
+        self,
+        entries: Sequence[LoadedModule],
+        hooks: dict[str, KindHooks],
+        *,
+        startup: bool,
     ) -> list[str]:
         """Name every coroutine callable the named phase would have to run.
 
@@ -265,7 +271,7 @@ class Loader:
         of them should learn about both from one run.
         """
         offenders: list[str] = []
-        for entry in self.ordered():
+        for entry in entries:
             on_startup, on_shutdown = hooks.get(entry.kind, (None, None))
             hook = on_startup if startup else on_shutdown
             if hook is not None and inspect.iscoroutinefunction(hook):
@@ -293,14 +299,21 @@ class Loader:
             "cannot run them — use astart()/ashutdown() to await them"
         )
 
+    # Each driver resolves the load order once and hands that one list to every
+    # step below it. Ordering re-derives a topological check and a sort on each
+    # call, so asking twice per phase paid for it twice — and, worse, let the
+    # refusal scan and the dispatch it guards walk two separately built lists.
+    # One list per phase makes them the same list by construction.
+
     def initialize(
         self,
         hooks: dict[str, KindHooks],
         components_for: Callable[[LoadedModule], Sequence[Any]],
     ) -> None:
         """Fire each module's startup hook, then its own ``initialize()``."""
-        self._refuse_coroutines(self._coroutines_in(hooks, startup=True))
-        for call, args in self._startup_steps(hooks, components_for):
+        entries = self.ordered()
+        self._refuse_coroutines(self._coroutines_in(entries, hooks, startup=True))
+        for call, args in self._startup_steps(entries, hooks, components_for):
             call(*args)
 
     async def ainitialize(
@@ -309,7 +322,7 @@ class Loader:
         components_for: Callable[[LoadedModule], Sequence[Any]],
     ) -> None:
         """Asynchronous :meth:`initialize`: awaits coroutine hooks and modules."""
-        for call, args in self._startup_steps(hooks, components_for):
+        for call, args in self._startup_steps(self.ordered(), hooks, components_for):
             result = call(*args)
             if inspect.isawaitable(result):
                 await result
@@ -320,8 +333,9 @@ class Loader:
         components_for: Callable[[LoadedModule], Sequence[Any]],
     ) -> None:
         """Fire each module's shutdown hook, then its own ``teardown()``, in reverse."""
-        self._refuse_coroutines(self._coroutines_in(hooks, startup=False))
-        for call, args in self._shutdown_steps(hooks, components_for):
+        entries = self.ordered()
+        self._refuse_coroutines(self._coroutines_in(entries, hooks, startup=False))
+        for call, args in self._shutdown_steps(entries, hooks, components_for):
             call(*args)
 
     async def ashutdown(
@@ -330,7 +344,7 @@ class Loader:
         components_for: Callable[[LoadedModule], Sequence[Any]],
     ) -> None:
         """Asynchronous :meth:`shutdown`: awaits coroutine hooks and teardowns."""
-        for call, args in self._shutdown_steps(hooks, components_for):
+        for call, args in self._shutdown_steps(self.ordered(), hooks, components_for):
             result = call(*args)
             if inspect.isawaitable(result):
                 await result

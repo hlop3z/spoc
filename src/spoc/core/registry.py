@@ -221,10 +221,15 @@ class Registry:
         also strictly fewer acquisitions than deriving them from the faceted
         readers.
         """
+        # Parsed for the grammar check and for the segments the failure path
+        # needs; the *key* is the caller's own string. Parsing transforms
+        # nothing and the segment grammar admits neither ':' nor '.', so the
+        # split is unambiguous and `str(parse(x))` is `x` — rebuilding it was
+        # composing a string the caller had already handed over.
         parsed = parse(identifier)
 
         with self._lock:
-            record = self._store.get(str(parsed))
+            record = self._store.get(identifier)
             if record is not None:
                 return record
             observed = list(self._store.values())

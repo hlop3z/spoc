@@ -1,16 +1,60 @@
-# Reading Data Files
+# Project Data and Config
 
-`spoc.formats` is a small toolbox for structured data files — JSON, TOML,
-CSV, YAML, XML — that all land in **one shape**: plain Python dicts, lists,
-strings, numbers, booleans, and `None` (the JSON data model). Read any format,
-work with one shape, write any format.
+`spoc.formats` is how a project reads **its own** configuration and fixtures —
+JSON, TOML, CSV, YAML, XML — all landing in **one shape**: plain Python dicts,
+lists, strings, numbers, booleans, and `None` (the JSON data model). Read any
+format, work with one shape, write any format.
 
-It's a side toolbox: the kernel never uses it, and importing `spoc` never
-loads it.
+It exists because config management is where a growing project quietly starts
+losing time: a loader per file, a format decided once and regretted later, and
+fixtures that only a programmer can open.
 
 ```python
 from spoc import formats
 ```
+
+## Why five formats
+
+A project does not have one audience for its data, so it should not be forced
+into one format. Each of these earns its place by **who writes the file and who
+reads it**:
+
+| Format   | Written by → read by         | Why this one                                                                                                                                                              |
+| -------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **YAML** | a person → the machine       | Comments, block strings, no quoting ceremony. The format to hand someone who edits configuration by hand and does not write Python. Needs the `yaml` extra.                |
+| **TOML** | the system → the machine     | Unambiguous types and one obvious way to write a table. The same format `spoc.toml` uses, so operational configuration reads the same everywhere. Reading is stdlib; writing needs the `toml` extra. |
+| **JSON** | a machine → a machine        | Universal, exact, no dialects to argue about. What you emit for another program to consume, and what every language already parses. Standard library.                      |
+| **CSV**  | a spreadsheet ↔ the machine  | Fixtures a non-programmer can open in Excel, Numbers or Sheets, edit, and hand back. Tabular data stays reviewable by the people who actually own it. Standard library.     |
+| **XML**  | a legacy system → the machine | Present because something upstream still emits it, not because you should reach for it. Needs the `xml` extra.                                                            |
+
+Choose per file, not per project. `collect()` reads a tree of mixed formats in
+one call, and everything downstream sees the same shape whichever format a
+value arrived in — so the choice stays a question about the file's readers, and
+never leaks into the code that consumes it.
+
+## One grammar, the registry's own
+
+Collection keys come from a file's **location**, and each segment must match
+`^[a-z][a-z0-9_]*$` — the same grammar the registry holds
+`kind:namespace.object_name` to:
+
+```
+data/settings.toml        →  settings
+data/catalog/books.csv    →  catalog.books
+data/catalog/tags.yaml    →  catalog.tags
+```
+
+So a project addresses its data the way it addresses its components, and a name
+that would be illegal as a component name is illegal as a data key too. The two
+surfaces share a convention, never code.
+
+## Contained by design
+
+The kernel never imports this, importing `spoc` never loads it, and removing it
+entirely would leave startup unchanged — a boundary the test suite enforces
+rather than packaging. `spoc.toml` stays the kernel's own business, read through
+the standard library. Everything here is the *project* loading the project's
+files.
 
 ## Read and write files
 

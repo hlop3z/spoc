@@ -76,6 +76,21 @@ def test_compose_parse_round_trip_is_identity(kind, namespace, object_name):
 
 
 @settings(max_examples=500)
+@given(identifier=identifiers)
+def test_parsing_an_identifier_reproduces_it_exactly(identifier):
+    """Parsing loses nothing: rendering the result gives the input back.
+
+    The registry relies on this to key its store with the caller's own string
+    instead of recomposing one from the segments. That holds only because
+    parsing transforms nothing and the grammar admits neither ':' nor '.', so
+    the split can never be ambiguous — a property worth quantifying over the
+    whole grammar rather than asserting for one example, since the day a
+    segment rule admits a separator is the day the lookup silently misses.
+    """
+    assert str(parse(identifier)) == identifier
+
+
+@settings(max_examples=500)
 @given(text=malformed)
 def test_rejection_is_complete_over_the_input_space(text):
     """Spec: no non-conforming input is accepted, converted, or partially

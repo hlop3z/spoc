@@ -1137,3 +1137,45 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   (better structured-logging ergonomics, still a runtime dependency).
 - **Isolation**: one `NullHandler` registration at the package root; every module keeps its own
   `__name__` logger and nothing else touches logging configuration.
+
+### Open question: `scaffold.cli.register` — tier the downstream mount point
+
+- **Status**: open — raised 2026-08-12, not yet decided
+- **Question**: `init` and `app` mount into any `argparse` parser through
+  `spoc.scaffold.cli.register`, and that is how a framework built on SPOC publishes the
+  generation line under its own command name. The mechanism is deliberate — `derive_kinds`
+  and `source_factory` are injected precisely so a downstream composition root can supply
+  them — but the function is exposed from a plain module, so the derivation rule in
+  `[tool.spoc.stability]` makes it **internal**. It carries no promise and may vanish in a
+  patch.
+- **Why it needs deciding**: the surrounding contract is already public. `ENTRY_POINT_GROUP`
+  is exported from the package and `template-set:default` is listed public, so a framework
+  author is *promised* the template path and *not* promised the command-name path. Half a
+  guaranteed extension point is worse than neither, because the unguaranteed half is the one
+  that looks most like an invitation. `docs/docs/how-to/ship-a-framework.md` now documents
+  the mount with an explicit tiering warning, which is honest but is not a resolution.
+- **The complication that makes it a question rather than an oversight**: the signature takes
+  `argparse._SubParsersAction` — a private standard-library type. Promoting it to `public`
+  promises an argparse-shaped API in perpetuity and commits every downstream framework to
+  argparse as well. If SPOC's CLI ever moves to another parser, a public `register` either
+  blocks that or forces a major release for a reason unrelated to the kernel.
+- **Options**:
+  1. **Leave internal.** Honest today, and the how-to's warning covers it. Costs the
+     downstream story its second half; frameworks pin a SPOC version or vendor the wiring.
+  2. **Promote to `provisional`** — re-export from `spoc.scaffold.__all__` and carry the
+     provisional notice in the docstring, naming what settles it. This is what the tier
+     exists for: publicly documented, explicitly unsettled, breakable in a minor but never a
+     patch. Settles once a downstream framework has actually mounted it, or once the CLI's
+     parser choice is committed to.
+  3. **Promote to `public` behind a shaped signature** — accept a SPOC-owned parameter type
+     instead of argparse's private one, so the promise is about the mount, not the parser.
+     The most durable answer and the most work; worth it only if a second framework exists.
+  4. **Expose the commands as data** rather than as a mount, letting each framework build its
+     own CLI from a description. Largest change; makes the parser choice entirely the
+     downstream author's.
+- **Recommendation**: option 2. It matches what is actually true — the mechanism is intended
+  for downstream use and its shape is not yet settled — and pre-1.0 it is cheap to revise.
+  Option 3 becomes the right answer the moment a real downstream framework exists, which is
+  also when its signature can be designed against a real second caller instead of a guess.
+- **Blocked on**: nothing technical. This is a stability-contract change and wants an
+  OpenSpec change with a `public-api-surface` delta rather than an edit in passing.

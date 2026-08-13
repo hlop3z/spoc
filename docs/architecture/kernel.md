@@ -374,11 +374,18 @@ console script runs.
    dotted paths, and the only global a boot populates is Python's own module
    cache (which is why restart re-runs discovery, never module-level code).
 9. **A stated concurrency contract** — registration is atomic under one lock,
-   lifecycle transitions are serialized with exactly one winner, and reads after
-   a completed start need no coordination. One object, one identity: divergent
-   re-registration raises. The contract covers failure *messages* too: a failed
-   `resolve` is composed from one observation of the store, so it never names a
-   candidate that did not exist when the lookup ran.
+   lifecycle transitions are serialized with exactly one winner, and reads
+   between a completed start and a shutdown need no coordination. Shutdown ends
+   that window and a read racing it is not covered: reset swaps in a fresh
+   registry rather than emptying the live one, so such a read still observes one
+   whole registry, but which of the two it observes is a race the caller must
+   order itself. One object, one identity: divergent re-registration raises.
+   The contract covers *derived* reads too, not only records: a failed `resolve`
+   is composed from one observation of the store, so it never names a candidate
+   that did not exist when the lookup ran, and a lifecycle phase groups the
+   store once for every hook it dispatches, so two hooks in one phase never read
+   two different registries — which is also what keeps a phase linear in a
+   project's size rather than quadratic.
 10. **A stated load order** — modules load, discover, and initialize in one
     total order: the rank of a kind in the declared `depends_on` order, then the
     position of the app in the effective `[spoc.apps]` list. Kind rank comes from
