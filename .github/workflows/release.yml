@@ -78,3 +78,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md
+
+  # Called, not triggered. The release above is created with the default
+  # GITHUB_TOKEN, and GitHub raises no workflow-starting event for that, so
+  # docs.yml listening for `release: published` never fired — the published site
+  # drifted several releases behind the code until someone noticed a 404.
+  # Calling it makes the deploy part of the release rather than a thing to
+  # remember, and `needs:` means a failed publish never ships docs for a version
+  # that is not on PyPI.
+  docs:
+    name: Publish the documentation site
+    needs: pypi-publish
+    permissions:
+      contents: write
+    uses: ./.github/workflows/docs.yml
+    with:
+      tag: ${{ github.ref_name }}
