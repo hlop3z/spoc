@@ -1,13 +1,18 @@
 """
 The composed ``spoc`` program.
 
-One parser; each surface registers its own subcommands (`spoc.scaffold.cli`
-mounts ``init``, `spoc.diagnostics.cli` mounts ``check``/``list``/``explain``,
-`spoc.projection.cli` mounts ``projection``) and attaches a handler. This
-module only parses, dispatches, and maps the
-library's refusals to exit codes — a SPOC or scaffold refusal is a clean
-one-line error, while an exception raised by an app's own module code
+One parser; each surface registers its own subcommands and attaches a handler:
+`spoc.scaffold` mounts ``init``/``app``, `spoc.diagnostics` mounts
+``check``/``list``/``explain``, `spoc.stubs` mounts ``stubs``, and
+`spoc.projection` mounts ``projection``. This module only parses, dispatches,
+and maps the library's refusals to exit codes — a SPOC or scaffold refusal is a
+clean one-line error, while an exception raised by an app's own module code
 propagates untouched (that error is the app author's, traceback and all).
+
+Those four mounts are the published extension point, not a private arrangement:
+this module is a composition root like any downstream framework's, and it reaches
+them the same way — which is what keeps the extension point from rotting
+untested. See `docs/docs/how-to/ship-a-framework.md`.
 
 The kernel never imports this module; it is entry-point metadata until the
 console script runs.
@@ -18,14 +23,14 @@ import sys
 from pathlib import Path
 
 from .core.exceptions import SpocError
-from .diagnostics import cli as diagnostics_cli
+from .diagnostics import register as register_diagnostics
 from .locate import LocateError, locate_framework
-from .projection import cli as projection_cli
-from .scaffold import cli as scaffold_cli
+from .projection import register as register_projection
+from .scaffold import register as register_scaffold
 from .scaffold.cache import DirectoryCache
 from .scaffold.remote import HttpFetcher, HttpRevisionResolver
 from .scaffold.sources import InstalledTemplateSources, RemoteTemplateSource
-from .stubs import cli as stubs_cli
+from .stubs import register as register_stubs
 from .testing import import_state
 
 __all__ = ["main"]
@@ -75,12 +80,12 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     subcommands = parser.add_subparsers(dest="command", required=True)
-    scaffold_cli.register(
+    register_scaffold(
         subcommands, derive_kinds=_derive_kinds, source_factory=_template_sources
     )
-    diagnostics_cli.register(subcommands)
-    stubs_cli.register(subcommands)
-    projection_cli.register(subcommands)
+    register_diagnostics(subcommands)
+    register_stubs(subcommands)
+    register_projection(subcommands)
     return parser
 
 

@@ -18,7 +18,12 @@ import sys
 from pathlib import Path
 
 from ..locate import DEFAULT_FRAMEWORK_REF
-from . import dumps, project
+
+# From the modules that define these, not from this package's __init__: the
+# package publishes `register`, so importing back through __init__ would make
+# the surface depend on its own adapter mid-initialization.
+from .document import dumps
+from .produce import project
 
 __all__ = ["register"]
 
@@ -29,7 +34,21 @@ def _run_projection(args: argparse.Namespace) -> int:
 
 
 def register(subcommands: argparse._SubParsersAction) -> None:
-    """Mount ``projection`` on the composed ``spoc`` parser."""
+    """Mount ``projection`` on a parser you own.
+
+    Lets a framework built on SPOC hand its own users the registry as data under
+    its own command name. The shipped ``spoc`` program mounts this command the
+    same way.
+
+    Provisional: may change incompatibly in a minor release. What is promised is
+    which commands the mount contributes and what invoking them does; the type of
+    ``subcommands`` is ``argparse``'s and not SPOC's, so promising it would commit
+    every downstream framework to ``argparse`` too. It settles when a framework
+    outside this package has actually mounted it, or when SPOC commits to its
+    parser choice and the mount can take a type it owns. The *document* the
+    command writes is promised separately and more strongly — see
+    ``schema:projection/document``.
+    """
     parser = subcommands.add_parser(
         "projection",
         help="Write the registry as a JSON document.",

@@ -31,6 +31,7 @@ promotion. What changed is what is promised, not what is reachable.
 
 from ..core.deprecation import deprecated_alias
 from . import archive
+from .cli import register
 from .errors import (
     RetrievalError,
     ScaffoldError,
@@ -87,6 +88,11 @@ __all__ = [
     "DirectorySink",
     "InstalledTemplateSources",
     "ENTRY_POINT_GROUP",
+    # Mounting the generation line under a downstream framework's own command
+    # name. Published because the template path already is: promising where
+    # templates come from while saying nothing about how the commands that use
+    # them are reached would guarantee half of one path.
+    "register",
     # Reading a project's origin
     "Origin",
     "read_origin",

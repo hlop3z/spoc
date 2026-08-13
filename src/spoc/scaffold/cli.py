@@ -128,13 +128,27 @@ def register(
     derive_kinds: DeriveKinds | None = None,
     source_factory: SourceFactory | None = None,
 ) -> None:
-    """Mount ``init`` and ``app`` on the composed ``spoc`` parser.
+    """Mount ``init`` and ``app`` on a parser you own.
+
+    This is how a framework built on SPOC publishes the generation line under
+    its own command name — ``hello init`` rather than a second program the
+    author's users have to know about. The shipped ``spoc`` program mounts these
+    commands the same way, so there is no privileged assembly path this one
+    cannot reach.
 
     ``derive_kinds`` and ``source_factory`` are injected by the composition root
     — the scaffold never imports the surface that can locate a framework
     declaration, and never decides for itself which sources exist. Without a
     factory it resolves local template sets only, so mounting this surface never
     silently acquires a network path.
+
+    Provisional: may change incompatibly in a minor release. What is promised is
+    which commands the mount contributes and what invoking them does; the type of
+    ``subcommands`` is ``argparse``'s and not SPOC's, so promising it would commit
+    every downstream framework to ``argparse`` too. It settles when a framework
+    outside this package has actually mounted it — at which point the shape is
+    fixed against a real second caller rather than a guess — or when SPOC commits
+    to its parser choice and the mount can take a type it owns.
     """
     sources: SourceFactory = source_factory or InstalledTemplateSources
     init = subcommands.add_parser(

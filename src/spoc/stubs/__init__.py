@@ -26,6 +26,7 @@ from pathlib import Path
 from ..core.shape import Shape, shape_of
 from ..locate import DEFAULT_FRAMEWORK_REF, locate_root
 from ..testing import import_state
+from .cli import register
 from .emit import emit
 from .extract import TypeRef, alias_for, reference_for
 from .manifest import (
@@ -50,6 +51,9 @@ __all__ = [
     "emit",
     "generate",
     "reference_for",
+    # Mounting the command under a downstream framework's own command name, so
+    # a framework's users get editor autocomplete from that framework's own CLI.
+    "register",
     "render",
     "shape_of",
     "stub_path",

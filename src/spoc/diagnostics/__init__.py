@@ -18,6 +18,7 @@ rendering, which is the whole of the difference.
 
 from ..locate import DEFAULT_FRAMEWORK_REF, LocateError
 from ..projection import ComponentEntry
+from .cli import register
 from .core import CheckReport, Finding, check, explain, list_records
 
 __all__ = [
@@ -32,4 +33,8 @@ __all__ = [
     # Location
     "DEFAULT_FRAMEWORK_REF",
     "LocateError",
+    # Mounting validation and introspection under a downstream framework's own
+    # command name — the inspection half of the same path the generation line
+    # publishes.
+    "register",
 ]
