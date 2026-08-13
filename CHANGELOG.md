@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows
 What each version increment promises, and for which parts of the surface, is written
 down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
-## [Unreleased]
+## [0.8.0] — 2026-08-13
 
 ### Added
 
@@ -75,6 +75,45 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   on the claim that VS Code completion works.
 
 ### Changed
+
+- **The four command mount points are now `provisional` rather than internal.**
+  `spoc.scaffold.register`, `spoc.diagnostics.register`, `spoc.projection.register`, and
+  `spoc.stubs.register` mount SPOC's commands onto a parser you own, which is how a
+  framework built on SPOC publishes them under its own name — `hello init`, `hello check`.
+  Each was reachable only through a submodule, which made it internal, while
+  `ENTRY_POINT_GROUP` and `template-set:default` were already public: a framework author
+  was promised where templates come from and told nothing about how the commands using
+  them are reached. All four are now exported from their packages and carry the
+  provisional notice.
+
+  Not `public`: the signature takes `argparse`'s own private subparser type, and promising
+  that in perpetuity would commit every downstream framework to `argparse` as firmly as it
+  commits SPOC. What is promised is which commands each mount contributes and what invoking
+  them does. Each notice names what would settle the tier — a framework outside SPOC
+  actually mounting it, or SPOC committing to a parser choice.
+
+  `spoc`'s own CLI now reaches all four by the published path, so the shipped program is a
+  consumer of the extension point rather than a privileged assembly of it. Mounting a
+  command also no longer loads the machinery behind it.
+
+- **A lifecycle phase is linear in the project's own size.** Hook dispatch asked the
+  registry for a module's components once per loaded module, and each ask snapshotted and
+  sorted the whole store — M modules over N components meant M full scans, so startup and
+  shutdown were quadratic in how much the project itself declared. The registry is now
+  grouped once per phase, built on first use so a project with no hooks pays nothing. At
+  400 modules over 50k components a phase went from 4.2s to 17ms. Every hook in a phase
+  now also reads one observation of the registry rather than M separately built ones.
+
+  Two smaller costs went with it: the load order was re-derived once for the
+  coroutine-refusal scan and again for the dispatch that scan guards, and `_kind_ranks`
+  called `list.index()` inside a sort key.
+
+- **`resolve()` is 7.9x faster and flat to 20k components.** It was spending 81% of its
+  time re-deriving a value from a string that had already passed the grammar — 1870ns of
+  2340ns, against a 33ns dict hit. Identifier parsing is now memoized, bounded exactly as
+  `to_snake_case` already was, so an application resolving identifiers built from user
+  input cannot grow the cache without limit. Malformed identifiers are not memoized and are
+  reported exactly as before. 2340ns → 295ns.
 
 - **One registry now has one description.** `spoc.diagnostics.RecordInfo` is gone,
   replaced by `spoc.projection.ComponentEntry`; `list_records` and `explain` return the
@@ -161,6 +200,14 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   correctly described as evidence for one platform rather than for the pipeline.
 
 ### Fixed
+
+- **The concurrency contract claimed more than it covers.** It said reads after a completed
+  start need no coordination. Reads racing *shutdown* are not covered: reset swaps in a
+  fresh registry rather than emptying the live one, so such a read observes one whole
+  registry — never a torn state — but which of the two it observes is a race, and the empty
+  one reports the same unknown-segment failure any absent component would. A caller that
+  resolves concurrently with shutdown must order the two itself. Documentation only; the
+  behavior is unchanged and was always this.
 
 - **An app omitting an optional module pulled its remaining modules a phase early.** With
   kinds `models → views → urls` where `views` is optional, an app without a `views.py`
@@ -733,6 +780,7 @@ Installing `spoc` bare reads JSON, CSV, and TOML — all standard library.
 | `query` | `python-jsonpath`, `iregexp-check`| RFC 9535 JSONPath + RFC 6901 JSON Pointer  |
 | `full`  | all of the above                  | everything                                 |
 
+[0.8.0]: https://github.com/hlop3z/spoc/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/hlop3z/spoc/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/hlop3z/spoc/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/hlop3z/spoc/compare/v0.3.9...v0.5.0
