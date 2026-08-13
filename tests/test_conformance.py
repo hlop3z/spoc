@@ -142,6 +142,14 @@ from framework import framework
 record = framework.resolve("models:shop.prodcut")
 """
 
+DYNAMIC_PROBE = """
+from framework import framework
+
+
+def resolve_dynamic(identifier: str):
+    return framework.resolve(identifier)
+"""
+
 
 @pytest.fixture
 def strict_project(tmp_path):
@@ -167,6 +175,24 @@ def permissive_project(tmp_path):
     return base
 
 
+def test_strict_stub_is_clean_for_valid_code_everywhere(strict_project):
+    """The stub itself must be diagnostic-free. The typo test below cannot hold
+    this line: a checker failing on the stub's *own* defect (an unsuppressed
+    override, say) makes that test pass for the wrong reason, which is exactly
+    how a broken suppression shipped."""
+    results = {
+        "mypy": check_mypy(strict_project, "strict_assertions.py"),
+        "pyright": check_pyright(strict_project, "strict_assertions.py"),
+        "ty": check_ty(strict_project, "strict_assertions.py"),
+    }
+    for checker, result in results.items():
+        assert result.returncode == 0, (
+            f"{checker} rejects valid code under a strict stub:\n"
+            + result.stdout
+            + result.stderr
+        )
+
+
 def test_strict_mode_rejects_a_misspelled_identifier_everywhere(strict_project):
     """The reason --strict exists. All three must reject it, or the mode only
     protects users of whichever checker happens to catch it."""
@@ -185,3 +211,36 @@ def test_permissive_mode_accepts_a_misspelled_identifier(permissive_project):
     assert check_mypy(permissive_project, "probe.py").returncode == 0
     assert check_pyright(permissive_project, "probe.py").returncode == 0
     assert check_ty(permissive_project, "probe.py").returncode == 0
+
+
+def test_strict_mode_rejects_a_runtime_built_identifier_everywhere(strict_project):
+    """The documented cost of --strict: only literal identifiers type-check.
+    An identifier arriving as `str` is indistinguishable from a typo."""
+    (strict_project / "dynamic_probe.py").write_text(DYNAMIC_PROBE, encoding="utf-8")
+    failures = {
+        "mypy": check_mypy(strict_project, "dynamic_probe.py").returncode,
+        "pyright": check_pyright(strict_project, "dynamic_probe.py").returncode,
+        "ty": check_ty(strict_project, "dynamic_probe.py").returncode,
+    }
+    assert all(code != 0 for code in failures.values()), (
+        f"a runtime-built identifier went unreported under strict: {failures}"
+    )
+
+
+def test_permissive_mode_accepts_a_runtime_built_identifier(permissive_project):
+    """The reason permissive is the default: identifiers built at runtime are
+    legitimate, and the catch-all overload is what keeps them resolvable."""
+    (permissive_project / "dynamic_probe.py").write_text(
+        DYNAMIC_PROBE, encoding="utf-8"
+    )
+    results = {
+        "mypy": check_mypy(permissive_project, "dynamic_probe.py"),
+        "pyright": check_pyright(permissive_project, "dynamic_probe.py"),
+        "ty": check_ty(permissive_project, "dynamic_probe.py"),
+    }
+    for checker, result in results.items():
+        assert result.returncode == 0, (
+            f"{checker} rejects a runtime-built identifier under permissive:\n"
+            + result.stdout
+            + result.stderr
+        )
