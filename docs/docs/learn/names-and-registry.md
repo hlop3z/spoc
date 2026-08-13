@@ -137,6 +137,17 @@ try:
 except spoc.UnknownObjectError as error:
     print(error)
     # UnknownObjectError: Unknown object_name 'pots' in models:blog. Registered: post
+
+# The tag has a second spelling: walk its three segments as attributes.
+# Same record, and each step completes in your editor.
+print(framework.objects.models.blog.post is framework.resolve("models:blog.post"))
+#> True
+
+try:
+    framework.objects.models.blog.pots
+except spoc.UnknownObjectError as error:
+    print(error)
+    # UnknownObjectError: Unknown object_name 'pots' in models:blog. Registered: post
 ```
 
 The same honesty applies when blocks go *onto* the shelf:
@@ -147,5 +158,22 @@ The same honesty applies when blocks go *onto* the shelf:
 
 A typo is never quietly skipped — the shelf either has exactly what your apps
 declared, or the boot tells you why not.
+
+## Two spellings, one tag
+
+`framework.resolve("models:blog.post")` and `framework.objects.models.blog.post`
+reach the identical record. They are the same three segments, written two ways:
+
+```text
+    models  :  blog  .  post          the tag, as a string
+    ──────     ────     ────
+objects. models . blog . post          the tag, as attributes
+```
+
+Use the **string** when the name is decided at runtime — it is the only one that
+can be built from a variable. Use the **attributes** when you know the name as you
+type it: your editor offers your kinds, then that kind's namespaces, then the
+components, so you do not have to remember any of them. Run
+[`spoc stubs`](../how-to/get-editor-autocomplete.md) once to turn that on.
 
 Next: [apps & modes](apps.md).

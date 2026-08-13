@@ -122,9 +122,17 @@ lookup never converts. Exactly three segments; no operation suffix.
 
 ## Resolution
 
+Two spellings of one identifier reach one record. The string is parsed in a
+single step; the navigation surface (`core/navigation.py`) walks the same three
+facets as attributes, one step per segment. Both fail at the same segment with
+the same error, because the walk composes the identifier and hands it to the
+same `resolve` — one lookup with two entry points, not two implementations kept
+in agreement by testing.
+
 ```mermaid
 flowchart LR
     input["resolve(identifier)"] --> parse{"parses?"}
+    walk["objects.kind.namespace.name<br/><i>one attribute per segment</i>"] -.->|"composes the identifier"| parse
     parse -- no --> e0["MalformedIdentifierError"]
     parse -- yes --> k{"kind<br/>declared?"}
     k -- no --> e1["UnknownKindError<br/>+ declared kinds"]
@@ -134,6 +142,12 @@ flowchart LR
     o -- no --> e3["UnknownObjectError<br/>+ candidate names"]
     o -- yes --> rec["Component record<br/>(object returned unexecuted)"]
 ```
+
+The walk holds no state of its own: each step carries the registry and how far it
+has come, and reads the store when asked. So the surface cannot go stale, and a
+component registered after one step is visible to the next. Which spelling a
+caller uses is a static question — a path is literal by construction, so an
+identifier assembled at runtime has only the string form.
 
 ## The scaffolder
 
@@ -321,12 +335,18 @@ flowchart TB
 
     dcore -->|isolated dry boot| harness["spoc.testing scopes"]
     pprod -->|isolated dry boot| harness
-    dcore --> kernel["Kernel public API<br/>start · registry · resolve · typed errors"]
+    dcore --> kernel["Kernel public API<br/>start · registry · resolve · objects · typed errors"]
     pprod --> kernel
 ```
 
 `spoc.stubs` is the fifth contained subpackage. Its product is a `.pyi` beside the
-project's composition root, which narrows `resolve` per identifier. A stub never
+project's composition root, describing the registry twice over: `resolve` narrowed per
+identifier, and the navigation surface as nested typed members. The two describe the
+same components — the grouping is a view over the same manifest entries — and the
+member form is what stays answerable as a registry grows, since a checker resolves a
+member in one lookup while an overload set makes it weigh every alternative on each
+call. Past a documented threshold the generator says so rather than emitting a stub
+that quietly costs a consumer their CI. A stub never
 executes, so naming one app's classes for the type checker adds no runtime coupling
 between apps — the decoupling the registry exists to provide survives being described.
 `spoc.locate` sits outside every subpackage because they all need it and only
