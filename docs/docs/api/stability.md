@@ -107,6 +107,11 @@ Even on a `public` element, these are free to change at any time:
 - **Pinned versions inside an extra.** `spoc[yaml]` will keep giving you YAML
   support; which library provides it, and at which version, may change.
 - **Internal attributes and reprs** of otherwise-public types.
+- **What you do with a resolved component.** Resolution is covered; the object's
+  lifetime afterwards is not. A component resolved before a lifecycle transition
+  and used after it is outside the contract — SPOC returns the object and never
+  observes the use. Ordering that is the caller's, and in a served application it
+  is the server's; see [Shipping a framework](../how-to/ship-a-framework.md).
 
 ## Before 1.0
 

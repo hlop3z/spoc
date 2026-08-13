@@ -161,6 +161,35 @@ mounts each surface and injects both.
     caller, or once SPOC commits to a parser choice and the mount can take a type
     it owns.
 
+## Shut down where your surface has already drained
+
+SPOC serializes its own lifecycle transitions, but it does not wait for readers.
+While `start` or `shutdown` is in flight, a `resolve` from outside that transition
+is refused with `FrameworkTransitioningError` rather than served a half-built or
+already-emptied registry.
+
+That error should be unreachable in a served application, because your surface
+already knows when its work is finished — it admitted the work. Call shutdown at
+the point where it has:
+
+| Surface | Call `shutdown()` / `ashutdown()` | Why it's safe there |
+| --- | --- | --- |
+| ASGI — Starlette, FastAPI, Falcon | In the lifespan shutdown handler (after the `yield` in a `lifespan` context manager) | The ASGI spec sends `lifespan.shutdown` only once the server "has stopped accepting connections and closed all active connections" |
+| gRPC | After `await server.stop(grace)` returns | New RPCs are already rejected with `UNAVAILABLE`, and in-flight ones had the grace period to finish |
+| WSGI behind a worker manager | In the worker's exit hook, after the worker stops accepting | The manager stops routing before it signals the worker |
+
+Some surfaces have no ambient drain, and there the ordering is yours to write:
+
+- a message-queue loop (ZeroMQ, raw sockets) — stop receiving, finish the message
+  in hand, *then* shut down;
+- a task your app spawned itself with `asyncio.create_task` — an ASGI server drains
+  connections, not tasks you started behind its back. Cancel and await it first;
+- worker threads, schedulers, and CLIs that outlive a request.
+
+Whatever you resolve stays yours after the transition ends. SPOC returns the object
+and never sees what you do with it, so a component resolved before shutdown and used
+after it is not something the kernel can refuse on your behalf.
+
 ## Give your users types
 
 `spoc stubs` writes a `.pyi` describing the project's resolution surface, so

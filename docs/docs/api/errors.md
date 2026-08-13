@@ -39,6 +39,7 @@ suite — a new error type cannot ship without a row here.
 | `UnknownNamespaceError` | No components of that kind exist in that namespace. | Install the app that provides it, or fix the segment — the message lists the registered namespaces. |
 | `UnknownObjectError` | Kind and namespace matched; the object name didn't. | Fix the last segment — the message lists what *is* registered there. |
 | `UnresolvedReferenceError` | A plugin reference (`module.attribute` in `[spoc.plugins]`) names something that doesn't exist. | Correct the dotted reference in `spoc.toml`; see [Plugins](../learn/plugins.md). |
+| `FrameworkTransitioningError` | The tag is fine — the timing isn't. Something resolved while `start` or `shutdown` was in flight, from outside that transition. | Order the read against the transition. In a served app, shut down where your server has already finished in-flight work — the ASGI lifespan shutdown handler, or after a gRPC `stop(grace)` returns. See [Shipping a framework](../how-to/ship-a-framework.md). |
 
 ## Registration
 
