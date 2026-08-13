@@ -378,7 +378,11 @@ console script runs.
    between a completed start and a shutdown need no coordination. A transition
    has an inside and an outside: code the transition invoked resolves normally,
    every other caller is refused with `FrameworkTransitioningError` until the
-   transition ends. That refusal is not a drain — draining in-flight readers
+   transition ends. Inside is one determination, carried by the calling context
+   rather than by the calling thread, and it governs a further transition as
+   well as a read — so lifecycle code that reenters is told so, while a caller
+   the transition never invoked is told a transition is in progress and may
+   retry once it settles. That refusal is not a drain — draining in-flight readers
    belongs to whoever admitted the work, which is why a served application never
    sees the error at all, and why a component resolved before a transition and
    used after it stays the caller's responsibility.
