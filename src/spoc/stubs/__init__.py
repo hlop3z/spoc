@@ -41,6 +41,7 @@ __all__ = [
     "DEFAULT_FRAMEWORK_REF",
     "Entry",
     "Handle",
+    "NARROWING_LIMIT",
     "Manifest",
     "Shape",
     "StubReport",
@@ -61,6 +62,21 @@ __all__ = [
 ]
 
 
+#: Past this many identifiers, the per-identifier narrowing stops being the
+#: right shape — not by taste, by measurement. Checking one file that imports
+#: such a stub goes superlinear in mypy (2.7s at 500 entries, 27.5s at 2,000,
+#: past 300s at 10,000), pyright exhausts its runtime's heap at 50,000, and
+#: editor completion in pyright reaches 18.8s per keystroke at 10,000 while ty
+#: stops offering completions there at all. The threshold sits below the knee
+#: rather than at it, because a project grows into the wall between releases.
+#:
+#: The navigation surface has no such curve — the same 50,000 identifiers check
+#: in 1-2s and complete in 0.02s — so the report points there instead of
+#: refusing: a project checked only by ty is fine well past this, and a guard
+#: that blocked them would enforce a limit they do not have.
+NARROWING_LIMIT = 1000
+
+
 @dataclass(frozen=True)
 class StubReport:
     """The outcome of generating or verifying a stub."""
@@ -77,6 +93,24 @@ class StubReport:
     @property
     def ok(self) -> bool:
         return self.matched is not False
+
+    @property
+    def oversized(self) -> str | None:
+        """Why this registry has outgrown the narrowing, or None.
+
+        Reported on the *report* rather than raised or printed, so the core
+        stays pure and every surface — the CLI today, anything else later —
+        renders one sentence rather than composing its own.
+        """
+        if self.entries <= NARROWING_LIMIT:
+            return None
+        return (
+            f"{self.entries} identifiers exceeds {NARROWING_LIMIT}, past which "
+            "the per-identifier overloads slow or exhaust the type checkers "
+            "this project verifies against. The stub was still written; prefer "
+            "navigating `framework.objects.<kind>.<namespace>.<name>`, which "
+            "stays flat at any size"
+        )
 
 
 def stub_path(root_file: str | Path) -> Path:
