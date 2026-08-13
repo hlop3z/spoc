@@ -2,11 +2,53 @@
 
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html) — with the 0.x caveat that a
-**minor** bump is where breaking changes land until 1.0.0.
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). From `1.0.0` a breaking
+change to a `public` element lands only in a **major** bump; entries before it took
+the pre-1.0 allowance, where a **minor** was where breaking changes landed.
 
 What each version increment promises, and for which parts of the surface, is written
 down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
+
+## [1.0.0] — 2026-08-13
+
+### Changed
+
+- **The pre-1.0 allowance is spent.** Until now a `public` element could change
+  incompatibly in a minor release, without a deprecation period. From this release it
+  cannot: an incompatible change to a `public` element ships only in a major release,
+  and only after the deprecation lifecycle has run — marked, warning at runtime,
+  present through at least one full minor release, and only then removed. Nothing
+  about the tiers themselves changed; what changed is that the escape hatch closed.
+
+  The three published criteria all held before the cut, and none of them was rewritten
+  to get here: every exposed element resolves to a tier, nothing intended to be
+  `public` is still `provisional`, and the deprecation lifecycle has now been run
+  end-to-end on a real element rather than only tested.
+
+  `Development Status` moves from `4 - Beta` to `5 - Production/Stable` in the same
+  release, because the classifier tracks the policy in force rather than a mood.
+
+  `apidiff` changes behaviour with it. Before 1.0 it reported surface differences
+  without failing — failing would have contradicted the allowance. It now fails: a
+  breaking change is permitted in a major release and refused in every other, while an
+  incomplete withdrawal is refused in **any** increment, because completing the
+  lifecycle is what earns a removal the major release it ships in.
+
+  **What a consumer must do:** nothing to keep working. `spoc>=1.0,<2` is now the pin
+  that means something — a minor bound no longer buys extra protection, because
+  minors no longer break `public` names.
+
+### Removed
+
+- **`spoc.scaffold.extract_archive`** — import it from `spoc.scaffold.archive`
+  instead. The function is unchanged and unmoved; only the re-export from the package
+  is gone. If you already followed the warning, nothing changes for you.
+
+  This completes the lifecycle it was deprecated to exercise: marked and warning in
+  `0.6.0`, still present and working through `0.7.0` and `0.8.0`, removed here. It was
+  chosen for that in `0.6.0` precisely so the policy would have run a full withdrawal
+  before it started being enforced — the other 25 withdrawals in that release took the
+  pre-1.0 allowance and were removed outright.
 
 ## [0.8.0] — 2026-08-13
 
@@ -780,6 +822,7 @@ Installing `spoc` bare reads JSON, CSV, and TOML — all standard library.
 | `query` | `python-jsonpath`, `iregexp-check`| RFC 9535 JSONPath + RFC 6901 JSON Pointer  |
 | `full`  | all of the above                  | everything                                 |
 
+[1.0.0]: https://github.com/hlop3z/spoc/compare/v0.8.0...v1.0.0
 [0.8.0]: https://github.com/hlop3z/spoc/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/hlop3z/spoc/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/hlop3z/spoc/compare/v0.5.0...v0.6.0
