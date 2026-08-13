@@ -49,6 +49,7 @@ uv run scripts/py/lab/<name>.py              # inline deps, ephemeral env, no lo
 | `py/tools/mdlinks`      | Python   | Find broken relative links in Markdown                  |
 | `py/tools/apicheck`     | Python   | Resolve every surface element to a stability tier       |
 | `py/tools/apicheck` (`apidiff`) | Python | Report surface changes since the last release tag |
+| `py/lab/completion_bench`| Python   | Time a language server's completions against a stub shape |
 
 ## Toolchains
 
