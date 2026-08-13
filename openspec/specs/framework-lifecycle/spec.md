@@ -271,6 +271,19 @@ hook, a module teardown, anything they call in turn — is inside it. Every othe
 caller is outside it. The distinction MUST hold identically on the synchronous
 and asynchronous lifecycle paths.
 
+Whether a caller is inside a transition MUST be one determination, applied
+identically to a read and to a further transition. A caller is inside a
+transition when the transition invoked it, directly or through work it spawned;
+membership MUST NOT be inferred from which execution context the caller happens
+to share with the transition, because concurrent work can share one and
+transition-spawned work can fail to.
+
+A transition invoked from outside an in-flight transition MUST be reported as a
+transition already in progress, distinctly from the reentrant case, on both
+lifecycle paths. Reporting a concurrent caller as reentrant is a defect: the two
+have opposite remedies — a concurrent caller may retry once the transition
+settles, a reentrant one never can.
+
 #### Scenario: Racing starts
 
 - **WHEN** two threads invoke start on the same framework concurrently
@@ -285,6 +298,23 @@ and asynchronous lifecycle paths.
 - **THEN** that inner call fails immediately with an error naming the
   reentrant transition, no deadlock occurs, and the outer start fails with
   that error and rolls back as any hook failure does
+
+#### Scenario: Concurrent transition is not reported as reentrant
+
+- **WHEN** a transition is in flight on the asynchronous path and an unrelated
+  caller that the transition did not invoke — one that predates it and merely
+  shares its execution context — invokes start or shutdown on the same
+  framework
+- **THEN** the call fails immediately stating a transition is already in
+  progress, and does not state that it was called from inside a transition
+
+#### Scenario: Work the transition spawned is inside it
+
+- **WHEN** a lifecycle hook on the asynchronous path spawns a concurrent task
+  and that task invokes start or shutdown on the framework whose transition
+  spawned it
+- **THEN** the call fails immediately with the reentrant-transition error,
+  because work a transition spawns inherits its membership
 
 #### Scenario: Inside and outside are distinguished on both paths
 

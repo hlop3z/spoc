@@ -85,7 +85,14 @@ _ROLLBACK_FAILED = (
 #: outside; a task carries the context copied when it was created, so a task that
 #: predates the transition is outside while the transition's own inline awaits are
 #: inside. Work a hook spawns inherits the marker, which is intended — work
-#: spawned by teardown is teardown.
+#: spawned by teardown is teardown. That inheritance follows the context, not the
+#: spawning: a task and `asyncio.to_thread` both copy it, a bare `threading.Thread`
+#: does not and is therefore outside, as it was under every earlier discriminator.
+#:
+#: This one marker answers membership for every refusal — a read, and a further
+#: lifecycle transition alike. Thread identity cannot: on the asynchronous path a
+#: racing task shares the transition's thread while carrying none of its context,
+#: so it would be called reentrant for running on the same event loop.
 #:
 #: A set, not a flag: nesting is per framework, so one framework's startup hook
 #: may legally start another, and a read on the outer one stays inside its own
@@ -216,7 +223,10 @@ class Framework:
     lifecycle hook calling ``start`` or ``shutdown`` — fails immediately
     rather than deadlocking on the non-reentrant lock. The transition is
     mid-flight and its state is half-built, so there is no correct thing for
-    the inner call to do.
+    the inner call to do. Inside is decided by the same test a read gets, so a
+    caller the transition never invoked is reported as concurrent instead, and
+    told it may retry once the window closes — the one remedy that works for it
+    and never works for genuine reentry.
     """
 
     def __init__(self, *kinds: str | KindSpec, echo: bool = False) -> None:
@@ -242,13 +252,12 @@ class Framework:
         self._ready_callbacks: list[Callable[[Registry], Any]] = []
         self._started = False
         self._transition_lock = threading.Lock()
-        #: Thread currently inside a lifecycle transition, so a reentrant call
-        #: from lifecycle code can be told apart from a racing caller.
-        self._transition_owner: int | None = None
         #: The transition in flight, named as the caller invoked it, or None when
         #: settled. Answers *whether* a transition is running; `_active_transitions`
-        #: answers whether the asking code is inside it. Both are needed: one
-        #: without the other would either refuse every read or refuse none.
+        #: answers whether the asking code is inside it — the one question every
+        #: refusal here turns on, for a read and for a further transition alike.
+        #: Both are needed: one without the other would either refuse every read
+        #: or refuse none.
         self._transitioning: str | None = None
         self.base_dir: Path | None = None
         self.config: Config | None = None
@@ -348,13 +357,21 @@ class Framework:
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
     def _refuse_reentry(self, label: str) -> None:
-        """Refuse a transition called from inside one already on this thread."""
-        if self._transition_owner == threading.get_ident():
+        """Refuse a transition called from inside one already in flight.
+
+        Membership is the same question a read asks, so it gets the same answer:
+        `_inside_transition`. Deciding it by thread identity instead would call a
+        racing task reentrant merely for sharing an event loop, and the two have
+        opposite remedies — a racing caller may retry once the transition settles,
+        a reentrant one never can. Callers this returns for fall through to the
+        lock, which is what reports a genuinely concurrent transition.
+        """
+        if self._inside_transition():
             raise SpocError(
-                f"{label} was called from inside a lifecycle transition already "
-                "running on this thread. A ready callback, lifecycle hook, or "
-                "module initializer cannot start or shut down the framework "
-                "that is booting it"
+                f"{label} was called from inside a lifecycle transition that is "
+                "still in flight. A ready callback, lifecycle hook, or module "
+                "initializer cannot start or shut down the framework that is "
+                "booting it"
             )
 
     def _begin_transition(self, label: str) -> contextvars.Token[frozenset[Framework]]:
@@ -365,7 +382,6 @@ class Framework:
         — and a path that marked one half would either refuse the transition's own
         teardown reads or refuse nobody's.
         """
-        self._transition_owner = threading.get_ident()
         self._transitioning = label
         return _active_transitions.set(_active_transitions.get() | {self})
 
@@ -374,11 +390,11 @@ class Framework:
 
         The context variable is reset by token rather than re-set to a computed
         value: restoring the previous set is what makes nesting unwind correctly,
-        and a leaked marker would exempt every later read on this thread or task.
+        and a leaked marker would exempt every later read on this thread or task
+        and make every later transition on it look reentrant.
         """
         _active_transitions.reset(token)
         self._transitioning = None
-        self._transition_owner = None
 
     def _inside_transition(self) -> bool:
         """Whether the calling code is part of this framework's in-flight transition."""
@@ -386,7 +402,7 @@ class Framework:
 
     @contextmanager
     def _transition(self, label: str) -> Iterator[None]:
-        """Hold the transition lock, recording the owning thread and context."""
+        """Hold the transition lock, marking the window and this context as inside it."""
         self._refuse_reentry(label)
         with self._transition_lock:
             token = self._begin_transition(label)

@@ -166,3 +166,86 @@ def test_ashutdown_without_start_is_noop():
     fw = Framework("models")
     assert asyncio.run(fw.ashutdown()) is fw
     assert fw.started is False
+
+
+# ── Reentrant vs concurrent, told apart on one thread ────────────────────────
+
+
+def test_concurrent_atransition_is_not_reported_as_reentrant(tmp_path):
+    """A racing task shares the loop thread but is not inside the transition.
+
+    The two conditions have opposite remedies — a concurrent caller may retry once
+    the transition settles, a reentrant one never can — so answering one with the
+    other's error argues the caller out of the fix that would work.
+    """
+    base = make_project(tmp_path, "aconcurrent")
+    gate = asyncio.Event()
+    seen: dict[str, str] = {}
+    state: dict[str, Framework] = {}
+
+    async def predates_the_transition():
+        """Created before the shutdown, so its context copy carries no marker."""
+        await gate.wait()
+        try:
+            await state["fw"].astart(base)
+            seen["racing"] = "served"
+        except SpocError as e:
+            seen["racing"] = str(e)
+
+    async def on_shutdown(objects):
+        gate.set()
+        await asyncio.sleep(0)  # let the racing task run while shutdown is in flight
+
+    async def scenario():
+        fw = Framework(KindSpec("models", on_shutdown=on_shutdown))
+        state["fw"] = fw
+        await fw.astart(base)
+        racing = asyncio.create_task(predates_the_transition())
+        await asyncio.sleep(0)  # let it start and park, before any transition
+        await fw.ashutdown()
+        await racing
+
+    asyncio.run(scenario())
+
+    assert "already in progress" in seen["racing"], (
+        f"a task racing an in-flight transition got the wrong diagnosis: {seen['racing']!r}"
+    )
+    assert "inside a lifecycle transition" not in seen["racing"], (
+        "a concurrent caller was told it reentered — it shares the event loop thread "
+        "with the transition, which is what a thread-identity check mistakes for reentry"
+    )
+
+
+def test_atransition_spawned_by_a_hook_is_reentrant(tmp_path):
+    """Work a transition spawns is part of it, so its inner transition is reentry.
+
+    ``create_task`` copies the spawner's context, so the marker reaches this task and
+    not the one above — which is the whole distinction the fold relies on.
+    """
+    base = make_project(tmp_path, "aspawnedreentry")
+    seen: dict[str, str] = {}
+    state: dict[str, Framework] = {}
+
+    async def on_shutdown(objects):
+        async def spawned():
+            try:
+                await state["fw"].ashutdown()
+                seen["spawned"] = "served"
+            except SpocError as e:
+                seen["spawned"] = str(e)
+
+        # Awaited inside the hook, so it runs while the transition is genuinely
+        # in flight rather than after it has settled.
+        await asyncio.create_task(spawned())
+
+    async def scenario():
+        fw = Framework(KindSpec("models", on_shutdown=on_shutdown))
+        state["fw"] = fw
+        await fw.astart(base)
+        await fw.ashutdown()
+
+    asyncio.run(scenario())
+
+    assert "inside a lifecycle transition" in seen["spawned"], (
+        f"a task spawned by a shutdown hook was not treated as inside it: {seen['spawned']!r}"
+    )
