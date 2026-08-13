@@ -95,7 +95,7 @@ framework = spoc.Framework(spoc.KindSpec("views", metadata=Route))
 view = framework.kind("views")
 
 
-@view(meta=Route(path="/posts"))
+@view(metadata=Route(path="/posts"))
 def list_posts():
     ...
 ```

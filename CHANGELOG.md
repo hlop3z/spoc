@@ -85,6 +85,18 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   that means something — a minor bound no longer buys extra protection, because
   minors no longer break `public` names.
 
+- **Component metadata is supplied as `metadata=`, not `meta=`.** Registration spelled
+  the concept one way and the record it populated spelled it another —
+  `component(..., meta=…)` landing in `Component.metadata`, against a kind's
+  `KindSpec.metadata` contract. One concept now carries one name at every surface: the
+  low-level `component()` marker, every kind's registration handle, and the record. The
+  old spelling is gone rather than deprecated, because it is going in the release that
+  closes the allowance and nothing published depends on it yet.
+
+  **What a consumer must do:** rename the keyword at each call site —
+  `@model(meta=Meta(…))` becomes `@model(metadata=Meta(…))`. A missed site raises
+  `TypeError` at import, so none can pass silently.
+
 - **The generated stub carries the navigation surface**, in both emission modes, so
   `spoc stubs --check` reports a stored stub from before this release as stale.
   Regenerate with `spoc stubs`; nothing else changes, and the stub remains inert at

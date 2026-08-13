@@ -76,19 +76,19 @@ def as_kind_spec(kind: str | KindSpec) -> KindSpec:
     return kind if isinstance(kind, KindSpec) else KindSpec(name=kind)
 
 
-def check_metadata(spec: KindSpec, obj_name: str, meta: Any) -> Any:
+def check_metadata(spec: KindSpec, obj_name: str, metadata: Any) -> Any:
     """Check metadata against the contract its kind declares."""
     if spec.metadata is None:
-        if meta is not None:
-            raise MetadataContractError(spec.name, obj_name, None, meta)
+        if metadata is not None:
+            raise MetadataContractError(spec.name, obj_name, None, metadata)
         return None
-    if not isinstance(meta, spec.metadata):
-        raise MetadataContractError(spec.name, obj_name, spec.metadata, meta)
-    return meta
+    if not isinstance(metadata, spec.metadata):
+        raise MetadataContractError(spec.name, obj_name, spec.metadata, metadata)
+    return metadata
 
 
 def component(
-    obj: Any = None, *, kind: str, name: str | None = None, meta: Any = None
+    obj: Any = None, *, kind: str, name: str | None = None, metadata: Any = None
 ) -> Any:
     """Low-level marker: attach an :class:`Internal` to an object."""
 
@@ -106,7 +106,7 @@ def component(
             raise MissingNameError(target)
         validate_segment("object_name", resolved, derived_from=derived_from)
         try:
-            target.__spoc__ = Internal(name=resolved, kind=kind, metadata=meta)
+            target.__spoc__ = Internal(name=resolved, kind=kind, metadata=metadata)
         except (AttributeError, TypeError) as exc:
             raise UnmarkableObjectError(target, str(exc)) from exc
         return target
@@ -140,22 +140,24 @@ class KindHandle(Protocol):
 
     @overload
     def __call__[T](
-        self, obj: T, /, *, name: str | None = None, meta: Any = None
+        self, obj: T, /, *, name: str | None = None, metadata: Any = None
     ) -> T: ...
     @overload
     def __call__(
-        self, obj: None = None, *, name: str | None = None, meta: Any = None
+        self, obj: None = None, *, name: str | None = None, metadata: Any = None
     ) -> Decorator: ...
 
 
 def registrar(spec: KindSpec) -> KindHandle:
     """Build the registration handle for one declared kind."""
 
-    def register(obj: Any = None, *, name: str | None = None, meta: Any = None) -> Any:
+    def register(
+        obj: Any = None, *, name: str | None = None, metadata: Any = None
+    ) -> Any:
         def decorator(target: Any) -> Any:
             label = name or getattr(target, "__name__", repr(target))
-            check_metadata(spec, label, meta)
-            return component(target, kind=spec.name, name=name, meta=meta)
+            check_metadata(spec, label, metadata)
+            return component(target, kind=spec.name, name=name, metadata=metadata)
 
         return decorator(obj) if obj is not None else decorator
 

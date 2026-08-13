@@ -171,7 +171,7 @@ class TestMetadataContract:
     def test_conforming_metadata_is_stored(self):
         register = registrar(KindSpec("models", metadata=ModelMeta))
 
-        @register(meta=ModelMeta(table="posts"))
+        @register(metadata=ModelMeta(table="posts"))
         class Post: ...
 
         info = get_info(Post)
@@ -182,7 +182,7 @@ class TestMetadataContract:
         register = registrar(KindSpec("models", metadata=ModelMeta))
         with pytest.raises(MetadataContractError) as exc:
 
-            @register(meta=ViewMeta(route="/posts"))
+            @register(metadata=ViewMeta(route="/posts"))
             class Post: ...
 
         message = str(exc.value)
@@ -194,10 +194,30 @@ class TestMetadataContract:
         register = registrar(KindSpec("views"))
         with pytest.raises(MetadataContractError) as exc:
 
-            @register(meta={"anything": 1})
+            @register(metadata={"anything": 1})
             class Listing: ...
 
         assert "declares no metadata contract" in str(exc.value)
+
+    def test_one_name_for_the_concept_at_every_surface(self):
+        """Both registration surfaces spell it `metadata` — and only that."""
+        spec = KindSpec("models", metadata=ModelMeta)
+        register = registrar(spec)
+
+        @register(metadata=ModelMeta(table="posts"))
+        class Post: ...
+
+        @component(kind="models", metadata=ModelMeta(table="pages"))
+        class Page: ...
+
+        for target, table in ((Post, "posts"), (Page, "pages")):
+            info = get_info(target)
+            assert info is not None and info.metadata == ModelMeta(table=table)
+
+        with pytest.raises(TypeError):
+
+            @register(meta=ModelMeta(table="posts"))  # ty: ignore[no-matching-overload]
+            class Stale: ...
 
     def test_no_contract_and_no_metadata_is_fine(self):
         register = registrar(KindSpec("views"))

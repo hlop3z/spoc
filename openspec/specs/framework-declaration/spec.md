@@ -90,6 +90,11 @@ component, and the way the metadata departs from the contract. Where a kind stat
 contract, its components MUST carry no metadata beyond what the kernel itself records,
 so there is no untyped channel available by default.
 
+Every surface that accepts component metadata MUST name it `metadata` — the same word
+the kind declaration and the registry record use. One concept carries one name across
+declaration, registration, and the record; a registration surface that introduces a
+second spelling for it is a defect.
+
 #### Scenario: Metadata conforming to the declared contract
 
 - **WHEN** a component of a kind that states a metadata contract is registered with
@@ -108,6 +113,13 @@ so there is no untyped channel available by default.
 - **WHEN** a kind states no metadata contract and one of its components is registered
   with metadata
 - **THEN** registration fails, because the kind declares no contract for it to satisfy
+
+#### Scenario: One name for the concept at every surface
+
+- **WHEN** a component is registered with metadata through any registration surface —
+  the low-level marker or a kind's registration handle
+- **THEN** the surface accepts it under the name `metadata`, and the record exposes it
+  under the same name
 
 ### Requirement: Per-kind registration handles
 

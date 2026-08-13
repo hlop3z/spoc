@@ -484,7 +484,7 @@ def test_declared_metadata_reaches_the_record(tmp_path):
         class ModelMeta:
             table: str
 
-        @component(kind="models", meta=ModelMeta(table="posts"))
+        @component(kind="models", metadata=ModelMeta(table="posts"))
         class Post:
             ...
         """,
@@ -499,7 +499,7 @@ def test_metadata_violating_the_contract_is_rejected():
     model = fw.kind("models")
     with pytest.raises(MetadataContractError):
 
-        @model(meta={"table": "posts"})
+        @model(metadata={"table": "posts"})
         class Post: ...
 
 

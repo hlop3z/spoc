@@ -50,7 +50,7 @@ suite — a new error type cannot ship without a row here.
 | `ComponentKindMismatchError` | A block's declared kind doesn't match the module it lives in — layout is taxonomy. | Move the block to the kind's file (`models` block → `models.py`), or fix the decorator; see [Apps & Modes](../learn/apps.md). |
 | `MissingNameError` | An object with no `__name__` (an instance) was registered without `name=`. | Name it explicitly: `resource(Database(), name="database")`; see [The Default Vocabulary](../learn/vocabulary.md). |
 | `UnmarkableObjectError` | The object can't carry the declaration marker (e.g. a builtin or a slotted instance). | Wrap it in something markable, or register a factory/class instead. |
-| `MetadataContractError` | A block's metadata departs from what its kind's `metadata` class demands — extra, missing, or wrongly typed. | Hand in an instance of the declared class: `@view(meta=Route(path=…))`; see [The Framework Object](../learn/framework.md). |
+| `MetadataContractError` | A block's metadata departs from what its kind's `metadata` class demands — extra, missing, or wrongly typed. | Hand in an instance of the declared class: `@view(metadata=Route(path=…))`; see [The Framework Object](../learn/framework.md). |
 | `ComponentShapeError` | `resolve_type` was asked for something that isn't a class, or `resolve_object` for something that is. | Use the accessor matching the block's shape — `resolve_type` for a class, `resolve_object` for an instance or a function. Only the shape is checked; whether the object *matches* your contract is your type checker's question, see [Get Editor Autocomplete](../how-to/get-editor-autocomplete.md). |
 
 `spoc.formats` has its own family under `FormatError` — those render in
