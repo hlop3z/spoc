@@ -29,10 +29,11 @@ nav:
           - Get Editor Autocomplete: how-to/get-editor-autocomplete.md
           - Test Your App: how-to/test-your-app.md
           - Ship a Reusable App: how-to/ship-a-reusable-app.md
+          - Ship a Framework: how-to/ship-a-framework.md
       - Tools:
           - The Command Line: tools/cli.md
           - Testing Your Project: tools/testing.md
-          - Reading Data Files: tools/formats.md
+          - Project Data and Config: tools/formats.md
       - API Reference:
           - The Kernel: api/public.md
           - The Toolbox: api/tooling.md
