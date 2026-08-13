@@ -16,12 +16,11 @@ which is exactly the contract the template specs require. Its
 rendering.
 """
 
-import keyword
 import re
 from collections import Counter
 from string import Template
 
-from ..core.identity import validate_segment
+from ..core.identity import escape_keyword, validate_segment
 from .errors import (
     IncompleteTemplateSetError,
     PathConflictError,
@@ -263,18 +262,6 @@ def _singular(kind: str) -> str:
     return kind[:-1]
 
 
-def _escape_keyword(name: str) -> str:
-    """The name a Python keyword already owns, spelled legally — `class` → `class_`.
-
-    A single trailing underscore is the language's own convention for this
-    collision (PEP 8), which is why it is preferred to any rewording: a reader
-    who has met `class_` in the standard library needs no explanation.
-    `keyword.iskeyword` is the authoritative list and travels with the language,
-    so no local table can fall behind it.
-    """
-    return f"{name}_" if keyword.iskeyword(name) else name
-
-
 def decorator_names(kinds: tuple[str, ...]) -> dict[str, str]:
     """Map each declared kind to the decorator variable generated for it.
 
@@ -305,7 +292,7 @@ def decorator_names(kinds: tuple[str, ...]) -> dict[str, str]:
         chosen = (
             kind if taken[singular] > 1 or singular in set(kinds) - {kind} else singular
         )
-        chosen = _escape_keyword(chosen)
+        chosen = escape_keyword(chosen)
         while chosen in used:
             chosen += "_"
         names[kind] = chosen

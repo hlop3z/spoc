@@ -14,10 +14,17 @@ value. A name the author **states** is used verbatim and validated; a name the k
 **derives** from an object is converted to snake_case by :func:`to_snake_case` first, then
 validated like any other value. So a PEP 8 class name yields the conventional segment
 without the author restating it, while a stated name is never silently rewritten.
+
+A segment is always a legal Python identifier by construction — the grammar admits
+only lowercase snake_case — with one exception the language reserves:
+:func:`escape_keyword` spells the handful of segments a keyword already owns. Both
+places that must spell a segment as a Python name, the scaffold's generated
+decorators and the navigation surface, take it from here so they cannot disagree.
 """
 
 from __future__ import annotations
 
+import keyword
 import re
 from functools import lru_cache
 from typing import Final, NamedTuple
@@ -83,6 +90,22 @@ def validate_segment(
     if not isinstance(value, str) or not SEGMENT_PATTERN.match(value):
         raise InvalidSegmentError(segment_name, value, derived_from=derived_from)
     return value
+
+
+def escape_keyword(name: str) -> str:
+    """The name a Python keyword already owns, spelled legally — `class` → `class_`.
+
+    A single trailing underscore is the language's own convention for this
+    collision (PEP 8), which is why it is preferred to any rewording: a reader
+    who has met `class_` in the standard library needs no explanation.
+    `keyword.iskeyword` is the authoritative list and travels with the language,
+    so no local table can fall behind it.
+
+    The identifier itself is never escaped — only the Python name spelling it.
+    ``models:shop.class`` keeps that identifier while being reached as
+    ``objects.models.shop.class_``.
+    """
+    return f"{name}_" if keyword.iskeyword(name) else name
 
 
 def compose(kind: str, namespace: str, object_name: str) -> str:

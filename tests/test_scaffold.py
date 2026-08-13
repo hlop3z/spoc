@@ -417,8 +417,13 @@ def test_core_imports_nothing_beyond_stdlib_and_kernel():
     for line in source.splitlines():
         if line.startswith(("import ", "from ")):
             assert "spoc.scaffold" not in line or line.startswith("from ."), line
-    # The only non-stdlib import is the kernel's own grammar.
-    assert "from ..core.identity import validate_segment" in source
+    # The only non-stdlib import is the kernel's own grammar — which now also
+    # spells a segment as a Python name, so the scaffold and the navigation
+    # surface escape a keyword identically instead of each owning a copy.
+    grammar = [
+        line for line in source.splitlines() if line.startswith("from ..core.identity")
+    ]
+    assert grammar == ["from ..core.identity import escape_keyword, validate_segment"]
 
 
 def test_published_dependencies_stay_empty():
