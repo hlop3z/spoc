@@ -29,8 +29,6 @@ do. It carries no stability promise: reaching an internal element is not a
 promotion. What changed is what is promised, not what is reachable.
 """
 
-from ..core.deprecation import deprecated_alias
-from . import archive
 from .cli import register
 from .errors import (
     RetrievalError,
@@ -58,16 +56,6 @@ from .plan import (
 from .provenance import RECORD_NAME, Origin, read_origin
 from .sink import DirectorySink
 from .sources import ENTRY_POINT_GROUP, InstalledTemplateSources
-
-#: Archive admission is how retrieval is made safe, not something a consumer
-#: composes with — it belongs to the module that performs it. The name stays
-#: here, warning, for one minor release so the migration is discoverable by
-#: running the code rather than by reading a changelog.
-extract_archive = deprecated_alias(
-    archive.extract_archive,
-    "spoc.scaffold.extract_archive is deprecated; import it from "
-    "spoc.scaffold.archive instead. The re-export is removed at 1.0.",
-)
 
 __all__ = [
     # Operations
@@ -97,8 +85,6 @@ __all__ = [
     "Origin",
     "read_origin",
     "RECORD_NAME",
-    # Archive admission — deprecated here, see spoc.scaffold.archive
-    "extract_archive",
     # Errors: the category, and the four that admit a distinct response
     "ScaffoldError",
     "TargetNotEmptyError",

@@ -204,43 +204,21 @@ class TestZipMembers:
             extract_archive(_zip([("C:/evil.txt", b"pwned")]), tmp_path)
 
 
-class TestWithdrawnReExport:
-    """`spoc.scaffold.extract_archive` is deprecated; the definition is not.
+class TestWithdrawalCompleted:
+    """The re-export is gone; the definition it pointed at is not.
 
-    The release policy requires a public name to signal before it is removed,
-    and this is the element the lifecycle is being exercised on. What makes it a
-    migration rather than a nuisance is the second assertion: the path the
-    warning tells you to use must be silent.
+    This is the element the deprecation lifecycle was exercised on — deprecated
+    in 0.6.0, still working through 0.7.0 and 0.8.0, removed at 1.0. Both halves
+    are asserted because a withdrawal is only honest if the spelling the warning
+    named still works: the promise ended, the capability did not.
     """
 
-    def test_the_package_spelling_warns(self, tmp_path: Path) -> None:
+    def test_the_package_spelling_is_gone(self) -> None:
         import spoc.scaffold
 
-        with pytest.warns(DeprecationWarning, match="spoc.scaffold.archive"):
-            spoc.scaffold.extract_archive(_tar([("a.txt", b"x")]), tmp_path)
+        assert not hasattr(spoc.scaffold, "extract_archive")
+        assert "extract_archive" not in spoc.scaffold.__all__
 
-    def test_the_submodule_spelling_is_silent(self, tmp_path: Path) -> None:
-        import warnings
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", DeprecationWarning)
-            extract_archive(_tar([("a.txt", b"x")]), tmp_path)
-
-    def test_the_definition_carries_no_deprecation_mark(self) -> None:
-        """A type checker reading `__deprecated__` must not flag the migration."""
-        assert not hasattr(archive_module.extract_archive, "__deprecated__")
-
-    def test_the_warning_names_the_removal(self) -> None:
-        import spoc.scaffold
-
-        mark = getattr(spoc.scaffold.extract_archive, "__deprecated__", "")
-        assert "1.0" in mark
-
-    def test_the_alias_still_admits_and_refuses_identically(
-        self, tmp_path: Path
-    ) -> None:
-        """Deprecated is not degraded — the same refusals still apply."""
-        import spoc.scaffold
-
-        with pytest.warns(DeprecationWarning), pytest.raises(MemberRefusedError):
-            spoc.scaffold.extract_archive(_zip([("../evil.txt", b"pwned")]), tmp_path)
+    def test_the_submodule_spelling_still_admits(self, tmp_path: Path) -> None:
+        archive_module.extract_archive(_tar([("a.txt", b"x")]), tmp_path)
+        assert (tmp_path / "a.txt").read_text() == "x"

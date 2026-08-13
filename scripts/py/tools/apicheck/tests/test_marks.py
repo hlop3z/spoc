@@ -168,14 +168,18 @@ def test_an_unparseable_module_is_a_gap_not_a_clean_bill(package):
 # --- against the real repository ----------------------------------------
 
 
-def test_the_live_withdrawal_is_read_from_this_repository():
-    """The one element actually in the lifecycle, pinned end to end."""
+def test_every_live_withdrawal_in_this_repository_states_its_replacement():
+    """Whatever is in the lifecycle right now, read end to end.
+
+    The set is empty today: `spoc.scaffold.extract_archive` completed its
+    withdrawal at 1.0 and nothing has entered the lifecycle since. Asserted as a
+    property of the set rather than against a named element, so the next real
+    deprecation is checked here the moment it lands instead of failing this test
+    merely by existing.
+    """
     marks = withdrawn(extract.exposures(REPO / "src"))
 
-    assert "spoc.scaffold.extract_archive" in marks
-    mark = marks["spoc.scaffold.extract_archive"]
-    assert mark.replacement_stated is True
-    assert "spoc.scaffold.archive" in mark.message
+    assert all(mark.replacement_stated for mark in marks.values())
 
 
 def test_this_repository_raises_no_unsanctioned_signal():
