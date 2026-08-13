@@ -113,26 +113,28 @@ Even on a `public` element, these are free to change at any time:
   observes the use. Ordering that is the caller's, and in a served application it
   is the server's; see [Shipping a framework](../how-to/ship-a-framework.md).
 
-## Before 1.0
+## The pre-1.0 allowance is spent
 
-SPOC is pre-1.0, and there is one explicit allowance that comes with that:
+While SPOC was pre-1.0 there was one explicit allowance:
 
 > **A `public` element may change incompatibly in a minor release, without a
 > deprecation period, until the first stable major release.**
 
-That allowance ends the moment 1.0 is cut. It is not extended by re-releasing under
-another `0.x` version once the criteria below are met.
+**That allowance ended when 1.0 was cut.** From 1.0, an incompatible change to a
+`public` element ships only in a major release, and only after the deprecation
+lifecycle below has run in full. Nothing re-opens it: releasing under another
+`0.x` version would not bring it back.
 
-Pin a minor version if that matters to you:
+A major bound is the pin that now matters:
 
 ```toml
 # pyproject.toml
-dependencies = ["spoc>=0.5,<0.6"]
+dependencies = ["spoc>=1.0,<2"]
 ```
 
-## Deprecation, once 1.0 lands
+## Deprecation
 
-After 1.0, a `public` element is never removed abruptly. It goes through this, in
+A `public` element is never removed abruptly. It goes through this, in
 order:
 
 1. It is **marked deprecated**, and its documentation names the replacement — or
@@ -165,9 +167,11 @@ tags go, or no tags to read — the removal is reported `undetermined` and the r
 exits non-zero. "Nobody could tell" is never reported as "the lifecycle was
 completed".
 
-## What has to be true before 1.0
+## What had to be true before 1.0
 
-These are the criteria, and they are checkable rather than a matter of taste:
+These were the criteria, checkable rather than a matter of taste. All three held
+when 1.0 was cut, and they are kept here unchanged — the release met them; it did
+not rewrite them:
 
 - [x] Every element of the surface resolves to a tier, and `apicheck` passes.
 - [x] Nothing intended to be `public` at 1.0 is still `provisional`. Every
@@ -178,15 +182,17 @@ These are the criteria, and they are checkable rather than a matter of taste:
       mounted them or SPOC commits to a parser choice. Neither is waiting on a
       decision nobody has made — being unsettled past 1.0 is what `provisional`
       is for.
-- [ ] The deprecation lifecycle has been exercised on a real element, not only
-      documented and tested. **In progress.** `spoc.scaffold.extract_archive` is
-      deprecated and warning today — steps 1 and 2 above. Steps 3 and 4 span
-      releases: it has to survive a minor and then actually be removed, which is
-      what turns a mechanism that works into a lifecycle that ran.
+- [x] The deprecation lifecycle has been exercised on a real element, not only
+      documented and tested. `spoc.scaffold.extract_archive` ran the whole
+      course: marked and warning in `0.6.0` (steps 1 and 2), still present and
+      working through `0.7.0` and `0.8.0` (step 3), removed in `1.0.0` (step 4).
+      The function itself never moved — `spoc.scaffold.archive.extract_archive`
+      is what the warning named and what still works. That is a lifecycle that
+      ran, not a mechanism that was merely tested.
 
-1.0 is cut when those hold — it is a consequence of meeting them, not a decision
+1.0 was cut because those held — a consequence of meeting them, not a decision
 made independently of them. The `Development Status` classifier tracks the same
-line: it stays pre-stable while the allowance above is in force.
+line, and moved to `5 - Production/Stable` in the same release.
 
 ## Checking the contract yourself
 
@@ -215,11 +221,11 @@ cd scripts/py && uv run apidiff ../..
 
 It reports every element added, removed, or moved between tiers since the last
 release tag, every incompatible change, every withdrawal currently in flight, and
-for each removed element whether its deprecation lifecycle was completed. Until 1.0
-it reports without failing — the allowance above permits those changes, so failing
-on one would contradict the policy. From 1.0 it fails.
+for each removed element whether its deprecation lifecycle was completed. Before
+1.0 it reported without failing — the allowance permitted those changes, so failing
+on one would have contradicted the policy. Now it fails.
 
-From 1.0 the increment matters as well as the change. A breaking change is what a
+The increment matters as well as the change. A breaking change is what a
 major release is *for*, so incompatible changes are permitted there and refused
 everywhere else; an incomplete withdrawal is refused in every increment, because
 completing the lifecycle is what earns the removal a major release is allowed to
