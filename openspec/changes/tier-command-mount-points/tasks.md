@@ -46,5 +46,5 @@
 - [x] 5.1 Rewrite the `DECISIONS.md` open-question section as a decision: what was chosen, that
       it was widened from one mount point to four, and why `provisional` over `public`.
 - [x] 5.2 Run the full gate and read `task check`'s exit code directly, not a pipeline's.
-- [ ] 5.3 Commit by intent per Rule 3 — the notices and exports, the docs, and the decision are
+- [x] 5.3 Commit by intent per Rule 3 — the notices and exports, the docs, and the decision are
       separate concerns.
