@@ -114,6 +114,28 @@ class Manifest:
         """How many entries could not be described faithfully."""
         return sum(1 for entry in self.entries if entry.type_ref.degraded)
 
+    @property
+    def navigation(self) -> dict[str, dict[str, tuple[Entry, ...]]]:
+        """The same entries, grouped as the navigation surface walks them.
+
+        A view over :attr:`entries`, not a second collection: the emitter needs
+        kind → namespace → entries to render nested members, and grouping here
+        keeps that regrouping out of the emitter while leaving one source for
+        what the project registered. Insertion order is canonical identifier
+        order, because that is the order `entries` already carries.
+        """
+        grouped: dict[str, dict[str, list[Entry]]] = {}
+        for entry in self.entries:
+            grouped.setdefault(entry.kind, {}).setdefault(entry.namespace, []).append(
+                entry
+            )
+        return {
+            kind: {
+                namespace: tuple(entries) for namespace, entries in namespaces.items()
+            }
+            for kind, namespaces in grouped.items()
+        }
+
 
 def _entries(projection: Projection, framework: Framework) -> tuple[Entry, ...]:
     """One entry per projected component, in the projection's own order.
