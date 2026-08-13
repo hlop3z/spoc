@@ -29,6 +29,7 @@ to the surfaces built on top.
 
 from __future__ import annotations
 
+import contextvars
 import graphlib
 import importlib
 import logging
@@ -56,6 +57,7 @@ from .core.exceptions import (
     CircularDependencyError,
     ComponentShapeError,
     ConfigurationError,
+    FrameworkTransitioningError,
     SpocError,
     UnknownKindError,
 )
@@ -72,6 +74,24 @@ logger = logging.getLogger(__name__)
 _ROLLBACK_FAILED = (
     "Rollback failed while unwinding a failed boot; the framework was still "
     "returned to its inert state, and the boot's own failure is the one raised"
+)
+
+#: The frameworks whose lifecycle transition the current thread or task is
+#: *inside* — the transition's own hooks, module code, and anything they call.
+#:
+#: A ``ContextVar`` rather than thread state, because one mechanism has to answer
+#: for both lifecycle paths and its isolation rules already match them: a new
+#: thread starts with an empty context, so a racing caller on another thread is
+#: outside; a task carries the context copied when it was created, so a task that
+#: predates the transition is outside while the transition's own inline awaits are
+#: inside. Work a hook spawns inherits the marker, which is intended — work
+#: spawned by teardown is teardown.
+#:
+#: A set, not a flag: nesting is per framework, so one framework's startup hook
+#: may legally start another, and a read on the outer one stays inside its own
+#: transition while the inner one runs.
+_active_transitions: contextvars.ContextVar[frozenset[Framework]] = (
+    contextvars.ContextVar("spoc_active_transitions", default=frozenset())
 )
 
 
@@ -175,13 +195,22 @@ class Framework:
     the already-started error. Reads between a completed start and a shutdown
     need no coordination, because nothing writes to the registry in that window.
 
-    Shutdown is the end of that window, and a read racing it is *not* covered.
-    Reset swaps in a fresh registry rather than emptying the live one, so such
-    a read observes one whole registry — the populated one or the empty one,
-    never a torn state — but which of the two is a race, and the empty one
-    reports the same unknown-segment failure any absent component would. A
-    caller that resolves concurrently with shutdown must order the two itself;
-    the kernel serializes transitions, not a transition against a read.
+    A transition is a window with an inside and an outside. Code the transition
+    itself invoked — a ready callback, a lifecycle hook, a module's
+    ``initialize`` or ``teardown``, anything they call in turn — is inside it and
+    resolves normally, which is what lets teardown reach the components it exists
+    to tear down. Every other caller is outside it and is refused with
+    :class:`~spoc.FrameworkTransitioningError` for the whole window. Refusing is
+    the honest answer: during a transition the registry is being populated app by
+    app, or has already been replaced, so serving such a read would either report
+    a typo the caller never made or hand back a component whose teardown has run.
+
+    Draining in-flight readers is *not* this object's job, and the refusal is not
+    a substitute for one. Whoever admitted the work orders it — a served
+    application gets that from its server, which finishes in-flight work before
+    shutting the application down. A component resolved before a transition and
+    used after it remains the caller's responsibility; the framework never
+    observes the use of what it returned.
 
     A transition invoked from *inside* a transition — a ready callback or
     lifecycle hook calling ``start`` or ``shutdown`` — fails immediately
@@ -216,6 +245,11 @@ class Framework:
         #: Thread currently inside a lifecycle transition, so a reentrant call
         #: from lifecycle code can be told apart from a racing caller.
         self._transition_owner: int | None = None
+        #: The transition in flight, named as the caller invoked it, or None when
+        #: settled. Answers *whether* a transition is running; `_active_transitions`
+        #: answers whether the asking code is inside it. Both are needed: one
+        #: without the other would either refuse every read or refuse none.
+        self._transitioning: str | None = None
         self.base_dir: Path | None = None
         self.config: Config | None = None
         self.installed_apps: list[str] = []
@@ -251,8 +285,23 @@ class Framework:
         """True once ``start`` has completed successfully."""
         return self._started
 
+    def _refuse_racing_read(self, identifier: str) -> None:
+        """Refuse a read that arrived from outside an in-flight transition.
+
+        Checked on every read accessor rather than inside the registry: the
+        registry is a pure store with no notion of a lifecycle, and the framework
+        is what owns the transition. During one, the store is being populated app
+        by app, or has already been replaced — so an unrefused read either reports
+        a typo the caller did not make or hands back a component whose teardown has
+        run.
+        """
+        transition = self._transitioning
+        if transition is not None and not self._inside_transition():
+            raise FrameworkTransitioningError(identifier, transition)
+
     def resolve(self, identifier: str) -> Component[Any]:
         """Resolve ``kind:namespace.object_name`` to its registry record."""
+        self._refuse_racing_read(identifier)
         return self.registry.resolve(identifier)
 
     def resolve_type[T](self, identifier: str, contract: type[T]) -> type[T]:
@@ -267,6 +316,7 @@ class Framework:
         Only shape is checked here; see :meth:`resolve_object` for the rest of
         the contract this pair shares.
         """
+        self._refuse_racing_read(identifier)
         obj = self.registry.resolve(identifier).object
         if not isinstance(obj, type):
             raise ComponentShapeError(
@@ -287,6 +337,7 @@ class Framework:
         is visible; re-answering it at runtime would duplicate a known fact and
         put a validation engine in the kernel.
         """
+        self._refuse_racing_read(identifier)
         obj = self.registry.resolve(identifier).object
         if isinstance(obj, type):
             raise ComponentShapeError(
@@ -306,16 +357,43 @@ class Framework:
                 "that is booting it"
             )
 
+    def _begin_transition(self, label: str) -> contextvars.Token[frozenset[Framework]]:
+        """Mark a transition in flight and this context as being inside it.
+
+        Described once here because four entry points need it — the two paths that
+        hold the lock through a context manager and the two that acquire it by hand
+        — and a path that marked one half would either refuse the transition's own
+        teardown reads or refuse nobody's.
+        """
+        self._transition_owner = threading.get_ident()
+        self._transitioning = label
+        return _active_transitions.set(_active_transitions.get() | {self})
+
+    def _end_transition(self, token: contextvars.Token[frozenset[Framework]]) -> None:
+        """Return to the settled state. Owed unconditionally, like `_reset`.
+
+        The context variable is reset by token rather than re-set to a computed
+        value: restoring the previous set is what makes nesting unwind correctly,
+        and a leaked marker would exempt every later read on this thread or task.
+        """
+        _active_transitions.reset(token)
+        self._transitioning = None
+        self._transition_owner = None
+
+    def _inside_transition(self) -> bool:
+        """Whether the calling code is part of this framework's in-flight transition."""
+        return self in _active_transitions.get()
+
     @contextmanager
     def _transition(self, label: str) -> Iterator[None]:
-        """Hold the transition lock, recording the owning thread."""
+        """Hold the transition lock, recording the owning thread and context."""
         self._refuse_reentry(label)
         with self._transition_lock:
-            self._transition_owner = threading.get_ident()
+            token = self._begin_transition(label)
             try:
                 yield
             finally:
-                self._transition_owner = None
+                self._end_transition(token)
 
     def start(self, base_dir: Path | str) -> Framework:
         """Boot the project rooted at `base_dir`.
@@ -351,7 +429,7 @@ class Framework:
         self._refuse_reentry("astart()")
         if not self._transition_lock.acquire(blocking=False):
             raise SpocError("Framework lifecycle transition already in progress")
-        self._transition_owner = threading.get_ident()
+        token = self._begin_transition("astart()")
         try:
             if self._started:
                 raise SpocError("Framework is already started")
@@ -367,7 +445,7 @@ class Framework:
             self._started = True
             return self
         finally:
-            self._transition_owner = None
+            self._end_transition(token)
             self._transition_lock.release()
 
     def shutdown(self) -> Framework:
@@ -395,7 +473,7 @@ class Framework:
         self._refuse_reentry("ashutdown()")
         if not self._transition_lock.acquire(blocking=False):
             raise SpocError("Framework lifecycle transition already in progress")
-        self._transition_owner = threading.get_ident()
+        token = self._begin_transition("ashutdown()")
         try:
             if not self._started:
                 return self
@@ -405,7 +483,7 @@ class Framework:
                 self._reset()
             return self
         finally:
-            self._transition_owner = None
+            self._end_transition(token)
             self._transition_lock.release()
 
     def _rollback(self) -> None:
