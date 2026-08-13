@@ -107,8 +107,10 @@ def _resolve_lines(manifest: Manifest, strict: bool) -> list[str]:
         )
 
     if not signatures:
-        # Strict mode over a project with no components: nothing to narrow.
-        return ["    pass"]
+        # Strict mode over a project with no components: nothing to narrow, and
+        # no `pass` either — the `objects` property emitted after this is the
+        # class body, so a filler statement would be dead the moment it landed.
+        return []
     if len(signatures) == 1:
         # A lone `@overload` is itself an error; emit it as a plain method. In
         # strict mode there is no decorator line for the suppression, so the
