@@ -309,7 +309,36 @@ def test_strict_omits_the_catch_all_overload(tmp_path):
     base = project(tmp_path)
     _, text, _ = render(base, strict=True)
     assert "identifier: str) -> Component[Any]" not in text
-    assert "reportIncompatibleMethodOverride" in text
+
+
+def test_strict_pins_its_suppression_where_mypy_anchors(tmp_path):
+    """mypy reads `[override]` suppressions on the first `@overload` decorator
+    line, not the `def` below it — the mis-anchored comment is exactly how a
+    strict stub shipped failing mypy. And no pyright suppression: pyright
+    reports nothing for this narrowing, and a comment no checker reads is a
+    claim the conformance gate cannot verify (worse, pyright flags unused
+    ignores under reportUnnecessaryTypeIgnoreComment)."""
+    base = project(tmp_path)
+    _, text, _ = render(base, strict=True)
+    assert "@overload  # type: ignore[override]" in text
+    assert text.count("type: ignore[override]") == 1
+    assert "pyright: ignore" not in text
+
+
+def test_strict_single_entry_pins_the_suppression_to_the_def_line(tmp_path):
+    """With one component there is no `@overload` line, and a comment trailing
+    a long one-line signature gets carried onto the `...` line by the
+    formatter, where mypy never reads it. The signature is emitted pre-broken
+    so the comment stays on the `def` line, which mypy honors there."""
+    apps = {"solo": {"models": CATALOG_MODELS}}
+    base = ProjectTree(apps=apps, config={"apps": {"development": ["solo"]}}).build(
+        tmp_path, "proj"
+    )
+    (base / "framework.py").write_text(textwrap.dedent(FRAMEWORK), encoding="utf-8")
+
+    _, text, _ = render(base, strict=True)
+    assert "def resolve(  # type: ignore[override]" in text
+    assert "    @overload" not in text
 
 
 # ── The composition root must be mirrorable ───────────────────────────────
@@ -384,6 +413,17 @@ def test_current_stub_verifies_and_is_untouched(tmp_path):
 
     assert result.ok and result.matched is True
     assert report.path.read_bytes() == before
+
+
+def test_strict_stub_verifies_under_the_strict_flag(tmp_path):
+    """`spoc stubs --check --strict` must give a committed strict stub the same
+    staleness detection the permissive path gets — and the modes must not be
+    confusable: a stub from one mode is stale under the other mode's check."""
+    base = project(tmp_path)
+    generate(base, strict=True)
+
+    assert verify(base, strict=True).matched is True
+    assert verify(base).matched is False
 
 
 def test_added_component_is_a_mismatch(tmp_path):

@@ -11,8 +11,8 @@ identifier. Permissive output keeps a trailing ``str`` overload, so identifiers
 built at runtime still resolve and the override stays signature-compatible with
 the base class. Strict output drops it, which is what turns a misspelled literal
 into a type error — and, because dropping it narrows the parameter type, also
-what makes the two suppression comments necessary. That trade is the whole
-difference between the modes.
+what makes the mypy suppression necessary. That trade is the whole difference
+between the modes.
 """
 
 from __future__ import annotations
@@ -36,11 +36,24 @@ _HEADER = (
 )
 
 #: Emitted on the strict override because dropping the ``str`` fallback narrows
-#: the parameter type relative to ``Framework.resolve``. Both checkers are named
-#: explicitly so neither silently keeps reporting it.
-_STRICT_SUPPRESSION = (
-    "  # type: ignore[override]  # pyright: ignore[reportIncompatibleMethodOverride]"
-)
+#: the parameter type relative to ``Framework.resolve``.
+#:
+#: One comment, for mypy alone, and its placement is load-bearing: mypy honors
+#: a suppression only on the line where it anchors ``[override]`` — the first
+#: ``@overload`` decorator when there is one, otherwise the ``def`` itself —
+#: while the formatter moves a comment trailing a long one-line signature onto
+#: the closing ``...`` line, where mypy never reads it. So the comment rides
+#: the decorator line, and the single-entry case pre-breaks its signature to
+#: pin the comment to the ``def`` line (a comment inside the parentheses also
+#: stops the formatter from re-joining the lines).
+#:
+#: pyright and ty report no incompatibility for this narrowing, so neither
+#: gets a suppression — a comment no checker reads is a claim the conformance
+#: gate cannot verify, and pyright flags unused ignores under
+#: ``reportUnnecessaryTypeIgnoreComment``. A checker that *starts* reporting
+#: fails the strict conformance leg, which is the detection point. Verified
+#: against mypy 2.3.0, pyright 1.1.411, ty 0.0.66.
+_STRICT_SUPPRESSION = "  # type: ignore[override]"
 
 
 def _is_stdlib(module: str) -> bool:
@@ -96,15 +109,25 @@ def _resolve_lines(manifest: Manifest, strict: bool) -> list[str]:
         # Strict mode over a project with no components: nothing to narrow.
         return ["    pass"]
     if len(signatures) == 1:
-        # A lone `@overload` is itself an error; emit it as a plain method.
-        only = signatures[0]
-        return [only + (_STRICT_SUPPRESSION if strict else "")]
+        # A lone `@overload` is itself an error; emit it as a plain method. In
+        # strict mode there is no decorator line for the suppression, so the
+        # signature is emitted pre-broken with the comment pinned to the `def`
+        # line — mypy anchors there, and appending it to a one-line signature
+        # would let the formatter carry it onto the `...` line instead.
+        if not strict:
+            return signatures
+        entry = manifest.entries[0]
+        return [
+            f"    def resolve({_STRICT_SUPPRESSION}",
+            f'        self, identifier: Literal["{entry.identifier}"]',
+            f"    ) -> Component[{entry.type_ref.expression}]: ...",
+        ]
 
     lines: list[str] = []
     for index, signature in enumerate(signatures):
-        lines.append("    @overload")
-        suffix = _STRICT_SUPPRESSION if strict and index == 0 else ""
-        lines.append(signature + suffix)
+        first = strict and index == 0
+        lines.append("    @overload" + (_STRICT_SUPPRESSION if first else ""))
+        lines.append(signature)
     return lines
 
 
