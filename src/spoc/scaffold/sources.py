@@ -56,15 +56,15 @@ def _parse_manifest(manifest_text: str, root: Path) -> TemplateSet:
     except tomllib.TOMLDecodeError as exc:  # pragma: no cover - malformed set
         raise IncompleteTemplateSetError(f"a readable {MANIFEST_NAME} ({exc})") from exc
 
-    meta = data.get("template_set")
-    if not isinstance(meta, dict):
+    template_set = data.get("template_set")
+    if not isinstance(template_set, dict):
         raise IncompleteTemplateSetError("a [template_set] table")
 
-    name = meta.get("name")
+    name = template_set.get("name")
     if not isinstance(name, str) or not name:
         raise IncompleteTemplateSetError("template_set.name")
 
-    values = meta.get("values")
+    values = template_set.get("values")
     if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
         raise IncompleteTemplateSetError("template_set.values")
 
