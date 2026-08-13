@@ -93,24 +93,44 @@ logic in it.
 
 ## Put the commands under your own name
 
-Your users may never type `spoc`. The `init` and `app` commands mount into any
+Your users may never type `spoc`. Every command SPOC ships mounts into any
 `argparse` parser, so you can publish them under your own console script:
 
 ```python
 import argparse
 
-from spoc.scaffold import cli as scaffold_cli
+from spoc.diagnostics import register as register_diagnostics
+from spoc.projection import register as register_projection
+from spoc.scaffold import register as register_scaffold
+from spoc.stubs import register as register_stubs
 
 parser = argparse.ArgumentParser(prog="hello")
 subcommands = parser.add_subparsers(dest="command", required=True)
-scaffold_cli.register(subcommands)
+
+register_scaffold(subcommands)
+register_diagnostics(subcommands)
+register_stubs(subcommands)
+register_projection(subcommands)
 
 print(sorted(subcommands.choices))
-#> ['app', 'init']
+#> ['app', 'check', 'explain', 'init', 'list', 'projection', 'stubs']
 ```
 
 Point your `[project.scripts]` entry at a `main()` that parses and dispatches to
-`args.handler(args)`, and your users get `hello init` and `hello app`.
+`args.handler(args)`, and your users get the whole line under your own name:
+`hello init` and `hello app` to generate, `hello check` to validate before
+runtime, `hello list` and `hello explain` to read the registry, `hello stubs`
+for editor autocomplete, and `hello projection` to hand the registry to another
+tool as JSON.
+
+Mount only what you want. Each `register` is independent and additive, so a
+framework that would rather own its own `check` can mount the other three and
+leave that one out.
+
+Mounting describes commands on your parser and does nothing else — it reads no
+arguments, writes no output, and never ends the process. Parsing, dispatch, and
+the exit code stay yours, which is what lets you rename, wrap, or refuse
+anything you mounted.
 
 Two arguments shape what the mounted commands can reach:
 
@@ -125,14 +145,21 @@ Two arguments shape what the mounted commands can reach:
 `spoc.cli` is the worked example of exactly this: it is a composition root that
 mounts each surface and injects both.
 
-!!! warning "Tiering"
+!!! info "Tiering"
 
-    `ENTRY_POINT_GROUP` and the `default` template set are **public** — the
-    template path above is a promised contract. `scaffold.cli.register` is
-    currently **internal**: it works, `spoc`'s own CLI is built on it, and it is
-    not yet covered by the [stability policy](../api/stability.md). If you mount
-    it, pin your SPOC version. Promoting it to a tiered mount point is an open
-    question recorded in `DECISIONS.md`.
+    `ENTRY_POINT_GROUP` and the `default` template set are **public**, so the
+    template path above is a promised contract. All four `register` functions are
+    **provisional** under the [stability policy](../api/stability.md): documented
+    and intended for exactly this use, breakable in a minor release but never in
+    a patch. Pin a minor line, not an exact version.
+
+    What is promised is which commands each mount contributes and what invoking
+    them does. What is *not* promised is the type of `subcommands` — that belongs
+    to `argparse`, and guaranteeing it would commit your framework to `argparse`
+    as firmly as it commits SPOC. The tier settles once a framework outside SPOC
+    has actually mounted these, which fixes the shape against a real second
+    caller, or once SPOC commits to a parser choice and the mount can take a type
+    it owns.
 
 ## Give your users types
 
