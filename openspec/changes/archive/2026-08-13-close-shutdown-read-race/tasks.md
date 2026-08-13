@@ -83,4 +83,5 @@
 
 - [x] 7.1 Run `task check` and read the exit code directly
 - [x] 7.2 Confirm `apidiff` reports the added public name and no `violated:` line
-- [ ] 7.3 Run `/opsx:sync`, then archive with `openspec archive -y --skip-specs`
+- [x] 7.3 Synced both deltas into the main specs (28 validate, up from 28 with two
+      modified and three added requirements), then archived with `--skip-specs`
