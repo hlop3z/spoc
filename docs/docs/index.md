@@ -109,6 +109,11 @@ It never runs them. The web server, the CLI, the worker — those are thin
 layers *you* build by reading the shelf. That keeps SPOC small, and it keeps
 you in charge.
 
+So SPOC replaces nothing you already use. FastAPI still serves your HTTP,
+Typer still parses your argv, Celery still runs your jobs, pytest still runs
+your tests. SPOC answers the one question none of them answer: *what does
+this app contain, and under what name?*
+
 - **Zero dependencies.** The core is pure standard library.
 - **Loud failures.** A typo never boots a half-working project; you get an
   error that names exactly what went wrong.
