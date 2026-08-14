@@ -13,6 +13,7 @@ below, which is why an `init` command can be had without reimplementing one.
 
 import tomllib
 from dataclasses import replace
+from functools import cache
 from importlib import metadata, resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
@@ -120,8 +121,16 @@ def _builtin_traversable(name: str) -> Traversable:
     return resources.files("spoc.scaffold") / "templates" / name
 
 
+@cache
 def _entry_points() -> dict[str, metadata.EntryPoint]:
-    """Template sets registered by downstream frameworks, by name."""
+    """Template sets registered by downstream frameworks, by name.
+
+    Cached because the answer cannot change: entry points are declared by the
+    distributions installed in this interpreter, and nothing installs one
+    mid-process. Reading them scans every installed distribution's metadata off
+    disk, and one not-found load asked three times — once to look the name up,
+    twice more building the error's candidate list.
+    """
     try:
         found = metadata.entry_points(group=ENTRY_POINT_GROUP)
     except Exception:  # pragma: no cover - defensive against metadata backends
