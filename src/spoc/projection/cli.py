@@ -33,7 +33,7 @@ def _run_projection(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subcommands: argparse._SubParsersAction) -> None:
+def register(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Mount ``projection`` on a parser you own.
 
     Lets a framework built on SPOC hand its own users the registry as data under

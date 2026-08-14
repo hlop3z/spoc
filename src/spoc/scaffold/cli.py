@@ -11,6 +11,8 @@ via :func:`register`.
 inside a package whose published dependency set is empty.
 """
 
+from __future__ import annotations
+
 import argparse
 from collections.abc import Callable
 from pathlib import Path
@@ -124,7 +126,7 @@ _TEMPLATE_HELP = (
 
 
 def register(
-    subcommands: argparse._SubParsersAction,
+    subcommands: argparse._SubParsersAction[argparse.ArgumentParser],
     derive_kinds: DeriveKinds | None = None,
     source_factory: SourceFactory | None = None,
 ) -> None:

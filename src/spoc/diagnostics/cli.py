@@ -68,7 +68,7 @@ def _run_explain(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subcommands: argparse._SubParsersAction) -> None:
+def register(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Mount ``check``/``list``/``explain`` on a parser you own.
 
     The inspection half of what a framework built on SPOC publishes under its own

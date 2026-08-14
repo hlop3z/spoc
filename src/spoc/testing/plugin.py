@@ -56,7 +56,10 @@ def spoc_isolated() -> Callable[..., AbstractContextManager[Any]]:
 
 
 @pytest.fixture
-def spoc_framework(spoc_tree, spoc_isolated) -> Iterator[Callable[..., Any]]:
+def spoc_framework(
+    spoc_tree: Callable[..., Path],
+    spoc_isolated: Callable[..., AbstractContextManager[Any]],
+) -> Iterator[Callable[..., Any]]:
     """One-call convenience: build a tree and yield a started framework.
 
     ::

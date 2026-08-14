@@ -221,6 +221,47 @@ unresolved-attribute = "ignore"
 call-non-callable = "ignore"
 unresolved-import = "ignore"
 
+# The second reading of `src/`, beside ty. ty is beta at 0.0.x and runs in no
+# user's editor; mypy is the reference implementation of PEP 484 checking and the
+# most widely deployed CLI checker, so the published annotations — this package
+# ships `py.typed` and claims `Typing :: Typed` — are verified by something mature.
+# Strict from the first commit rather than ratcheted: the gap it had to close was 34
+# errors, small enough to close once instead of twice. Where the two checkers
+# disagree, the disagreement is a finding about the source, never something to fix
+# by loosening whichever one reported it.
+[tool.mypy]
+strict = true
+files = ["src/spoc"]
+# The supported floor, not the interpreter that happens to run the check — an
+# error that only appears on 3.14 is not a 3.12 user's problem to discover.
+python_version = "3.12"
+# Same reason as ruff's and ty's exclusions: the conformance fixture is its own
+# project with its own import root, and its own gate checks it with three checkers.
+exclude = ["tests/conformance"]
+
+# The PEP 702 fallback is deliberately dynamic: it patches `__new__`, stamps
+# `__deprecated__`, and returns a wrapper typed as the object it wraps. No gradual
+# type system models that faithfully — which is a large part of why the decorator
+# belongs in the standard library and is only hand-written here to cover 3.12. The
+# same escape ty carries, for the same reason, scoped to the same one file, behind
+# the same 19 tests that exercise both paths.
+# Only the codes the dynamism actually raises: patching `__new__` on an arbitrary
+# class (assignment, attr-defined, call-overload, comparison-overlap) and calling and
+# returning an arbitrary `_T` through `functools.wraps` (arg-type, operator,
+# return-value). Everything else stays strict here — the file's own annotations are
+# checked like any other module's, and its nested functions carry them.
+[[tool.mypy.overrides]]
+module = ["spoc.core.deprecation"]
+disable_error_code = [
+    "arg-type",
+    "assignment",
+    "attr-defined",
+    "call-overload",
+    "comparison-overlap",
+    "operator",
+    "return-value",
+]
+
 # The pytest plugin executes only inside pytester *subprocesses* (see
 # tests/test_testing.py), which the coverage tracer does not measure — its
 # behavior is asserted there, so 0% here would be noise, not signal.
@@ -258,6 +299,10 @@ dev = [
     # second independent reading. Dev-only; `dependencies` above stays empty.
     "mypy>=1.13",
     "pyright>=1.1.390",
+    # `xmltodict` ships no types of its own, and the XML codec is the one place
+    # `src/` reads a third-party API. Stub-only distribution, dev-only, so the
+    # published dependency set is untouched — the extra itself stays optional.
+    "types-xmltodict>=0.14",
     # The formats suite exercises the real codecs and simulates a *missing*
     # extra with a stub factory — so the extras must be present for the suite
     # to mean anything. Declared here rather than as a CI flag: `uv sync`

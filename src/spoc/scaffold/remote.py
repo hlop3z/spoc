@@ -93,7 +93,7 @@ def _get(url: str, reference: Reference, *, accept: str | None = None) -> bytes:
             # the buffer, and no response header is consulted for anything else —
             # in particular not Content-Disposition, which is how Django's
             # August 2026 arbitrary-write advisory happened.
-            payload = response.read(MAX_TRANSFER_BYTES + 1)
+            payload: bytes = response.read(MAX_TRANSFER_BYTES + 1)
     except InsecureRedirectError:
         raise
     except urllib.error.HTTPError as exc:
