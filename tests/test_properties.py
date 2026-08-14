@@ -121,23 +121,58 @@ def test_segment_rejection_never_converts(junk):
 # over a notional root serves every example.
 _RETENTION = DirectoryCache(Path("/retained"))
 
+_ANY = st.text(max_size=40)
+
+# Two independently drawn strings almost never differ only by case or only by a
+# trailing dot, so an independent search leaves the colliding region effectively
+# unvisited — it took ~2000 examples to find a pair, which is how this class
+# stayed hidden behind a passing test. Pairs are drawn two ways: independently
+# for breadth, and a revision beside a neighbour of itself for depth.
+_NEIGHBOURS = st.text(alphabet="aA1.-_/", max_size=6).flatmap(
+    lambda base: st.tuples(
+        st.just(base),
+        st.sampled_from(
+            [base.swapcase(), base.upper(), base.lower(), f"{base}.", f"{base} "]
+        ),
+    )
+)
+_PAIRS = st.one_of(st.tuples(_ANY, _ANY), _NEIGHBOURS)
+
+
+def _as_the_store_sees_it(entry: Path) -> str:
+    """An entry name under the coarsest sameness any declared platform applies.
+
+    Comparing paths models one host, and only partly: path equality folds case
+    where the tests happen to run on Windows, while nothing in it drops the
+    trailing dot that the same filesystem drops. Both foldings are stated here,
+    so the property holds for a cache directory written under one host's rules
+    and later read under another's — and widening the model is one edit.
+    """
+    return entry.name.lower().rstrip(". ")
+
 
 @settings(max_examples=500)
-@given(left=st.text(max_size=40), right=st.text(max_size=40))
-def test_distinct_revisions_never_share_retained_content(left, right):
+@given(pair=_PAIRS)
+def test_distinct_revisions_never_share_retained_content(pair):
     """Injectivity, over the whole input space rather than the cases we picked.
 
     This is the property the old mapping violated: filtering a revision to
     path-safe characters made `feature/x` and `featurex` the same entry, so one
     revision could be served the other's content. Examples never found it —
     nobody thought to pick that pair (spec: remote-template-acquisition).
+
+    Distinctness is the store's judgement, not the strings': two names a store
+    would hold in one location are one location, whatever they look like here.
     """
+    left, right = pair
     assume(left != right)
-    assert _RETENTION._entry(left) != _RETENTION._entry(right)
+    assert _as_the_store_sees_it(_RETENTION._entry(left)) != _as_the_store_sees_it(
+        _RETENTION._entry(right)
+    )
 
 
 @settings(max_examples=500)
-@given(revision=st.text(max_size=40))
+@given(revision=_ANY)
 def test_no_revision_designates_a_location_outside_the_root(revision):
     """A revision arrives as a path segment, so no revision may traverse out of
     the retention root — whatever it contains."""
