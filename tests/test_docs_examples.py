@@ -1,4 +1,8 @@
-"""Every Python fence under ``docs/docs/`` runs, or says why it doesn't.
+"""Every Python fence under ``docs/docs/`` and in ``README.md`` runs, or says why.
+
+The README is collected alongside the site's pages on purpose: it is the first
+document a reader meets and the distribution's long description, so it is the
+one page a broken example hurts most (`documentation-integrity` spec).
 
 The docs snippet policy (docs-dx, `documentation-integrity` spec) — every
 Python fence is in exactly one state, and silence is not one of them:
@@ -54,7 +58,9 @@ from pathlib import Path
 import pytest
 from pytest_examples import CodeExample, EvalExample, find_examples
 
-DOCS_DIR = Path(__file__).parent.parent / "docs" / "docs"
+REPO_ROOT = Path(__file__).parent.parent
+DOCS_DIR = REPO_ROOT / "docs" / "docs"
+README = REPO_ROOT / "README.md"
 
 # A reasoned ceiling, not an escape hatch: raising it is a visible diff the
 # review must justify (design D2). The six: two lifecycle call-shape
@@ -89,7 +95,7 @@ def _is_skip(example: CodeExample) -> bool:
 # would hang on it; test_framework_tutorial drives it end-to-end instead.
 TUTORIAL_PAGE = DOCS_DIR / "learn" / "build-a-framework.md"
 
-ALL_EXAMPLES = list(find_examples(str(DOCS_DIR)))
+ALL_EXAMPLES = list(find_examples(str(DOCS_DIR), str(README)))
 STANDALONE = [ex for ex in ALL_EXAMPLES if _title(ex) is None]
 TREE_PAGES = sorted(
     {ex.path for ex in ALL_EXAMPLES if _title(ex) is not None and not _is_skip(ex)}
@@ -137,6 +143,10 @@ def _utf8_example_files(monkeypatch: pytest.MonkeyPatch):
 def test_examples_are_collected():
     """A path or glob regression must not turn this suite vacuous."""
     assert ALL_EXAMPLES, f"no Python fences found under {DOCS_DIR}"
+    assert any(ex.path == README for ex in ALL_EXAMPLES), (
+        f"no Python fences collected from {README.name} — the front page dropped "
+        "out of the gate"
+    )
 
 
 @pytest.mark.parametrize("example", STANDALONE, ids=str)
@@ -150,7 +160,7 @@ def test_standalone_snippet(example: CodeExample, eval_example: EvalExample):
 
 
 @pytest.mark.parametrize(
-    "page", TREE_PAGES, ids=lambda p: str(p.relative_to(DOCS_DIR)).replace("\\", "/")
+    "page", TREE_PAGES, ids=lambda p: str(p.relative_to(REPO_ROOT)).replace("\\", "/")
 )
 def test_page_project(page: Path, tmp_path: Path):
     files = _page_files(page)
@@ -223,10 +233,18 @@ def test_framework_tutorial(tmp_path: Path):
 
 
 @pytest.mark.parametrize(
-    "page_path", ["index.md", "getting-started/starter.md"], ids=lambda p: p
+    "page_path",
+    [
+        "docs/docs/index.md",
+        "docs/docs/getting-started/starter.md",
+        # The README is the project's most-read page and the distribution's
+        # long description; its displayed payoff is held to the same bar.
+        "README.md",
+    ],
+    ids=lambda p: p,
 )
 def test_displayed_starter_help_is_real(page_path: str, tmp_path: Path):
-    """The `--help` output the docs display is the generated starter's, verbatim.
+    """The `--help` output a page displays is the generated starter's, verbatim.
 
     Generates the real starter (builtin set, offline), runs its entry point,
     and compares against the page's displayed block — the landing payoff
@@ -234,7 +252,7 @@ def test_displayed_starter_help_is_real(page_path: str, tmp_path: Path):
     """
     import os
 
-    page = (DOCS_DIR / Path(*page_path.split("/"))).read_text("utf-8")
+    page = (REPO_ROOT / Path(*page_path.split("/"))).read_text("utf-8")
     match = re.search(r"^usage: myproject.*?(?=\n```)", page, re.MULTILINE | re.DOTALL)
     assert match, f"{page_path} lost its starter --help block"
     displayed = match.group(0)
