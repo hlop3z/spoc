@@ -21,11 +21,13 @@ import tempfile
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
-#: A revision usable as a path segment exactly as it stands. Deliberately narrow:
-#: it admits the hexadecimal digests and tag-shaped names revisions actually take,
-#: and nothing that carries a separator, a wildcard, or a platform's reserved
-#: punctuation. Anything outside it is named by its digest instead — never filtered
-#: into this shape, which is what would let two revisions share one entry.
+#: The characters a revision may carry to be usable as a path segment at all.
+#: Deliberately narrow: it admits the hexadecimal digests and tag-shaped names
+#: revisions actually take, and nothing that carries a separator, a wildcard, or a
+#: platform's reserved punctuation. Necessary but not sufficient — a store may still
+#: fold two of these names together, which is what :func:`_is_held_faithfully` adds.
+#: Anything outside it is named by its digest instead — never filtered into this
+#: shape, which is what would let two revisions share one entry.
 _SAFE_SEGMENT = re.compile(r"[A-Za-z0-9._-]+")
 
 #: Directory name used under whichever platform cache root applies.
@@ -34,6 +36,27 @@ APPLICATION_NAME = "spoc"
 #: Subdirectory holding retrieved template sets, so the cache root stays usable
 #: for anything else the kernel may retain later.
 TEMPLATES_DIR = "templates"
+
+
+def _is_held_faithfully(revision: str) -> bool:
+    """Whether a store is guaranteed to hold this revision under the name given.
+
+    Usable as a path segment is not the same as held under that name, and the
+    difference is where two revisions come to share one entry. A store that folds
+    case holds ``Rev`` and ``rev`` in one place; one that drops a trailing dot
+    holds ``v1.`` and ``v1`` in one. Both are ordinary developer machines, so the
+    test is made of what every declared platform holds unaltered, not of what the
+    running one happens to: no uppercase letter, no trailing dot.
+
+    ``.`` and ``..`` are named as well as excluded by the trailing dot, so
+    relaxing one rule later cannot quietly reintroduce a traversal.
+    """
+    return bool(
+        _SAFE_SEGMENT.fullmatch(revision)
+        and revision not in {".", ".."}
+        and not revision.endswith(".")
+        and revision == revision.lower()
+    )
 
 
 def cache_root_for(platform: str, environ: Mapping[str, str], home: Path) -> Path:
@@ -97,18 +120,24 @@ class DirectoryCache:
         the other's content — the single thing a cache keyed by an immutable
         revision must never do.
 
-        So the mapping is total instead. A revision already usable as a segment
-        is used verbatim, which is every revision reachable through the reference
-        grammar today; anything else is named by its digest. Distinct revisions
-        therefore keep distinct entries whatever they contain, and nothing that
-        was retained before this mapping is invalidated by it.
+        So the mapping is total instead. A revision the store holds under the
+        name given (:func:`_is_held_faithfully`) is used verbatim, which covers
+        the commit digests and tag shapes references resolve to; every other
+        revision is named by its digest. Distinct revisions therefore keep
+        distinct entries — distinct as the store judges it, not merely as the
+        strings differ, which is the stronger claim this has to make.
+
+        A revision that was retained verbatim under a name the store does not
+        hold faithfully — a mixed-case tag, or one ending in a dot — is retained
+        again under its digest, once. A cache miss costs a retrieval; the
+        collision it replaces cost correctness.
 
         An empty revision cannot arrive here through a load — `RemoteTemplateSource`
         refuses it where the reference is still known, which makes for a message the
         caller can act on — so this maps it like anything else rather than restating
         that refusal in a place with less to say.
         """
-        if _SAFE_SEGMENT.fullmatch(revision) and revision not in {".", ".."}:
+        if _is_held_faithfully(revision):
             return self.root / revision
         digest = hashlib.sha256(revision.encode("utf-8")).hexdigest()
         return self.root / f"rev-{digest[:32]}"
