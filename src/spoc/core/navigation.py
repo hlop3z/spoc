@@ -82,23 +82,32 @@ class _Level:
         return _Level(self._registry, matched)
 
     def _into_namespace(self, name: str) -> _Level:
+        kind = str(self._kind)
+        if self._registry.holds(kind, name):
+            return _Level(self._registry, self._kind, name)
         namespaces = self._namespaces()
         matched = _match(name, namespaces)
         if matched is None:
-            raise UnknownNamespaceError(name, str(self._kind), namespaces)
+            raise UnknownNamespaceError(name, kind, namespaces)
         return _Level(self._registry, self._kind, matched)
 
     def _into_component(self, name: str) -> Component[Any]:
-        candidates = self._object_names()
-        matched = _match(name, candidates)
-        if matched is None:
-            raise UnknownObjectError(
-                name, str(self._kind), str(self._namespace), candidates
-            )
+        kind, namespace = str(self._kind), str(self._namespace)
+        # The overwhelmingly common step is the one that succeeds under the name
+        # as written, and answering it needs one membership question, not the
+        # facet's names in order. The ordered read below is what a failure needs
+        # — to name the candidates — and what an escaped spelling needs, since
+        # matching those means comparing against each one.
+        matched: str | None = name
+        if not self._registry.holds(kind, namespace, name):
+            candidates = self._object_names()
+            matched = _match(name, candidates)
+            if matched is None:
+                raise UnknownObjectError(name, kind, namespace, candidates)
         # Composed rather than searched: the identifier is the canonical route,
         # and resolving it here is what makes navigation and resolution the same
         # lookup rather than two implementations that agree by testing.
-        return self._registry.resolve(f"{self._kind}:{self._namespace}.{matched}")
+        return self._registry.resolve(f"{kind}:{namespace}.{matched}")
 
     # ── Reflection: what an editor, `dir()`, and a human get ──────────────
 
@@ -124,18 +133,10 @@ class _Level:
     # ── Reading the store, once per question ──────────────────────────────
 
     def _namespaces(self) -> tuple[str, ...]:
-        return tuple(
-            sorted({c.namespace for c in self._registry.all() if c.kind == self._kind})
-        )
+        return self._registry.namespaces(self._kind)
 
     def _object_names(self) -> tuple[str, ...]:
-        return tuple(
-            sorted(
-                c.object_name
-                for c in self._registry.all()
-                if c.kind == self._kind and c.namespace == self._namespace
-            )
-        )
+        return self._registry.object_names(str(self._kind), str(self._namespace))
 
 
 def _match(attribute: str, names: tuple[str, ...]) -> str | None:
