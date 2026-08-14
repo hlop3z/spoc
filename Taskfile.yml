@@ -92,9 +92,14 @@ tasks:
   # Type Checking
   # =============================================================================
   type:
-    desc: Run type checker (ty)
+    desc: Run type checkers (ty + mypy strict)
     cmds:
       - uv run ty check {{.CLI_ARGS}}
+      # Two readings of the same source: ty is this project's checker but is beta
+      # at 0.0.x and runs in no user's editor; mypy is the mature one users have.
+      # A disagreement is a finding about the source, never a reason to loosen
+      # whichever checker reported it. Files are pinned by [tool.mypy].
+      - uv run mypy
 
   # =============================================================================
   # Quality Checks (All-in-one)
