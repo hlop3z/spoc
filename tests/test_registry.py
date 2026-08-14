@@ -3,8 +3,15 @@ Tests for the flat registry and resolution
 (specs: component-registry, component-resolution).
 """
 
+import ast
+import time
+from collections.abc import Callable
+from pathlib import Path
+from typing import ClassVar
+
 import pytest
 
+import spoc.core.registry as registry_module
 from spoc.core.exceptions import (
     DuplicateComponentError,
     IdentityDivergenceError,
@@ -14,6 +21,7 @@ from spoc.core.exceptions import (
     UnknownNamespaceError,
     UnknownObjectError,
 )
+from spoc.core.navigation import navigator
 from spoc.core.registry import Component, Registry
 
 
@@ -283,3 +291,176 @@ class TestSharedValueIdentity:
         registry.add("models", "blog", "post", obj)
         with pytest.raises(IdentityDivergenceError):
             registry.add("models", "shop", "post", obj)
+
+
+# ── Reading one facet does not pay for the rest ───────────────────────────
+
+
+def _build(target_names: int, unrelated: int) -> Registry:
+    """A registry holding one target facet plus `unrelated` components elsewhere.
+
+    The filler goes in a *different kind*, so it can never be part of any answer
+    the measurements below ask for. Anything it costs a reader is waste.
+    """
+    registry = Registry(("models", "views"))
+    for i in range(target_names):
+        registry.add("models", "target", f"obj{i}", object())
+    for i in range(unrelated):
+        registry.add("views", f"filler{i // 100}", f"obj{i}", object())
+    return registry
+
+
+def _fastest(
+    operation: Callable[[], object], rounds: int = 5, calls: int = 20
+) -> float:
+    """The fastest observed time for `operation`, in seconds per call.
+
+    Minimum rather than mean: a timing sample is the true cost plus scheduler
+    noise, which is never negative, so the smallest sample is the closest to
+    what the code costs. That is what makes this stable enough to assert on.
+    """
+    best = float("inf")
+    for _ in range(rounds):
+        start = time.perf_counter()
+        for _ in range(calls):
+            operation()
+        best = min(best, (time.perf_counter() - start) / calls)
+    return best
+
+
+#: How much unrelated data the loaded registry carries, as a multiple of the
+#: facet being read. A reader that scans the whole store pays about this much
+#: more; one that reads its facet pays about the same.
+_UNRELATED_MULTIPLE = 50
+
+#: The ceiling on that ratio. An order of magnitude below the scan's own factor
+#: and an order of magnitude above an indexed read's, so neither machine speed
+#: nor scheduler noise decides the outcome — only which implementation is there.
+_MAX_RATIO = 5.0
+
+_FACET_NAMES = 200
+
+
+@pytest.mark.parametrize(
+    ("what", "read"),
+    [
+        ("navigation walk", lambda r: navigator(r).models.target.obj0),
+        ("by_kind", lambda r: r.by_kind("models")),
+        ("namespaces of a kind", lambda r: r.namespaces("models")),
+    ],
+)
+def test_reading_one_facet_does_not_pay_for_the_rest(what, read):
+    """Cost tracks the facet, not the registry (spec: component-registry).
+
+    Both registries answer these reads *identically* — the filler is another
+    kind's. So the ratio measures only what the reader touched on the way to the
+    same answer, which is the property the spec states and the reason a user can
+    trust `objects.a.b.c` to cost what `resolve("a:b.c")` costs.
+    """
+    light = _build(_FACET_NAMES, 0)
+    loaded = _build(_FACET_NAMES, _FACET_NAMES * _UNRELATED_MULTIPLE)
+
+    ratio = _fastest(lambda: read(loaded)) / _fastest(lambda: read(light))
+
+    assert ratio < _MAX_RATIO, (
+        f"{what} costs {ratio:.1f}x more with {_UNRELATED_MULTIPLE}x unrelated "
+        f"components registered elsewhere — the read is walking the whole "
+        f"registry instead of its own facet"
+    )
+
+
+class TestOneWriter:
+    """The registry has exactly one mutator, and that is checked, not trusted.
+
+    Facet drift is unrepresentable by construction: a facet *is* a
+    sub-dictionary of the one store, so there is no second structure to fall out
+    of step. The identity map beside it is the exception — it answers the
+    inverse question and cannot be read off the store — so the guarantee it
+    needs is procedural, and a procedural guarantee is only as good as what
+    enforces it. This is what enforces it.
+    """
+
+    #: Every attribute holding registry state. A new one must join this list,
+    #: which is the moment to ask whether it can drift from the store.
+    STATE: ClassVar[tuple[str, ...]] = ("_components", "_count", "_identifier_of")
+
+    #: The only place allowed to write them.
+    WRITERS: ClassVar[set[str]] = {"__init__", "_admit"}
+
+    def _mutating_methods(self) -> dict[str, set[str]]:
+        """Method name → the state attributes it writes, by reading the source."""
+        source = Path(registry_module.__file__).read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        registry_class = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef) and node.name == "Registry"
+        )
+        found: dict[str, set[str]] = {}
+        for method in registry_class.body:
+            if not isinstance(method, ast.FunctionDef):
+                continue
+            for node in ast.walk(method):
+                touched = self._state_written_by(node)
+                if touched:
+                    found.setdefault(method.name, set()).update(touched)
+        return found
+
+    def _state_written_by(self, node: ast.AST) -> set[str]:
+        """The state attributes this node writes, if any."""
+        targets: list[ast.expr] = []
+        if isinstance(node, ast.Assign):
+            targets = list(node.targets)
+        elif isinstance(node, ast.AugAssign | ast.AnnAssign):
+            targets = [node.target]
+        elif isinstance(node, ast.Delete):
+            targets = list(node.targets)
+        elif isinstance(node, ast.Call):
+            # `self._components.setdefault(...)` and friends mutate in place.
+            attr = node.func
+            if isinstance(attr, ast.Attribute) and attr.attr in {
+                "setdefault",
+                "pop",
+                "update",
+                "clear",
+            }:
+                targets = [attr.value]
+        return {name for target in targets for name in self._state_reached(target)}
+
+    def _state_reached(self, node: ast.expr) -> set[str]:
+        """State attribute names reachable as the root of this expression."""
+        while isinstance(node, ast.Subscript | ast.Attribute):
+            if (
+                isinstance(node, ast.Attribute)
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "self"
+            ):
+                return {node.attr} & set(self.STATE)
+            node = node.value
+        return set()
+
+    def test_every_state_attribute_is_written_in_one_place_only(self):
+        writers = self._mutating_methods()
+        unexpected = {
+            method: sorted(attrs)
+            for method, attrs in writers.items()
+            if method not in self.WRITERS
+        }
+        assert not unexpected, (
+            f"registry state is written outside {sorted(self.WRITERS)}: {unexpected}. "
+            "Every write belongs in `_admit`, so a record cannot become visible "
+            "through one read and not another. If this is a deliberate new writer, "
+            "it needs its own atomicity argument before this list grows."
+        )
+
+    def test_the_declared_state_is_the_real_state(self):
+        """The list above cannot silently fall behind the class it describes."""
+        actual = {
+            name
+            for name in vars(Registry(("models",)))
+            if name not in {"_kinds", "_lock"}
+        }
+        assert actual == set(self.STATE), (
+            f"registry state changed: {sorted(actual)} != {sorted(self.STATE)} — "
+            "add it to STATE and decide whether it can drift from the store"
+        )

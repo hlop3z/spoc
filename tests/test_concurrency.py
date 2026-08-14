@@ -264,3 +264,43 @@ def test_shutdown_racing_shutdown_is_harmless(tmp_path):
             assert f.result() is fw
 
     assert fw.started is False
+
+
+def test_no_facet_is_observable_without_the_others():
+    """A registration is admitted to every view at once (spec: single flat store).
+
+    The index exists so a faceted read need not walk the store; it earns that
+    only by being unobservable in a half-written state. Readers run flat out
+    against writers and assert the views agree about every record they see.
+    """
+    registry = Registry(("models", "views"))
+    total = 300
+    disagreements: list[str] = []
+    done = threading.Event()
+
+    def write():
+        for i in range(total):
+            registry.add("models", f"ns{i % 7}", f"obj{i}", object())
+        done.set()
+
+    def read():
+        while not done.is_set():
+            for record in registry.by_kind("models"):
+                if registry.resolve(record.identifier) is not record:
+                    disagreements.append(f"{record.identifier}: facet vs store")
+                if record.object_name not in registry.object_names(
+                    record.kind, record.namespace
+                ):
+                    disagreements.append(f"{record.identifier}: absent from its facet")
+                if not registry.holds(
+                    record.kind, record.namespace, record.object_name
+                ):
+                    disagreements.append(f"{record.identifier}: not held")
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [pool.submit(write), *(pool.submit(read) for _ in range(3))]
+        for future in futures:
+            future.result()
+
+    assert not disagreements, disagreements[:5]
+    assert len(registry) == total
