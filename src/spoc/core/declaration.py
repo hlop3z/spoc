@@ -87,10 +87,24 @@ def check_metadata(spec: KindSpec, obj_name: str, metadata: Any) -> Any:
     return metadata
 
 
+@overload
+def component[T](
+    obj: T, /, *, kind: str, name: str | None = None, metadata: Any = None
+) -> T: ...
+@overload
+def component(
+    obj: None = None, *, kind: str, name: str | None = None, metadata: Any = None
+) -> Decorator: ...
 def component(
     obj: Any = None, *, kind: str, name: str | None = None, metadata: Any = None
 ) -> Any:
-    """Low-level marker: attach an :class:`Internal` to an object."""
+    """Low-level marker: attach an :class:`Internal` to an object.
+
+    Typed like a kind's handle, and for the reason :class:`KindHandle` records:
+    marking returns the same object, so erasing its type here would erase every
+    decorated class at its declaration site — and a stub derived from that would
+    promise ``type[Any]`` while every runtime assertion still passed.
+    """
 
     def decorator(target: Any) -> Any:
         if target is None:
@@ -155,7 +169,11 @@ def registrar(spec: KindSpec) -> KindHandle:
         obj: Any = None, *, name: str | None = None, metadata: Any = None
     ) -> Any:
         def decorator(target: Any) -> Any:
-            label = name or getattr(target, "__name__", repr(target))
+            # `getattr` is typed `Any` whatever the attribute is, and both arms
+            # here are text — `__name__` where the target has one, its `repr`
+            # where it does not.
+            derived = cast("str", getattr(target, "__name__", repr(target)))
+            label = name or derived
             check_metadata(spec, label, metadata)
             return component(target, kind=spec.name, name=name, metadata=metadata)
 
