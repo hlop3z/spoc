@@ -17,7 +17,7 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, cast
 
 from .core import READ, WRITE, FormatRegistry
 from .errors import (
@@ -47,7 +47,10 @@ def dumps(registry: FormatRegistry, value: Any, format: str, **options: Any) -> 
     """
     encode = registry.function(format, WRITE)
     try:
-        return encode(value, **options)
+        # The codec is resolved by name at run time, so nothing static types what it
+        # returns. Text is this function's own contract, and every registered writer
+        # is registered against it.
+        return cast("str", encode(value, **options))
     except FormatError:
         raise
     except Exception as exc:

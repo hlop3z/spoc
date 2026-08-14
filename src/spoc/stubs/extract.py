@@ -80,8 +80,11 @@ def _named_type(state: _Render, tp: type) -> str:
         return tp.__name__
     if tp is type(None):
         return "None"
-    module = getattr(tp, "__module__", None)
-    qualname = getattr(tp, "__qualname__", None)
+    # Declared, not cast: a three-argument `getattr` is typed `Any` whatever the
+    # attribute is, and these two are strings or absent. Saying so is what lets the
+    # guard below narrow them for the returns that follow.
+    module: str | None = getattr(tp, "__module__", None)
+    qualname: str | None = getattr(tp, "__qualname__", None)
     if not module or not qualname or "<locals>" in qualname:
         # Locally-defined or introspection-hostile: nothing importable to name.
         state.degraded = True
@@ -121,10 +124,14 @@ def _render(state: _Render, annotation: Any) -> str:
     if origin is Literal:
         return f"Literal[{', '.join(repr(a) for a in args)}]"
     if origin in _BUILTIN_GENERICS:
+        # `get_origin` is typed `Any` — the introspection boundary returns whatever
+        # the annotation was built from. Membership in `_BUILTIN_GENERICS`, a
+        # `frozenset[type]`, is the check that this one is a class.
+        name = typing.cast("type", origin).__name__
         if not args:
-            return origin.__name__
+            return name
         rendered = ", ".join(_render(state, a) for a in args)
-        return f"{origin.__name__}[{rendered}]"
+        return f"{name}[{rendered}]"
     if origin is Callable or origin is typing.Callable:
         return _render_callable_generic(state, args)
 

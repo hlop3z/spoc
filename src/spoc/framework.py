@@ -38,7 +38,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from .core.config import (
     DEFAULT_MODE,
@@ -372,7 +372,11 @@ class Framework:
             raise ComponentShapeError(
                 identifier, "a value or a callable", shape_prose(obj)
             )
-        return obj
+        # The registry holds components as `Any` by design, and this accessor's
+        # contract is that `contract` is checked statically at the call site rather
+        # than re-answered here — the docstring above says so. The cast is where
+        # that documented division lands in the type system.
+        return cast("T", obj)
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
@@ -584,8 +588,8 @@ class Framework:
         self._register_plugins(self.config.project, owners, entries)
         self._register_apps(entries)
 
-        for entry in self.loader.ordered():
-            discover(self.registry, entry.module, entry.name, entry.namespace)
+        for loaded in self.loader.ordered():
+            discover(self.registry, loaded.module, loaded.name, loaded.namespace)
         for callback in self._ready_callbacks:
             callback(self.registry)
 

@@ -44,7 +44,7 @@ def _fallback_deprecated(
         if isinstance(arg, type):
             original_new = arg.__new__
 
-            def patched_new(cls, *args: Any, **kwargs: Any):
+            def patched_new(cls: type[Any], *args: Any, **kwargs: Any) -> Any:
                 if category is not None:
                     warnings.warn(message, category=category, stacklevel=stacklevel + 1)
                 # object.__new__ rejects extra arguments when __init__ is overridden.
@@ -57,7 +57,7 @@ def _fallback_deprecated(
             return arg
 
         @functools.wraps(arg)
-        def wrapper(*args: Any, **kwargs: Any):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             if category is not None:
                 warnings.warn(message, category=category, stacklevel=stacklevel + 1)
             return arg(*args, **kwargs)

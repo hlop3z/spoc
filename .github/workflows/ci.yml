@@ -48,8 +48,11 @@ jobs:
       - name: Linter
         run: uv run ruff check
 
-      - name: Type checker
+      - name: Type checker (ty)
         run: uv run ty check
+
+      - name: Type checker (mypy strict)
+        run: uv run mypy
 
       - name: Unit tests
         run: uv run pytest

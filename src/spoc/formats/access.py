@@ -26,7 +26,7 @@ keeps the lexer intact while making every extension unreachable.
 from __future__ import annotations
 
 from functools import cache
-from typing import Any, Final
+from typing import Any, Final, cast
 
 from .errors import (
     MalformedAddressError,
@@ -121,6 +121,9 @@ def query(value: Any, expression: str) -> list[Any]:
     """Apply an RFC 9535 query, returning every match — possibly none."""
     env = _strict_env()
     try:
-        return env.findall(expression, value)
+        # The query engine is an optional dependency reached through its own module
+        # boundary; `findall` is typed `Any` there. RFC 9535 defines the result as a
+        # nodelist, which is the list this returns.
+        return cast("list[Any]", env.findall(expression, value))
     except _engine_errors() as exc:
         raise MalformedAddressError(expression, "RFC 9535", str(exc)) from exc
