@@ -90,12 +90,33 @@ class TestRevisionNamesItsOwnContent:
     """A revision must designate its own retained content and no other's."""
 
     def test_a_safe_revision_is_used_verbatim(self, tmp_path: Path) -> None:
-        """Every revision reachable through the reference grammar today is already
-        a safe segment, so nothing retained before this mapping is invalidated."""
+        """Commit digests and the tag shapes a reference resolves to are held
+        under their own names, which is what makes a retention root readable."""
         cache = DirectoryCache(tmp_path)
         assert cache._entry("a1b2c3d4").name == "a1b2c3d4"
         assert cache._entry("v1.0.0").name == "v1.0.0"
         assert cache._entry("release-1_0").name == "release-1_0"
+
+    @pytest.mark.parametrize(
+        ("revision", "why"),
+        [
+            ("Rev", "a store that folds case holds this and `rev` in one place"),
+            ("V1.0", "same folding, for the shape a mixed-case tag takes"),
+            ("v1.", "a store that drops a trailing dot holds this and `v1` in one"),
+            ("...", "the same dropping, leaving a name that designates the parent"),
+        ],
+    )
+    def test_a_revision_the_store_would_alter_takes_a_derived_name(
+        self, tmp_path: Path, revision: str, why: str
+    ) -> None:
+        """Usable as a segment is not the same as held under the name given.
+
+        Both foldings are ordinary developer machines, so a revision either
+        survives to the store unaltered or takes the derived name — it is never
+        handed to a store that may already be using that name for another
+        revision's content.
+        """
+        assert DirectoryCache(tmp_path)._entry(revision).name.startswith("rev-"), why
 
     @pytest.mark.parametrize(
         ("left", "right"),
