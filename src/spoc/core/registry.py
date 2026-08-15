@@ -27,7 +27,7 @@ components came from.
 from __future__ import annotations
 
 import threading
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any, Final
 
@@ -117,6 +117,10 @@ class Registry:
         # triple an object was registered under — so it cannot be read off a facet
         # and is maintained instead. `_admit` is the only writer of either.
         self._identifier_of: dict[int, str] = {}
+        # Ordered facets, derived on first read and dropped whole by `_admit`.
+        # Keyed by which facet was asked for, never by the records in it, so a
+        # key cannot outlive the question it answers.
+        self._ordered_views: dict[tuple[str, str], list[Component[Any]]] = {}
         self._lock = threading.Lock()
 
     def _admit(self, record: Component[Any], obj: Any, tracked: bool) -> None:
@@ -125,8 +129,9 @@ class Registry:
         Every write goes through here, so a record cannot exist for one reader and
         not another, and the identity map cannot fall out of step with the store.
         The store being a single structure makes facet drift unrepresentable; this
-        method is what extends that to the identity map beside it, and a test in
-        the suite fails if a second writer ever appears.
+        method is what extends that to the identity map beside it, and to the
+        ordered views derived from it, and a test in the suite fails if a second
+        writer ever appears.
 
         The caller holds the lock.
         """
@@ -136,6 +141,12 @@ class Registry:
         self._count += 1
         if tracked:
             self._identifier_of[id(obj)] = record.identifier
+        # Dropped whole rather than per affected facet: a registration is rare,
+        # the views are cheap to rebuild on demand, and "every derived view is
+        # gone" is an invariant one line can carry. Narrowing this to the two
+        # facets a record touches would trade that for a second thing to keep in
+        # step — the exact shape this registry exists to avoid.
+        self._ordered_views.clear()
 
     @property
     def kinds(self) -> tuple[str, ...]:
@@ -208,28 +219,60 @@ class Registry:
         """The record under three segments, or None. The caller holds the lock."""
         return self._components.get(kind, {}).get(namespace, {}).get(object_name)
 
-    def _snapshot(self) -> list[Component[Any]]:
+    def _ordered(
+        self,
+        key: tuple[str, str],
+        select: Callable[[], list[Component[Any]]],
+    ) -> list[Component[Any]]:
+        """One facet's records, ordered by identifier, derived at most once.
+
+        Selection, ordering, and the cache write happen inside a single
+        acquisition. Releasing between them would let a registration invalidate
+        the cache while an older ordering was still in flight, and that ordering
+        would then be written over the invalidation — a facet stale for the rest
+        of the process. Ordering under the lock is what the cache buys back: it
+        is now paid once per registration rather than once per read.
+
+        The caller gets a copy, so a reader that mutates its result does not
+        edit what the next reader sees.
+
+        An empty facet is answered but not kept. `by_kind` and `by_namespace`
+        take any string, so caching misses would let a caller asking about
+        namespaces that do not exist grow this dict without bound — memory the
+        store itself never spends. Keeping only non-empty facets bounds it by
+        what is registered, and re-deriving a miss costs a handful of failed dict
+        lookups: there are no records to order.
+        """
         with self._lock:
-            return [
+            cached = self._ordered_views.get(key)
+            if cached is None:
+                cached = sorted(select(), key=lambda c: c.identifier)
+                if cached:
+                    self._ordered_views[key] = cached
+            return list(cached)
+
+    def all(self) -> list[Component[Any]]:
+        """Every record, ordered by identifier."""
+        return self._ordered(
+            ("all", ""),
+            lambda: [
                 record
                 for by_namespace in self._components.values()
                 for by_name in by_namespace.values()
                 for record in by_name.values()
-            ]
-
-    def all(self) -> list[Component[Any]]:
-        """Every record, ordered by identifier."""
-        return sorted(self._snapshot(), key=lambda c: c.identifier)
+            ],
+        )
 
     def by_kind(self, kind: str) -> list[Component[Any]]:
         """Records of one kind, ordered by identifier."""
-        with self._lock:
-            found = [
+        return self._ordered(
+            ("kind", kind),
+            lambda: [
                 record
                 for by_name in self._components.get(kind, {}).values()
                 for record in by_name.values()
-            ]
-        return sorted(found, key=lambda c: c.identifier)
+            ],
+        )
 
     def by_namespace(self, namespace: str) -> list[Component[Any]]:
         """Records of one namespace, ordered by identifier.
@@ -237,13 +280,14 @@ class Registry:
         Across kinds, so this walks the kind spine — a closed set fixed at
         construction — rather than every record.
         """
-        with self._lock:
-            found = [
+        return self._ordered(
+            ("namespace", namespace),
+            lambda: [
                 record
                 for by_namespace in self._components.values()
                 for record in by_namespace.get(namespace, {}).values()
-            ]
-        return sorted(found, key=lambda c: c.identifier)
+            ],
+        )
 
     def namespaces(self, kind: str | None = None) -> tuple[str, ...]:
         """Namespaces present in the registry, optionally for one kind."""

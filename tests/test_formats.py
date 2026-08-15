@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tomllib
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -160,6 +161,88 @@ def test_supported_directions_are_enumerable():
     degraded = {s.name: s for s in _registry_missing_extra().supported()}
     assert degraded["pretend"].can_read is False
     assert degraded["pretend"].can_write is False
+
+
+def _counting_registry_missing_extra() -> tuple[FormatRegistry, Callable[[], int]]:
+    """The same unavailable codec, plus a count of how often discovery ran."""
+    attempts = 0
+
+    def explode():
+        nonlocal attempts
+        attempts += 1
+        raise ImportError("no module named 'pretend'")
+
+    registry = FormatRegistry(
+        (Codec("pretend", (".pretend",), explode, explode, "pretend", "pretend"),)
+    )
+    return registry, lambda: attempts
+
+
+def test_repeated_probing_does_not_repeat_discovery():
+    """An answered probe is not asked again (spec: format-codecs).
+
+    Python does not cache a failed import, so each repeat would re-walk every
+    path finder. The count is what the spec constrains, so the count is what is
+    asserted — not a duration.
+    """
+    registry, attempts = _counting_registry_missing_extra()
+
+    for _ in range(5):
+        with pytest.raises(MissingDependencyError) as exc:
+            registry.function("pretend", READ)
+        # Every repetition stays as actionable as the first.
+        assert 'pip install "spoc[pretend]"' in str(exc.value)
+
+    assert attempts() == 1
+
+
+def test_each_direction_settles_on_its_own():
+    registry, attempts = _counting_registry_missing_extra()
+
+    with pytest.raises(MissingDependencyError):
+        registry.function("pretend", READ)
+    with pytest.raises(MissingDependencyError):
+        registry.function("pretend", WRITE)
+
+    assert attempts() == 2, "read and write are separate questions"
+
+
+def test_repeated_enumeration_does_not_repeat_discovery():
+    """`supported()` probes both directions per codec — the costliest repeat."""
+    registry, attempts = _counting_registry_missing_extra()
+
+    reports = [registry.supported() for _ in range(4)]
+
+    assert attempts() == 2  # one read probe, one write probe, for all four calls
+    assert all(report == reports[0] for report in reports)
+    assert reports[0][0].can_read is False
+    assert reports[0][0].can_write is False
+
+
+def test_a_settled_failure_is_raised_fresh_each_time():
+    """A stored exception object would accumulate every caller's traceback."""
+    registry, _ = _counting_registry_missing_extra()
+
+    raised = []
+    for _ in range(2):
+        with pytest.raises(MissingDependencyError) as exc:
+            registry.function("pretend", READ)
+        raised.append(exc.value)
+
+    first, second = raised
+    assert first is not second
+    assert str(first) == str(second)
+
+
+def test_an_unsupported_direction_is_never_cached_as_a_missing_extra():
+    """The two failures stay distinguishable however often either is asked."""
+    registry = FormatRegistry((Codec("readonly", (".ro",), lambda: str),))
+
+    for _ in range(3):
+        with pytest.raises(UnsupportedDirectionError):
+            registry.function("readonly", WRITE)
+    # And the direction that does work is unaffected by the refusals beside it.
+    assert registry.function("readonly", READ) is str
 
 
 def test_standard_library_formats_declare_no_extra():

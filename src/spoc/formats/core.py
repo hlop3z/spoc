@@ -66,7 +66,11 @@ class FormatSupport:
 
 
 class FormatRegistry:
-    """Codecs keyed by name and by extension, resolved on first use and cached."""
+    """Codecs keyed by name and by extension, settled on first use and cached.
+
+    Settled, not merely resolved: the first probe of a direction records whether
+    it is available *or* unavailable, so neither answer is derived twice.
+    """
 
     def __init__(self, codecs: tuple[Codec, ...]) -> None:
         self._codecs: dict[str, Codec] = {c.name: c for c in codecs}
@@ -74,6 +78,11 @@ class FormatRegistry:
             ext: c for c in codecs for ext in c.extensions
         }
         self._resolved: dict[tuple[str, str], Any] = {}
+        # The other half of the same answer: which directions were probed and
+        # found unavailable, holding the extra their failure names. Python does
+        # not cache a *failed* import, so without this every repeat probe re-walks
+        # every path finder — and `supported()` probes two directions per codec.
+        self._unavailable: dict[tuple[str, str], str] = {}
 
     @property
     def names(self) -> tuple[str, ...]:
@@ -94,24 +103,40 @@ class FormatRegistry:
         return self._by_extension[key]
 
     def function(self, name: str, direction: str) -> Any:
-        """Resolve one direction of one format, importing its dependency if needed."""
-        cached = self._resolved.get((name, direction))
+        """Resolve one direction of one format, importing its dependency if needed.
+
+        Availability is settled on first probe and holds for the life of the
+        process, failure as much as success: a dependency installed while this
+        process runs is observed by the next one, not this one. That is the same
+        rule every other import in the process already follows, and the price of
+        not re-running discovery that has already answered.
+        """
+        key = (name, direction)
+        cached = self._resolved.get(key)
         if cached is not None:
             return cached
+        settled = self._unavailable.get(key)
+        if settled is not None:
+            # Raised fresh rather than stored and re-raised: one exception object
+            # shared across call sites accumulates their tracebacks.
+            raise MissingDependencyError(f"{direction} {name!r}", settled)
 
         codec = self.codec(name)
         factory = codec.factory(direction)
         if factory is None:
+            # Not cached: it is a dict lookup on the declaration, imports nothing,
+            # and cannot change. There is nothing here to avoid repeating.
             raise UnsupportedDirectionError(name, direction)
         try:
             resolved = factory()
         except ImportError as exc:
             extra = codec.extra(direction)
             if extra is None:  # a standard-library codec failing to import is a defect
-                raise
+                raise  # never cached — a defect must resurface with its own traceback
+            self._unavailable[key] = extra
             raise MissingDependencyError(f"{direction} {name!r}", extra) from exc
 
-        self._resolved[(name, direction)] = resolved
+        self._resolved[key] = resolved
         return resolved
 
     def supported(self) -> tuple[FormatSupport, ...]:

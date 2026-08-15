@@ -151,6 +151,15 @@ def _entries(projection: Projection, framework: Framework) -> tuple[Entry, ...]:
     by ``compose`` and so are never in that parse cache. A registry larger than
     the cache would evict a running application's entries to make room for
     identifiers this pass will not ask for again.
+
+    Extraction is deliberately *not* memoized per object. It would only pay if
+    one object appeared under several identifiers, and the registry forbids
+    exactly that for every object whose extraction is expensive: a callable or a
+    class is tracked, so a second identifier raises ``IdentityDivergenceError``.
+    What remains registrable twice is the shared value types, and those take
+    ``reference_for``'s value branch — the type's own name, no signature and no
+    type-hint resolution. A memo here would cache the cheap answer and never the
+    dear one.
     """
     objects = {record.identifier: record.object for record in framework.registry.all()}
     return tuple(
