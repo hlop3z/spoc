@@ -223,6 +223,11 @@ MUST NOT grow in proportion to how many unrelated components are registered.
 Registration MAY pay the bookkeeping that makes this so, since registering is the
 only operation that changes what a read can observe.
 
+The work of putting records into their deterministic order MUST be paid at most once
+per change to the registered set, not once per read: enumerating an unchanged registry
+repeatedly MUST NOT re-derive the ordering each time. A registration between reads MAY
+cause the next read to pay the derivation again.
+
 #### Scenario: Stable enumeration
 
 - **WHEN** the registry is enumerated twice without intervening registrations
@@ -234,3 +239,16 @@ only operation that changes what a read can observe.
   records, one namespace's names, or one component by its segments
 - **THEN** the read's cost tracks the size of that facet, and registering many further
   components in *other* facets does not proportionally slow it
+
+#### Scenario: Repeated enumeration does not re-derive order
+
+- **WHEN** the registry is enumerated many times without intervening registrations
+- **THEN** the ordering derivation is performed at most once across those reads, and
+  every read still yields the same records in the same order
+
+#### Scenario: A registration between reads is observed
+
+- **WHEN** the registry is enumerated, a further component is registered, and the
+  registry is enumerated again
+- **THEN** the second enumeration includes the new component in its deterministic
+  position, exactly as if no read had preceded the registration
