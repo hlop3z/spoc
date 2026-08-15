@@ -149,6 +149,58 @@ def test_list_narrows_by_facets(tmp_path):
     ]
 
 
+def _multi_kind_project(tmp_path):
+    """Two kinds across two apps, declared so neither kind is the whole store."""
+    views_body = MODELS_BODY.replace("models", "views").replace("Post", "Page")
+    return project(
+        tmp_path,
+        framework_body='import spoc\nframework = spoc.Framework("models", "views")\n',
+        apps={
+            "shop": {
+                "models": MODELS_BODY.replace("Post", "Order"),
+                "views": views_body.replace("Page", "Cart"),
+            },
+            "blog": {"models": MODELS_BODY, "views": views_body},
+        },
+    )
+
+
+def test_list_narrowed_to_a_kind_reports_that_kind_in_canonical_order(tmp_path):
+    """Narrowing reads one facet, and takes the facet's own order.
+
+    The facet is read rather than filtered out of the whole store, so this also
+    pins that the ordering survives the change of reader: records arrive in
+    canonical identifier order without the listing sorting them again.
+    """
+    base = _multi_kind_project(tmp_path)
+
+    models = [r.identifier for r in list_records(base, kind="models")]
+    views = [r.identifier for r in list_records(base, kind="views")]
+
+    assert models == ["models:blog.post", "models:shop.order"]
+    assert views == ["views:blog.page", "views:shop.cart"]
+    # Canonical order, and no record of the other kind reached the result.
+    assert models == sorted(models)
+    assert views == sorted(views)
+    assert not {r.split(":")[0] for r in models} & {r.split(":")[0] for r in views}
+
+
+def test_list_narrowing_composes_kind_and_namespace(tmp_path):
+    base = _multi_kind_project(tmp_path)
+
+    assert [
+        r.identifier for r in list_records(base, kind="views", namespace="shop")
+    ] == ["views:shop.cart"]
+
+
+def test_list_namespace_narrowing_matching_nothing_is_empty_not_an_error(tmp_path):
+    """Namespaces are an open set, so an unknown one has no candidates to name."""
+    base = _multi_kind_project(tmp_path)
+
+    assert list_records(base, namespace="nowhere") == []
+    assert list_records(base, kind="models", namespace="nowhere") == []
+
+
 def test_list_unknown_kind_names_the_valid_kinds(tmp_path, capsys):
     base = project(tmp_path)
     with pytest.raises(Exception, match="models"):

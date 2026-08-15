@@ -159,20 +159,32 @@ def list_records(
     Records are described by the registry projection — the one structure that
     describes a component — so what `spoc list` reports and what the projection
     publishes cannot drift. Only the boot depth differs, and deliberately: this
-    reports on a *started* project, which is the question `list` answers."""
+    reports on a *started* project, which is the question `list` answers.
+
+    A kind narrowing is answered by *reading that kind's facet*, not by walking
+    everything registered and discarding what does not match. That is the whole
+    point of the registry being keyed by the grammar's own segments — a facet is
+    a sub-dictionary of the store — and this was the one reader asking for the
+    store when it wanted a facet.
+
+    Order comes from that read rather than being re-established here. Both
+    readers enumerate in canonical identifier order, so sorting again was a
+    second claim to a guarantee the registry already makes — the kind that stays
+    correct right up until the two disagree. The namespace narrowing stays a
+    filter: namespaces are an open set, and it runs over records already reduced
+    to one kind."""
     with _booted(base_dir, framework_ref) as (fw, _):
+        # Ahead of the read, and staying so: `by_kind` answers an undeclared
+        # kind with an empty facet, and "unknown kind" must not degrade into
+        # "nothing registered".
         if kind is not None and kind not in fw.registry.kinds:
             raise UnknownKindError(kind, fw.registry.kinds)
-        records = sorted(
-            (
-                c
-                for c in fw.registry.all()
-                if (kind is None or c.kind == kind)
-                and (namespace is None or c.namespace == namespace)
-            ),
-            key=lambda c: c.identifier,
-        )
-        return [ComponentEntry.from_component(c) for c in records]
+        records = fw.registry.all() if kind is None else fw.registry.by_kind(kind)
+        return [
+            ComponentEntry.from_component(c)
+            for c in records
+            if namespace is None or c.namespace == namespace
+        ]
 
 
 def explain(
