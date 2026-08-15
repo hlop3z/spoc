@@ -26,6 +26,15 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   matched the message text should switch to `except CoroutineLifecycleError`, which is
   the covered surface.
 
+### Changed
+
+- **`Config.environment` is annotated as the dict it always was.** The field was typed
+  `Any` while `load_environment` has only ever produced `dict[str, Any]`; the annotation
+  now says so, so a type checker can finally see through `framework.config.environment`.
+
+  **What a consumer must do:** nothing — the attribute always held a dict; the
+  annotation now admits it.
+
 ### Fixed
 
 - **Format resolution settles once under threads.** `spoc.formats`' registry caches each

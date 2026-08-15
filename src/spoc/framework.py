@@ -85,7 +85,7 @@ class Config:
     """
 
     project: dict[str, Any]
-    environment: Any
+    environment: dict[str, Any]
     tables: dict[str, Any] = field(default_factory=dict)
 
 
@@ -461,16 +461,17 @@ class Framework:
         # import system's directory caches would otherwise still hide.
         importlib.invalidate_caches()
         self.base_dir = base_dir
-        self.config = _build_config(base_dir, self.echo)
+        config = _build_config(base_dir, self.echo)
+        self.config = config
         # Namespaces are claimed from the full app list before anything is
         # imported, so a contested one fails with nothing registered rather
         # than partway through discovery — which is exactly the confusing
         # artifact this check exists to remove.
-        entries = self._app_entries()
+        entries = self._app_entries(config)
         owners: dict[str, str] = {}
         for entry in entries:
             _claim(owners, entry.namespace, entry.path)
-        self._register_plugins(self.config.project, owners, entries)
+        self._register_plugins(config.project, owners, entries)
         self._register_apps(entries)
 
         for loaded in self.loader.ordered():
@@ -612,15 +613,20 @@ class Framework:
                     installed.append(app)
         return installed
 
-    def _app_entries(self) -> list[_AppEntry]:
-        """The installed apps for the active mode, parsed but not yet imported."""
-        assert self.config is not None
+    def _app_entries(self, config: Config) -> list[_AppEntry]:
+        """The installed apps for the active mode, parsed but not yet imported.
+
+        The configuration arrives as an argument rather than being re-read from
+        ``self.config``: that attribute is ``Config | None``, and the boot step
+        that just built it is the one caller — passing the fact narrows the
+        type by construction, with no runtime guard to strip.
+        """
         return [
             _parse_app_entry(app)
             for app in self._collect_apps(
-                self.config.project.get("mode", DEFAULT_MODE),
-                self.config.project.get("apps", {}),
-                self.config.project.get("modes", DEFAULT_MODES),
+                config.project.get("mode", DEFAULT_MODE),
+                config.project.get("apps", {}),
+                config.project.get("modes", DEFAULT_MODES),
             )
         ]
 
