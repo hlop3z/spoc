@@ -32,6 +32,19 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   **What a consumer must do:** nothing; scripts that ran
   `python -c "import spoc; print(spoc.__version__)"` for this can stop.
 
+- **`--json` on `spoc check`, `spoc list`, and `spoc explain`.** The stability policy
+  has promised from the start that "a command's `--json` output is public" — and no
+  command had the flag, so the promise covered a surface that did not exist. It exists
+  now. `check --json` emits `{format_version, ok, findings}` (also available to library
+  callers as `CheckReport.to_dict()`, so the CLI and the library emit the identical
+  document); `list --json` and `explain --json` emit the projection document's own
+  component object, wrapped with the projection's `format_version` — one description of
+  a component, everywhere. JSON goes to stdout and nothing else; exit codes are
+  unchanged; failures leave stdout empty rather than half-written.
+
+  **What a consumer must do:** nothing. Scripts that scraped the prose output should
+  move to `--json`, which is the covered surface.
+
 ### Changed
 
 - **An app-authored `ValueError` is no longer swallowed by the CLI.** The composed

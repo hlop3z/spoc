@@ -104,6 +104,8 @@ def test_class_with_custom_new_still_constructs(mark):
 
     @mark(MESSAGE)
     class Custom:
+        via_new: bool = False
+
         def __new__(cls, *args, **kwargs):
             instance = super().__new__(cls)
             instance.via_new = True

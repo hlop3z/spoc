@@ -186,9 +186,11 @@ def test_app_files_without_a_common_directory_are_refused(tmp_path):
         )
 
 
-def test_app_without_kinds_and_without_derivation_is_actionable():
+def test_app_without_kinds_and_without_derivation_is_actionable(capsys):
     """The scaffold's own surface degrades actionably when no composition
-    root injected derivation (spoc.cli always does)."""
+    root injected derivation (spoc.cli always does): the refusal renders as
+    the mount's one-line error, not as an exception the mounting parser's
+    author has to know to catch."""
     import argparse
 
     from spoc.scaffold import cli as scaffold_cli
@@ -196,8 +198,10 @@ def test_app_without_kinds_and_without_derivation_is_actionable():
     parser = argparse.ArgumentParser()
     scaffold_cli.register(parser.add_subparsers())  # no derive_kinds
     args = parser.parse_args(["app", "blog"])
-    with pytest.raises(ValueError, match="--kinds"):
-        args.handler(args)
+
+    assert args.handler(args) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("error:") and "--kinds" in err
 
 
 def test_template_set_without_app_files_is_refused(tmp_path):

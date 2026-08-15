@@ -124,6 +124,26 @@ for CI.
     A dry boot still *imports* your app modules. Nothing outlives the check —
     the framework is torn down and import state restored.
 
+When another tool is the reader, ask for the document instead:
+
+```bash
+spoc check --json
+```
+
+```json
+{
+  "format_version": "1.0",
+  "ok": true,
+  "findings": []
+}
+```
+
+A finding in the list carries its `area` (`config` / `locate` / `lifecycle` /
+`boot`) and its `message`. The document is the covered surface — the prose
+rendering above is free to change — and the exit code stays the same either
+way. The `message` text inside a finding is still prose; branch on `ok` and
+`area`, never on wording.
+
 ## `spoc list` and `spoc explain` — read the shelf
 
 ```bash
@@ -154,6 +174,17 @@ Both boot, read, and tear down — nothing stays running.
 
 `shape` is what you may *do* with the block: `constructible` if it is a class you can
 build, `callable` if it is a function you can call, `value` if it is just a thing.
+
+Both also take `--json`. `spoc list --json` emits
+`{"format_version": …, "components": […]}` and `spoc explain --json` a single
+`component` — and each entry is exactly the component object of the projection
+document (see `spoc projection` below), so what these report and what the
+projection publishes cannot drift. The JSON is the covered surface; the line
+rendering above is free to change.
+
+```bash
+spoc list --kind models --json
+```
 
 ## `spoc stubs` — teach your editor the registry
 

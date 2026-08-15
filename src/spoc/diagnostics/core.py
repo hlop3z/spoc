@@ -18,8 +18,9 @@ import asyncio
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 from ..core.config import load_spoc_toml
 from ..core.exceptions import (
@@ -34,6 +35,7 @@ from ..projection import ComponentEntry
 from ..testing import import_state
 
 __all__ = [
+    "CHECK_FORMAT_VERSION",
     "CheckReport",
     "ComponentEntry",
     "Finding",
@@ -41,6 +43,12 @@ __all__ = [
     "explain",
     "list_records",
 ]
+
+#: The version of the check *document* — the shape ``CheckReport.to_dict``
+#: emits and ``spoc check --json`` prints — not of the framework. Same rule as
+#: the projection's ``FORMAT_VERSION``: a consumer branches on this, and it
+#: moves when the shape moves, at no other time.
+CHECK_FORMAT_VERSION = "1.0"
 
 
 @dataclass(frozen=True)
@@ -62,6 +70,20 @@ class CheckReport:
     @property
     def ok(self) -> bool:
         return not self.findings
+
+    def to_dict(self) -> dict[str, Any]:
+        """The check document, as the plain structures ``json`` serializes.
+
+        Defined on the report rather than in the CLI so a library caller and
+        ``spoc check --json`` emit the identical document. The version leads,
+        the projection document's own rule: it is what a consumer reads first
+        to decide whether it understands the rest.
+        """
+        return {
+            "format_version": CHECK_FORMAT_VERSION,
+            "ok": self.ok,
+            "findings": [asdict(finding) for finding in self.findings],
+        }
 
 
 def _start_any(fw: Framework, base: Path) -> str:

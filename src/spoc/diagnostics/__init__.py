@@ -19,7 +19,14 @@ rendering, which is the whole of the difference.
 from ..locate import DEFAULT_FRAMEWORK_REF, LocateError
 from ..projection import ComponentEntry
 from .cli import register
-from .core import CheckReport, Finding, check, explain, list_records
+from .core import (
+    CHECK_FORMAT_VERSION,
+    CheckReport,
+    Finding,
+    check,
+    explain,
+    list_records,
+)
 
 __all__ = [
     # Operations
@@ -27,6 +34,7 @@ __all__ = [
     "list_records",
     "explain",
     # Results
+    "CHECK_FORMAT_VERSION",
     "CheckReport",
     "ComponentEntry",
     "Finding",

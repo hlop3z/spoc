@@ -5,14 +5,24 @@ scenario in project-diagnostics.
 """
 
 import ast
+import json
 import subprocess
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
 
 from spoc.cli import main as cli_main
-from spoc.diagnostics import LocateError, check, explain, list_records
+from spoc.diagnostics import (
+    CHECK_FORMAT_VERSION,
+    LocateError,
+    check,
+    explain,
+    list_records,
+)
+from spoc.projection import FORMAT_VERSION
+from spoc.projection import project as project_registry
 from spoc.testing import ProjectTree
 
 MODELS_BODY = """
@@ -256,6 +266,69 @@ def test_explain_unknown_identifier_fails_with_candidates(tmp_path, capsys):
     assert cli_main(["explain", "models:blog.pist", str(base)]) == 1
     err = capsys.readouterr().err
     assert "pist" in err and "post" in err
+
+
+# ── --json: the covered machine surface ───────────────────────────────────
+
+
+def test_check_json_clean_and_broken(tmp_path, capsys):
+    """The whole of stdout parses; findings live in the document, stderr is
+    silent; the exit code stays the report's truth."""
+    clean = project(tmp_path, "jsonclean")
+    assert cli_main(["check", str(clean), "--json"]) == 0
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    document = json.loads(captured.out)
+    assert document == {
+        "format_version": CHECK_FORMAT_VERSION,
+        "ok": True,
+        "findings": [],
+    }
+
+    broken = project(tmp_path, "jsonbroken", config={"apps": {"development": ["nope"]}})
+    assert cli_main(["check", str(broken), "--json"]) == 1
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    document = json.loads(captured.out)
+    assert document["ok"] is False
+    assert document["findings"] == [asdict(f) for f in check(broken).findings]
+
+
+def test_list_json_entries_are_the_projection_component_object(tmp_path, capsys):
+    """`spoc list --json` emits the projection's component entries verbatim —
+    the cannot-drift claim, asserted against the projection of the same tree."""
+    base = _two_app_project(tmp_path)
+    assert cli_main(["list", str(base), "--json"]) == 0
+    document = json.loads(capsys.readouterr().out)
+
+    assert document["format_version"] == FORMAT_VERSION
+    projected = project_registry(base)
+    assert document["components"] == [asdict(e) for e in projected.components]
+
+
+def test_list_json_narrowing(tmp_path, capsys):
+    base = _two_app_project(tmp_path)
+    assert cli_main(["list", str(base), "--json", "--namespace", "shop"]) == 0
+    document = json.loads(capsys.readouterr().out)
+    assert [c["identifier"] for c in document["components"]] == ["models:shop.order"]
+
+
+def test_explain_json_describes_one_component(tmp_path, capsys):
+    base = project(tmp_path)
+    assert cli_main(["explain", "models:blog.post", str(base), "--json"]) == 0
+    document = json.loads(capsys.readouterr().out)
+    assert document["format_version"] == FORMAT_VERSION
+    assert document["component"]["location"] == "blog.models:Post"
+
+
+def test_json_failure_leaves_stdout_empty(tmp_path, capsys):
+    """A machine consumer gets a nonzero exit and an empty stdout, never a
+    half-document: errors still render as main()'s one-line stderr."""
+    base = project(tmp_path)
+    assert cli_main(["explain", "models:blog.pist", str(base), "--json"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "pist" in captured.err
 
 
 # ── framework location ────────────────────────────────────────────────────

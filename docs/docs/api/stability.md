@@ -102,8 +102,9 @@ Even on a `public` element, these are free to change at any time:
   keep catching everything, and `UnknownKindError` will keep being raised where it
   is raised. The wording inside the message is not. Match on the type, never the
   string.
-- **Prose output.** A command's `--json` output is public. The human-readable
-  rendering of the same command is free to be reformatted.
+- **Prose output.** `spoc projection`'s document and the `--json` output of
+  `spoc check`, `spoc list`, and `spoc explain` are public. The human-readable
+  rendering of the same commands is free to be reformatted.
 - **Pinned versions inside an extra.** `spoc[yaml]` will keep giving you YAML
   support; which library provides it, and at which version, may change.
 - **Internal attributes and reprs** of otherwise-public types.
