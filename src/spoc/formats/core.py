@@ -18,6 +18,7 @@ which is this package's composition root.
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Final
@@ -83,6 +84,10 @@ class FormatRegistry:
         # not cache a *failed* import, so without this every repeat probe re-walks
         # every path finder — and `supported()` probes two directions per codec.
         self._unavailable: dict[tuple[str, str], str] = {}
+        # Guards the two caches above, which are the registry's only state that
+        # moves after construction — `_codecs` and `_by_extension` are frozen
+        # here, so `names`/`codec`/`for_extension` read without it.
+        self._lock = threading.Lock()
 
     @property
     def names(self) -> tuple[str, ...]:
@@ -110,34 +115,42 @@ class FormatRegistry:
         process runs is observed by the next one, not this one. That is the same
         rule every other import in the process already follows, and the price of
         not re-running discovery that has already answered.
+
+        Probe and settle happen under one lock acquisition, the same rule the
+        kernel registry's derive-on-miss reads follow: releasing between them
+        would let two threads resolve the same direction twice and the second
+        write clobber the first settle. Holding the lock across the factory
+        import is deliberate — contention exists only on a direction's first
+        probe, which settles once per process.
         """
         key = (name, direction)
-        cached = self._resolved.get(key)
-        if cached is not None:
-            return cached
-        settled = self._unavailable.get(key)
-        if settled is not None:
-            # Raised fresh rather than stored and re-raised: one exception object
-            # shared across call sites accumulates their tracebacks.
-            raise MissingDependencyError(f"{direction} {name!r}", settled)
+        with self._lock:
+            cached = self._resolved.get(key)
+            if cached is not None:
+                return cached
+            settled = self._unavailable.get(key)
+            if settled is not None:
+                # Raised fresh rather than stored and re-raised: one exception
+                # object shared across call sites accumulates their tracebacks.
+                raise MissingDependencyError(f"{direction} {name!r}", settled)
 
-        codec = self.codec(name)
-        factory = codec.factory(direction)
-        if factory is None:
-            # Not cached: it is a dict lookup on the declaration, imports nothing,
-            # and cannot change. There is nothing here to avoid repeating.
-            raise UnsupportedDirectionError(name, direction)
-        try:
-            resolved = factory()
-        except ImportError as exc:
-            extra = codec.extra(direction)
-            if extra is None:  # a standard-library codec failing to import is a defect
-                raise  # never cached — a defect must resurface with its own traceback
-            self._unavailable[key] = extra
-            raise MissingDependencyError(f"{direction} {name!r}", extra) from exc
+            codec = self.codec(name)
+            factory = codec.factory(direction)
+            if factory is None:
+                # Not cached: it is a dict lookup on the declaration, imports
+                # nothing, and cannot change. Nothing here to avoid repeating.
+                raise UnsupportedDirectionError(name, direction)
+            try:
+                resolved = factory()
+            except ImportError as exc:
+                extra = codec.extra(direction)
+                if extra is None:  # a stdlib codec failing to import is a defect
+                    raise  # never cached — it must resurface with its traceback
+                self._unavailable[key] = extra
+                raise MissingDependencyError(f"{direction} {name!r}", extra) from exc
 
-        self._resolved[key] = resolved
-        return resolved
+            self._resolved[key] = resolved
+            return resolved
 
     def supported(self) -> tuple[FormatSupport, ...]:
         """Every format with the directions currently available, probed not assumed."""

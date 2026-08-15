@@ -13,8 +13,10 @@ import ast
 import shutil
 import subprocess
 import sys
+import threading
 import tomllib
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -205,6 +207,105 @@ def test_each_direction_settles_on_its_own():
         registry.function("pretend", WRITE)
 
     assert attempts() == 2, "read and write are separate questions"
+
+
+def _counting_registry_resolving() -> tuple[FormatRegistry, Callable[[], int]]:
+    """A codec that resolves, plus a count of how often its factory ran."""
+    attempts = 0
+
+    def factory():
+        nonlocal attempts
+        attempts += 1
+        return object()
+
+    registry = FormatRegistry((Codec("pretend", (".pretend",), factory),))
+    return registry, lambda: attempts
+
+
+def test_concurrent_first_probe_resolves_once_and_identically():
+    """Threads racing one direction's first probe: one discovery, one object.
+
+    Probe and cache write happen under one lock acquisition. Released between
+    them, both threads miss, both run the factory, and the second write
+    clobbers the first — two objects for what "settled" promises is one answer.
+    A barrier releases the threads together; that overlap is what makes this a
+    race at all.
+    """
+    for _ in range(20):
+        registry, attempts = _counting_registry_resolving()
+        barrier = threading.Barrier(4)
+        results: list[object] = []
+
+        def probe(registry=registry, barrier=barrier, results=results):
+            barrier.wait(timeout=5)  # bounded: a broken barrier fails, never hangs
+            results.append(registry.function("pretend", READ))
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            for f in [pool.submit(probe) for _ in range(4)]:
+                f.result()
+
+        assert attempts() == 1, "a settled probe was derived more than once"
+        assert len({id(r) for r in results}) == 1, "threads saw different objects"
+
+
+def test_concurrent_probe_of_missing_extra_settles_once_raises_fresh():
+    """Threads racing an unavailable direction: one discovery, each raise fresh."""
+    for _ in range(20):
+        registry, attempts = _counting_registry_missing_extra()
+        barrier = threading.Barrier(4)
+        raised: list[MissingDependencyError] = []
+
+        def probe(registry=registry, barrier=barrier, raised=raised):
+            barrier.wait(timeout=5)
+            try:
+                registry.function("pretend", READ)
+            except MissingDependencyError as caught:
+                raised.append(caught)
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            for f in [pool.submit(probe) for _ in range(4)]:
+                f.result()
+
+        assert attempts() == 1, "a settled unavailability was probed again"
+        assert len(raised) == 4
+        # Raised fresh, never stored and re-raised — a shared exception object
+        # accumulates tracebacks across call sites.
+        assert len({id(exc) for exc in raised}) == 4
+
+
+def test_enumeration_racing_resolution_stays_coherent():
+    """`supported()` walking the registry while another thread settles a probe."""
+    for _ in range(10):
+        registry, _ = _counting_registry_resolving()
+        barrier = threading.Barrier(3)
+        failures: list[BaseException] = []
+
+        def enumerate_(registry=registry, barrier=barrier, failures=failures):
+            barrier.wait(timeout=5)
+            try:
+                for _ in range(30):
+                    registry.supported()
+            except BaseException as caught:  # any leak at all is the finding
+                failures.append(caught)
+
+        def resolve(registry=registry, barrier=barrier, failures=failures):
+            barrier.wait(timeout=5)
+            try:
+                for _ in range(30):
+                    registry.function("pretend", READ)
+            except BaseException as caught:  # any leak at all is the finding
+                failures.append(caught)
+
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = [
+                pool.submit(enumerate_),
+                pool.submit(enumerate_),
+                pool.submit(resolve),
+            ]
+            for f in futures:
+                f.result()
+
+        assert not failures
 
 
 def test_repeated_enumeration_does_not_repeat_discovery():

@@ -26,6 +26,16 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   matched the message text should switch to `except CoroutineLifecycleError`, which is
   the covered surface.
 
+### Fixed
+
+- **Format resolution settles once under threads.** `spoc.formats`' registry caches each
+  direction's first probe, but the caches were written without a lock, so two threads
+  racing a first use could both run discovery and disagree about the settled answer. The
+  probe and its cache write now happen under one lock acquisition — the same
+  derive-inside-the-lock rule the kernel registry already follows.
+
+  **What a consumer must do:** nothing.
+
 ## [1.0.0] — 2026-08-13
 
 ### Added
