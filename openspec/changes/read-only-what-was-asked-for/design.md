@@ -106,6 +106,27 @@ This is the one observable change in the proposal, and it moves the implementati
 the spec rather than away from it: the hidden-entry scenario already reads "the directory
 appears in the reportable skipped set", and today only files ever enter that set.
 
+**Corrected during apply.** The delta spec originally claimed non-traversal was "observable
+and not merely an optimization", and offered an unreadable skipped directory as the proof.
+It is not a proof: `Path.walk` defaults to `on_error=None` and `rglob` likewise swallows
+`OSError`, so an unreadable skipped directory produces an identical successful collection
+under both the old traversal and the new one. The scenario could not fail, and testing it
+at all would have needed `chmod` behind a host check — the suite's first, and against what
+`platform-support` requires of platform-conditional behavior.
+
+What *is* observable is the report: the skipped set does not grow with the tree it was told
+to skip. An implementation that enumerates and then discards cannot help but grow it. The
+scenario was rewritten to pin that, and a second was added for the ordering below.
+
+### D6: The skipped set is sorted before it is returned
+
+Not in the original design, and found by writing the traversal: the old whole-tree
+`sorted()` made the skipped set reproducible across machines as a side effect nobody had
+to state. A walk yields entries in whatever order the filesystem hands back, so dropping
+the global sort would have quietly made this report host-dependent. The set is a set by
+contract, so ordering it costs nothing and losing the reproducibility would not have been
+noticed until two machines disagreed.
+
 ### D5: `list_records` chooses its reader, and takes ordering from it
 
 ```
@@ -146,9 +167,12 @@ for the same reason.
   itself appears in `skipped` under its own name, which is the actionable fact ("`vendor`
   was skipped"), and is arguably more legible than a list of every file under it.
 - **`Path.walk` behavior on symlinked directories.** `follow_symlinks` defaults to False,
-  matching `rglob`'s default of not following directory symlinks. → No change; the default
-  is taken explicitly rather than relied on implicitly, and a test covers a symlinked
-  subdirectory on the platforms that can create one.
+  matching `rglob`'s default of not following directory symlinks. → No change in behavior;
+  the argument is passed explicitly at the call site rather than inherited, so the default
+  cannot move underneath this code without the diff showing it. **No test was added**:
+  creating a directory symlink is host-conditional (Windows needs a privilege the CI user
+  may not hold), and a host-skipped test is what `platform-support` exists to prevent. The
+  guarantee rests on the explicit argument, and this line records that it is untested.
 - **`by_kind` and `all` could one day disagree about order.** → They cannot without the
   registry breaking its own stated contract, which its own suite pins. This change consumes
   that contract rather than restating it.
