@@ -17,6 +17,43 @@ from tests.conftest import MODELS_BODY, make_project
 
 pytestmark = pytest.mark.usefixtures("clean_sys_path_and_modules")
 
+#: Long enough that a loaded machine never trips it, short enough that a stalled
+#: run reports instead of occupying CI until something outside kills it.
+_WALL_CLOCK = 10
+
+
+def run_bounded(scenario, seconds: int = _WALL_CLOCK) -> None:
+    """Run an async scenario under a wall-clock bound, on a thread of its own.
+
+    Every scenario that races a caller against an in-flight transition can only
+    fail two ways: the caller is refused, or it waits. If it waits, it waits on a
+    lock held by work scheduled on the same event loop, so nothing inside that
+    loop can time it out — the loop is the thing that stopped. Bounding it from
+    outside is what turns that from a hang into an assertion.
+
+    The thread is a daemon so a stalled scenario cannot keep the interpreter
+    alive after the failure is reported.
+    """
+    finished = threading.Event()
+    failure: dict[str, BaseException] = {}
+
+    def run():
+        try:
+            asyncio.run(scenario())
+        except BaseException as e:  # re-raised below, on the calling thread
+            failure["error"] = e
+        finally:
+            finished.set()
+
+    threading.Thread(target=run, daemon=True).start()
+    assert finished.wait(timeout=seconds), (
+        f"the scenario did not settle within {seconds}s — the asynchronous path "
+        "waited for an in-flight transition instead of refusing it, parking the "
+        "event loop on a lock only that loop could release"
+    )
+    if "error" in failure:
+        raise failure["error"]
+
 
 def test_astart_awaits_coroutine_hooks_in_order(tmp_path):
     base = make_project(tmp_path, "ahooks")
@@ -206,7 +243,10 @@ def test_concurrent_atransition_is_not_reported_as_reentrant(tmp_path):
         await fw.ashutdown()
         await racing
 
-    asyncio.run(scenario())
+    # Bounded: if the racing astart ever waits for the lock instead of refusing
+    # it, this scenario stops rather than fails, and a stopped test reports
+    # nothing.
+    run_bounded(scenario)
 
     assert "already in progress" in seen["racing"], (
         f"a task racing an in-flight transition got the wrong diagnosis: {seen['racing']!r}"
@@ -261,9 +301,8 @@ def test_a_busy_framework_is_refused_without_parking_the_event_loop(tmp_path):
     holding the lock is running on this same thread, so blocking for it can never
     let it finish.
 
-    The scenario runs in a thread with a wall-clock bound because that is the
-    failure this pins. A blocking implementation would hang here rather than
-    assert, and a hang reports nothing.
+    The scenario runs under a wall-clock bound because that is the failure this
+    pins: a blocking implementation would hang here rather than assert.
     """
     base = make_project(tmp_path, "abusy")
     seen: dict[str, str] = {}
@@ -302,26 +341,7 @@ def test_a_busy_framework_is_refused_without_parking_the_event_loop(tmp_path):
         await fw.ashutdown()
         await work
 
-    finished = threading.Event()
-    failure: dict[str, BaseException] = {}
-
-    def run():
-        try:
-            asyncio.run(scenario())
-        except BaseException as e:  # reported below, on the test's own thread
-            failure["error"] = e
-        finally:
-            finished.set()
-
-    threading.Thread(target=run, daemon=True).start()
-
-    assert finished.wait(timeout=10), (
-        "the asynchronous path waited for the in-flight transition instead of "
-        "refusing it — the event loop is parked on a lock held by work scheduled "
-        "on the same loop, which can never be released"
-    )
-    if "error" in failure:
-        raise failure["error"]
+    run_bounded(scenario)
 
     assert "already in progress" in seen["racing"], (
         f"a caller refused for a busy framework got the wrong diagnosis: {seen['racing']!r}"
