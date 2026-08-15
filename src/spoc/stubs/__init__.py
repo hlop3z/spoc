@@ -118,13 +118,20 @@ def stub_path(root_file: str | Path) -> Path:
     return Path(root_file).with_suffix(".pyi")
 
 
+#: Bound on the formatter subprocess. Ruff formats a stub in milliseconds; a
+#: minute of silence is a wedged toolchain, and neither generation nor a CI
+#: verify may hang on one.
+_FORMAT_TIMEOUT = 60.0
+
+
 def _format(text: str) -> str:
     """Normalize emitted text with the project's formatter, if it is present.
 
     The emitter already produces formatted output — a test holds it to that —
     so this is a guard against drift rather than a load-bearing step. When ruff
-    is absent the text passes through unchanged, which keeps generation and
-    verification producing identical bytes in the same environment either way.
+    is absent (or wedged past the timeout) the text passes through unchanged,
+    which keeps generation and verification producing identical bytes in the
+    same environment either way.
     """
     try:
         completed = subprocess.run(
@@ -141,8 +148,9 @@ def _format(text: str) -> str:
             capture_output=True,
             text=True,
             check=False,
+            timeout=_FORMAT_TIMEOUT,
         )
-    except (OSError, ValueError):
+    except (OSError, ValueError, subprocess.TimeoutExpired):
         return text
     if completed.returncode != 0 or not completed.stdout:
         return text
@@ -205,7 +213,14 @@ def verify(
         return replace_reason(
             report, False, f"no stub at {path.name}; run `spoc stubs` to create it"
         )
-    stored = path.read_text(encoding="utf-8")
+    # The stored text is normalized through the same formatter before the
+    # comparison. Byte-equality of raw texts compared two ruff versions'
+    # opinions as much as two stubs: a stub generated under one ruff and
+    # verified under another reported "stale" with no content difference at
+    # all. Staleness is a claim about content, so both sides are formatted by
+    # the ruff doing the verifying — and when ruff is absent, both sides pass
+    # through unchanged and the comparison is exactly what it always was.
+    stored = _format(path.read_text(encoding="utf-8"))
     if stored == expected:
         return replace_reason(report, True, None)
     return replace_reason(report, False, _first_difference(stored, expected))

@@ -604,6 +604,34 @@ def test_missing_stub_is_a_mismatch_not_a_pass(tmp_path):
     assert not (base / "framework.pyi").exists()
 
 
+def test_formatting_trivial_difference_is_not_stale(tmp_path):
+    """Staleness is a claim about content, not about a formatter's opinion.
+
+    A stored stub perturbed in a way ruff format undoes — here, extra blank
+    lines at the end — must still verify: byte-comparing unformatted texts
+    made a ruff upgrade between generation and verification report every stub
+    stale with no content difference at all. Relies on ruff being importable,
+    the same dependency test_generated_stub_lints_and_formats_clean shells to.
+    """
+    base = project(tmp_path)
+    report = generate(base)
+    stored = report.path.read_text(encoding="utf-8")
+    report.path.write_text(stored + "\n\n", encoding="utf-8", newline="\n")
+
+    assert verify(base).matched is True
+
+
+def test_format_passes_text_through_on_timeout(monkeypatch):
+    """A wedged formatter degrades to pass-through, never a hang or a crash."""
+    from spoc import stubs
+
+    def wedged(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd="ruff", timeout=stubs._FORMAT_TIMEOUT)
+
+    monkeypatch.setattr(subprocess, "run", wedged)
+    assert stubs._format("x: int\n") == "x: int\n"
+
+
 # ── CLI adapter ───────────────────────────────────────────────────────────
 
 

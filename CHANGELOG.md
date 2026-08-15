@@ -63,6 +63,17 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 ### Fixed
 
+- **`spoc stubs --check` no longer reports a false "stale" across ruff versions.**
+  Verification byte-compared the stored stub against a freshly rendered one, and both
+  sides pass through ruff's formatter when it is present — so a ruff upgrade between
+  generating and verifying compared two formatter versions' opinions and called the
+  difference staleness. The stored text is now normalized through the same formatter
+  before the comparison, and the formatter subprocess carries a timeout so a wedged
+  toolchain degrades to pass-through instead of hanging a CI job.
+
+  **What a consumer must do:** nothing; a CI ruff pin added to work around the false
+  positive can be deleted.
+
 - **Format resolution settles once under threads.** `spoc.formats`' registry caches each
   direction's first probe, but the caches were written without a lock, so two threads
   racing a first use could both run discovery and disagree about the settled answer. The
