@@ -196,11 +196,16 @@ def declared_identifiers(template_set: TemplateSet) -> tuple[str, ...]:
     Read straight from the template text — this is the check that the manifest's
     declaration is honest, not a restatement of it.
     """
+    # Order is the contract, so the list is what is returned; the set beside it is
+    # only how membership is asked. Asking the list instead made the scan quadratic
+    # in the number of distinct placeholders.
     found: list[str] = []
+    seen: set[str] = set()
     for file in template_set.files:
         for text in (file.content, file.target):
             for name in Template(text).get_identifiers():
-                if name not in found:
+                if name not in seen:
+                    seen.add(name)
                     found.append(name)
     return tuple(found)
 
@@ -286,12 +291,15 @@ def decorator_names(kinds: tuple[str, ...]) -> dict[str, str]:
     """
     proposed = {kind: _singular(kind) for kind in kinds}
     taken = Counter(proposed.values())
+    # Built once, not per kind: the question is "does this singular collide with
+    # some *other* kind's name", and spelling it as a fresh `set(kinds) - {kind}`
+    # inside the loop rebuilt the whole set on every iteration.
+    declared = set(kinds)
     names: dict[str, str] = {}
     used: set[str] = set()
     for kind, singular in proposed.items():
-        chosen = (
-            kind if taken[singular] > 1 or singular in set(kinds) - {kind} else singular
-        )
+        collides = taken[singular] > 1 or (singular in declared and singular != kind)
+        chosen = kind if collides else singular
         chosen = escape_keyword(chosen)
         while chosen in used:
             chosen += "_"

@@ -132,12 +132,15 @@ def derive_key(root: Path, source: Path) -> str:
     return ".".join(segments)
 
 
-def _is_ignored(relative: Path, ignore: tuple[str, ...]) -> bool:
-    """True if any segment of `relative` is hidden or matches an ignore pattern."""
-    return any(
-        segment.startswith(".") or any(fnmatch(segment, p) for p in ignore)
-        for segment in relative.parts
-    )
+def _is_skipped(name: str, ignore: tuple[str, ...]) -> bool:
+    """True if one entry name is hidden or matches an ignore pattern.
+
+    One name, not a path's every segment. The question is asked where the
+    traversal decides whether to descend, so a directory is answered for once
+    rather than once per file beneath it — and a directory that is skipped is
+    never descended, so there are no files beneath it to ask about.
+    """
+    return name.startswith(".") or any(fnmatch(name, p) for p in ignore)
 
 
 def collect(
@@ -152,12 +155,19 @@ def collect(
     An empty directory is a valid (empty) collection; an absent one is a typo
     and fails loudly, like every other way a collection can go wrong.
 
-    Hidden entries — any path segment starting with ``.`` — are skipped, as are
-    those matching an `ignore` glob. Skipping happens *before* a key is derived,
-    so a tool's own directory (``.cache``, ``.git``) can neither contribute
-    entries nor fail the collection on a key segment it was never going to use.
+    Hidden entries — any name starting with ``.`` — are skipped, as are those
+    matching an `ignore` glob. Skipping happens *before* a key is derived, so a
+    tool's own directory (``.cache``, ``.git``) can neither contribute entries
+    nor fail the collection on a key segment it was never going to use.
     What is actually collected stays loud: a non-conforming key in a directory
     that was not skipped still fails the whole call.
+
+    A skipped directory is skipped as a *unit*: the walk does not descend it, so
+    nothing beneath it is enumerated or stat'ed. That is what makes a collection
+    cost the tree it collects rather than the tree it sits beside — a data
+    directory next to ``.git`` costs no more than one standing alone. It is also
+    why the skipped set names the directory itself and not its contents:
+    reporting those would mean descending to find out.
     """
     base = Path(root)
     if not base.is_dir():
@@ -168,11 +178,38 @@ def collect(
     origins: dict[str, Path] = {}
     skipped: list[str] = []
 
-    for source in sorted(p for p in base.rglob("*") if p.is_file()):
-        if _is_ignored(source.relative_to(base), ignore):
-            skipped.append(str(source))
-            continue
+    # `top_down` is what makes pruning possible at all — assigning back into
+    # `dirnames` only steers a walk that has not yet descended — and
+    # `follow_symlinks` is stated rather than inherited so a directory symlink
+    # cannot quietly become a second route into the tree. Both are the defaults;
+    # naming them is how they stay the defaults.
+    files: list[Path] = []
+    for directory, dirnames, filenames in base.walk(
+        top_down=True, follow_symlinks=False
+    ):
+        kept: list[str] = []
+        for name in dirnames:
+            if _is_skipped(name, ignore):
+                skipped.append(str(directory / name))
+            else:
+                kept.append(name)
+        dirnames[:] = kept
+        for name in filenames:
+            target = directory / name
+            if _is_skipped(name, ignore):
+                skipped.append(str(target))
+            else:
+                files.append(target)
 
+    # Sorted once, over what survived rather than over everything in the tree.
+    # A walk yields directory by directory, and taking that order would have
+    # reordered enumeration — and which of two colliding files is named first —
+    # as an unannounced side effect of a change about cost. Dropping entries
+    # from a sorted sequence leaves the rest in order, so this is the order the
+    # whole-tree sort produced, reached without walking the whole tree.
+    files.sort()
+
+    for source in files:
         try:
             codec = registry.for_extension(source.suffix)
         except UnknownFormatError:
@@ -201,4 +238,9 @@ def collect(
 
         origins[key] = source
 
-    return Collection(entries=entries, skipped=tuple(skipped))
+    # Sorted for the same reason the files are: a walk yields entries in
+    # whatever order the filesystem hands them back, which is not the same order
+    # on two machines. The skipped set is a set by contract, so ordering it is
+    # free — and the whole-tree sort it replaces made this report reproducible
+    # without anyone having to say so.
+    return Collection(entries=entries, skipped=tuple(sorted(skipped)))

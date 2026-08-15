@@ -10,6 +10,7 @@ uninstalling anything — which is also the only way to test it deterministicall
 from __future__ import annotations
 
 import ast
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -28,6 +29,7 @@ from spoc.formats.errors import (
     UnknownFormatError,
     UnsupportedDirectionError,
 )
+from spoc.formats.operations import derive_key
 
 WRITABLE = ("json", "csv", "toml", "yaml", "xml")
 
@@ -703,7 +705,9 @@ def test_a_hidden_directory_is_skipped_not_fatal(tmp_path):
     result = formats.collect(tmp_path)
 
     assert dict(result) == {"ok": {"a": 1}}
-    assert any(".cache" in path for path in result.skipped)
+    # The directory under its own name — a substring match here would also be
+    # satisfied by a path to a file inside it, which is what this must not be.
+    assert result.skipped == (str(cache),)
 
 
 def test_a_hidden_file_is_skipped(tmp_path):
@@ -725,7 +729,110 @@ def test_ignore_patterns_extend_the_skip_set(tmp_path):
     result = formats.collect(tmp_path, ignore=("vendor",))
 
     assert dict(result) == {"keep": {"a": 1}}
-    assert any("dep.json" in path for path in result.skipped)
+    # The directory is named, not its contents: a skipped directory is not
+    # descended, so there is nothing beneath it the collection could report.
+    assert result.skipped == (str(vendor),)
+
+
+def test_a_skipped_directory_reports_as_one_entry_whatever_it_holds(tmp_path):
+    """Skipping is a decision about a directory, not about each file under it.
+
+    The report staying one entry wide is what a caller can observe of the walk
+    never descending — the alternative implementation, which enumerates and then
+    discards, cannot help but grow this set with the tree it was told to skip.
+    """
+    (tmp_path / "keep.json").write_text('{"a": 1}')
+    vendor = tmp_path / "vendor"
+    (vendor / "nested" / "deeper").mkdir(parents=True)
+    (vendor / "a.json").write_text("{}")
+    (vendor / "README.md").write_text("unsupported, and still not reported")
+    (vendor / "nested" / "b.json").write_text("{}")
+    (vendor / "nested" / "deeper" / "c.toml").write_text("x = 1")
+
+    populated = formats.collect(tmp_path, ignore=("vendor",))
+
+    assert dict(populated) == {"keep": {"a": 1}}
+    assert populated.skipped == (str(vendor),)
+
+    # And the same tree with the skipped directory empty collects identically.
+    bare = tmp_path / "bare"
+    (bare / "vendor").mkdir(parents=True)
+    (bare / "keep.json").write_text('{"a": 1}')
+    empty = formats.collect(bare, ignore=("vendor",))
+
+    assert dict(empty) == dict(populated)
+    assert len(empty.skipped) == len(populated.skipped)
+
+
+def test_the_skipped_set_is_ordered_deterministically(tmp_path):
+    """A directory read returns entries in the filesystem's order, not one order.
+
+    Sorting is what makes two collections of one tree agree across machines —
+    the whole-tree sort this traversal replaced provided it without saying so.
+    """
+    (tmp_path / "keep.json").write_text('{"a": 1}')
+    for name in ("zeta", "alpha", "middle"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "x.json").write_text("{}")
+    (tmp_path / "b.md").write_text("unsupported")
+
+    result = formats.collect(tmp_path, ignore=("zeta", "alpha", "middle"))
+
+    assert list(result.skipped) == sorted(result.skipped)
+    assert dict(result) == {"keep": {"a": 1}}
+
+
+def test_enumeration_order_is_the_whole_tree_path_order(tmp_path):
+    """Pruning changed which entries are walked, and must not change their order.
+
+    A walk yields directory by directory, so the collection sorts what survived
+    it. The claim that buys — that enumeration is what a whole-tree path sort
+    would have given — is asserted against that sort rather than against a
+    hand-written list, because the ordering `Path` defines is not the ordering
+    its string spelling suggests: comparison is by parts, so `a/c.json` precedes
+    `a.json`. A literal here would pin whatever the author guessed.
+    """
+    (tmp_path / "b.json").write_text("{}")
+    (tmp_path / "a").mkdir()
+    (tmp_path / "a" / "z.json").write_text("{}")
+    (tmp_path / "a" / "c.json").write_text("{}")
+    (tmp_path / "a.json").write_text("{}")
+    nested = tmp_path / "a" / "deep"
+    nested.mkdir()
+    (nested / "m.json").write_text("{}")
+
+    result = formats.collect(tmp_path)
+
+    expected = [
+        derive_key(tmp_path, p)
+        for p in sorted(q for q in tmp_path.rglob("*") if q.is_file())
+    ]
+    assert list(result) == expected
+    # Pinned as a value too, so a change to *both* sides cannot pass unnoticed.
+    assert expected == ["a.c", "a.deep.m", "a.z", "a", "b"]
+
+
+def test_pruning_does_not_reorder_what_survives_it(tmp_path):
+    """The kept entries hold the order they had when the skipped ones were there.
+
+    Dropping elements from a sorted sequence leaves the rest in order, which is
+    why pruning is free to skip them: this pins that the traversal actually
+    behaves that way rather than that the argument sounds right.
+    """
+    for name in ("b.json", "a.json"):
+        (tmp_path / name).write_text("{}")
+    (tmp_path / "a").mkdir()
+    (tmp_path / "a" / "c.json").write_text("{}")
+    vendor = tmp_path / "vendor"
+    vendor.mkdir()
+    (vendor / "a.json").write_text("{}")
+
+    with_skip = formats.collect(tmp_path, ignore=("vendor",))
+    # The same tree with the ignored directory absent rather than skipped.
+    shutil.rmtree(vendor)
+    without = formats.collect(tmp_path)
+
+    assert list(with_skip) == list(without)
 
 
 def test_skipping_happens_before_the_key_grammar_is_applied(tmp_path):

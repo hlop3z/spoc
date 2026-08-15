@@ -143,13 +143,20 @@ def _entries(projection: Projection, framework: Framework) -> tuple[Entry, ...]:
     Order is not re-established here. The projection already emits in canonical
     identifier order, and re-sorting would be a second claim to the same
     guarantee — one that could later disagree with the first.
+
+    A projection entry carries everything about a component except the object
+    itself, which is the one thing extraction needs — so the objects are read
+    back from the registry. Once, as a mapping, rather than by resolving each
+    identifier: resolution parses its argument, and these identifiers were built
+    by ``compose`` and so are never in that parse cache. A registry larger than
+    the cache would evict a running application's entries to make room for
+    identifiers this pass will not ask for again.
     """
+    objects = {record.identifier: record.object for record in framework.registry.all()}
     return tuple(
         Entry(
             component=component,
-            type_ref=reference_for(
-                framework.registry.resolve(component.identifier).object
-            ),
+            type_ref=reference_for(objects[component.identifier]),
         )
         for component in projection.components
     )
