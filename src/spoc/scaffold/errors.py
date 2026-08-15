@@ -133,18 +133,6 @@ class BoundExceededError(ScaffoldError):
         )
 
 
-class RevisionUnavailableError(ScaffoldError):
-    """Raised when a revision is neither retained nor retrievable."""
-
-    def __init__(self, reference: str, reason: str) -> None:
-        self.reference = reference
-        self.reason = reason
-        super().__init__(
-            f"Template set {reference!r} is not retained locally and could not be "
-            f"retrieved ({reason}). Nothing was written"
-        )
-
-
 class IncompleteTemplateSetError(ScaffoldError):
     """Raised when a template set omits something the operation requires."""
 

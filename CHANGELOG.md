@@ -129,6 +129,18 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   before it started being enforced — the other 25 withdrawals in that release took the
   pre-1.0 allowance and were removed outright.
 
+- **`spoc.scaffold.errors.RevisionUnavailableError`** — the condition it named is
+  already raised, as `RetrievalError`, by the resolver that would have raised it
+  (`HttpRevisionResolver.resolve`, when the host reports no revision for a reference).
+  The class was declared in `0.7.0` alongside the leaves it sat with, and never raised
+  from anywhere: no code path constructed it, so no `except` clause could ever have
+  caught it. Two names for one condition is the drift a single error taxonomy exists
+  to prevent, and the one that was live keeps the name.
+
+  Removed under the pre-1.0 allowance, which this release spends. After `1.0.0` a leaf
+  in `spoc.scaffold.errors` — reachable, and named as importable in `0.7.0` — would
+  cost a full deprecation cycle to withdraw, for a class that never fired.
+
 ## [0.8.0] — 2026-08-13
 
 ### Added
