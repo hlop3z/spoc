@@ -3,11 +3,11 @@
 Purpose-built CLI utilities instead of generic shell pipelines. Each environment below has a
 different job and a different lifecycle. `/ai:tool` builds and manages what lives here.
 
-| Environment | For                                                         | Lifecycle            |
-| ----------- | ----------------------------------------------------------- | -------------------- |
-| `go/`       | Reusable, compiled CLIs. Speed, reliability, single binary. | Maintained           |
-| `py/tools/` | Reusable Python CLIs. Ecosystem-heavy work.                 | Maintained           |
-| `py/lab/`   | Disposable single-file scripts. Exploration and research.   | Pruned on sight      |
+| Environment | For                                                         | Lifecycle       |
+| ----------- | ----------------------------------------------------------- | --------------- |
+| `go/`       | Reusable, compiled CLIs. Speed, reliability, single binary. | Maintained      |
+| `py/tools/` | Reusable Python CLIs. Ecosystem-heavy work.                 | Maintained      |
+| `py/lab/`   | Disposable single-file scripts. Exploration and research.   | Pruned on sight |
 
 There is no shell environment. The legacy `sh/` set was deliberately shrinking and has now
 been ported away entirely — the point of this workshop is to stop depending on generic
@@ -42,14 +42,14 @@ uv run scripts/py/lab/<name>.py              # inline deps, ephemeral env, no lo
 
 ## What's here now
 
-| Tool                    | Language | Job                                                     |
-| ----------------------- | -------- | ------------------------------------------------------- |
-| `go/cmd/ensure`         | Go       | Install an adopted third-party CLI (currently `tokei`)  |
-| `go/cmd/ensure doctor`  | Go       | Report which language toolchains are on PATH            |
-| `py/tools/mdlinks`      | Python   | Find broken relative links in Markdown                  |
-| `py/tools/apicheck`     | Python   | Resolve every surface element to a stability tier       |
-| `py/tools/apicheck` (`apidiff`) | Python | Report surface changes since the last release tag |
-| `py/lab/completion_bench`| Python   | Time a language server's completions against a stub shape |
+| Tool                            | Language | Job                                                       |
+| ------------------------------- | -------- | --------------------------------------------------------- |
+| `go/cmd/ensure`                 | Go       | Install an adopted third-party CLI (currently `tokei`)    |
+| `go/cmd/ensure doctor`          | Go       | Report which language toolchains are on PATH              |
+| `py/tools/mdlinks`              | Python   | Find broken relative links in Markdown                    |
+| `py/tools/apicheck`             | Python   | Resolve every surface element to a stability tier         |
+| `py/tools/apicheck` (`apidiff`) | Python   | Report surface changes since the last release tag         |
+| `py/lab/completion_bench`       | Python   | Time a language server's completions against a stub shape |
 
 ## Toolchains
 

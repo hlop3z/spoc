@@ -13,7 +13,7 @@ pytest finds `test_*`. FastAPI collects the functions you decorated. Each of the
 built the same machinery from scratch: a naming rule, a discovery pass, a registry,
 a boot order.
 
-**SPOC is that machinery on its own** — so you can point it at *your* kinds of thing.
+**SPOC is that machinery on its own** — so you can point it at _your_ kinds of thing.
 You name the kinds; SPOC gives you the decorators, the discovery, the registry, the
 lifecycle, the CLI, the autocomplete, and the test fixtures.
 
@@ -55,18 +55,18 @@ free.
 
 ## What SPOC decides — and what stays yours
 
-| SPOC decides                                   | You decide                                      |
-| ---------------------------------------------- | ----------------------------------------------- |
+| SPOC decides                                    | You decide                                      |
+| ----------------------------------------------- | ----------------------------------------------- |
 | that the kinds are declared once, in one place  | what the kinds are — `models`, `jobs`, anything |
 | that every component has exactly one name       | what your components are and do                 |
 | that a folder is a namespace, a filename a kind | where those folders live                        |
-| which apps boot, and in what order              | what start and stop *mean* for your resources   |
+| which apps boot, and in what order              | what start and stop _mean_ for your resources   |
 | how the registry is read, typed, and tested     | every surface that reads it                     |
 
-**SPOC never runs your components.** That is what keeps it *underneath* your stack
+**SPOC never runs your components.** That is what keeps it _underneath_ your stack
 instead of competing with it. FastAPI still serves your HTTP. Typer still parses your
 argv. Celery still runs your jobs. pytest still runs your tests. SPOC answers the one
-question none of them answer: *what does this app contain, and under what name?*
+question none of them answer: _what does this app contain, and under what name?_
 
 ## "Why not just…?"
 
@@ -74,17 +74,17 @@ None of these are competitors. The question is only which one owns your structur
 
 | You could use…   | Which is right until…                                                                                       |
 | ---------------- | ----------------------------------------------------------------------------------------------------------- |
-| **imports**      | you need *every* thing of a kind at runtime — then someone hand-maintains a list, and it drifts.              |
-| **entry points** | you notice they are for installed distributions: flat, unordered, no lifecycle. In-repo packages have none.   |
-| **pluggy**       | you see it solves the other half: pluggy *calls* hooks you specified, SPOC *names* objects you invented.      |
-| **Django**       | you want the registry without the ORM, the settings system, and an opinion about your transport.              |
-| **a container**  | you find DI answers "how is this built", not "what exists, under what name, in what boot order".              |
+| **imports**      | you need _every_ thing of a kind at runtime — then someone hand-maintains a list, and it drifts.            |
+| **entry points** | you notice they are for installed distributions: flat, unordered, no lifecycle. In-repo packages have none. |
+| **pluggy**       | you see it solves the other half: pluggy _calls_ hooks you specified, SPOC _names_ objects you invented.    |
+| **Django**       | you want the registry without the ORM, the settings system, and an opinion about your transport.            |
+| **a container**  | you find DI answers "how is this built", not "what exists, under what name, in what boot order".            |
 
 ## Should you use it?
 
 **Yes, if…**
 
-- one codebase feeds several surfaces — HTTP *and* CLI *and* workers — and each
+- one codebase feeds several surfaces — HTTP _and_ CLI _and_ workers — and each
   re-discovers the same components its own way.
 - you are shipping a framework other people write apps against.
 - things must start in dependency order and stop in reverse.
@@ -94,8 +94,8 @@ None of these are competitors. The question is only which one owns your structur
 
 - it's one app, one surface, a handful of modules. Imports are cheaper. SPOC pays off
   above a complexity threshold, not below it.
-- you are already on Django. Its app registry *is* a structural model.
-- you want something that *runs* your components. SPOC only names and orders them.
+- you are already on Django. Its app registry _is_ a structural model.
+- you want something that _runs_ your components. SPOC only names and orders them.
 
 ## Quick Start
 
@@ -156,7 +156,7 @@ without installing anything.
 ## What you get
 
 - **One name per component, always.** Class names derive their own. Ask for a name
-  that isn't there and the error says *which segment* was wrong and what would have
+  that isn't there and the error says _which segment_ was wrong and what would have
   matched — never a silent `None`.
 - **Autocomplete, with no code changes.** `spoc stubs` writes a type stub beside your
   entry point: names complete as you type, components come back as their real types,
@@ -191,7 +191,7 @@ without installing anything.
 Each surface is a loop over `registry.by_kind(...)` — written once, and every app you
 add later flows through it. [Build a
 framework](https://hlop3z.github.io/spoc/learn/build-a-framework/) takes an empty
-folder to `curl` talking to an HTTP framework *you* wrote, in four files, with nothing
+folder to `curl` talking to an HTTP framework _you_ wrote, in four files, with nothing
 installed but `spoc`.
 
 ## Install
