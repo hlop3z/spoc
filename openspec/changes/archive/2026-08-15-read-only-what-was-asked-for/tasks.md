@@ -78,5 +78,7 @@
 - [x] 5.2 Review the diff and split the commits by intent — the collection traversal and the
       listing read are two changes, not one (Rule 3). **Three commits: the traversal, the
       facet read, and the artifact corrections.**
-- [ ] 5.3 Run `/opsx:sync` to fold both delta specs into the main specs, then archive with
-      `openspec archive -y --skip-specs`.
+- [x] 5.3 Run `/opsx:sync` to fold both delta specs into the main specs, then archive with
+      `openspec archive -y --skip-specs`. **Both delta requirements merged into
+      `data-collection` and `project-diagnostics`; `openspec validate --specs --strict`
+      passes 30/30. Archived as `2026-08-15-read-only-what-was-asked-for`.**

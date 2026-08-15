@@ -30,6 +30,22 @@ entries, and the skipped set remains reportable. Loudness is unchanged for every
 actually collected: a collected entry that would produce a non-conforming key still
 fails the whole collection.
 
+A skipped directory MUST be skipped as a unit: the collection MUST NOT enumerate,
+inspect, or otherwise traverse what it holds. The cost of a collection is therefore set
+by the tree it collects rather than by the tree it sits in, so a data directory beside a
+version-control or dependency directory costs no more than one standing alone.
+
+The observable consequence, and the one a scenario can pin, is what gets reported: the
+reportable skipped set MUST name the skipped entry itself — the directory — and MUST NOT
+name any entry beneath it, whatever that directory holds and however much of it. A
+skipped file is named as itself, as before. The skipped set therefore stays the same size
+whether a skipped directory holds one file or ten thousand, which is what makes the
+non-traversal checkable from outside without reaching for the host's permission model.
+
+The reportable skipped set MUST be ordered deterministically, so that two collections of
+the same tree on different machines report it identically. A directory read yields
+entries in an order the filesystem chooses, which is not that order.
+
 #### Scenario: Mixed formats collect together
 
 - **WHEN** a directory containing files of several different supported formats is collected
@@ -67,8 +83,23 @@ fails the whole collection.
 #### Scenario: Explicit ignore patterns extend the skip set
 
 - **WHEN** a collection is invoked with an ignore pattern matching a subdirectory
-- **THEN** files under that subdirectory contribute no entries, appear in the skipped
-  set, and the rest of the tree collects normally
+- **THEN** files under that subdirectory contribute no entries, the subdirectory itself
+  appears in the skipped set, no file beneath it appears there, and the rest of the tree
+  collects normally
+
+#### Scenario: A skipped directory reports as one entry whatever it holds
+
+- **WHEN** a collection runs over a tree containing a skipped directory holding nested
+  subdirectories and many files of both supported and unsupported formats
+- **THEN** that directory contributes exactly one entry to the skipped set — itself — and
+  the collection result is identical to one where the same directory held nothing
+
+#### Scenario: The skipped set is reported in a deterministic order
+
+- **WHEN** the same tree is collected twice, on hosts whose filesystems enumerate
+  directory entries in different orders
+- **THEN** the reported skipped set is identical in both, rather than carrying the
+  order the filesystem happened to return
 
 #### Scenario: Collected entries stay loud
 
