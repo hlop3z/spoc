@@ -32,7 +32,8 @@ from __future__ import annotations
 import graphlib
 import importlib
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
@@ -674,3 +675,37 @@ class Framework:
                     position=(ranks[spec.name], app_index),
                 )
         self.installed_apps = [entry.path for entry in entries]
+
+
+@contextmanager
+def discovery_only(framework: Framework, base_dir: Path | str) -> Iterator[Framework]:
+    """The collect-only half of ``start()`` — the one sanctioned split of a boot.
+
+    Discovery runs; initialization does not; the framework returns to its inert
+    pre-description state before this exits, failure path included. The seam
+    exists for the describing surfaces (:mod:`spoc.projection`, and the stub
+    generator through it), and it lives in this module so the private steps it
+    composes are reached in their own home, typed — not laundered through
+    ``Any`` from outside. No other caller may split a boot in half.
+
+    Internal by the stability contract's own rule: exposed from a plain module,
+    never re-exported from a package ``__init__``.
+
+    The transition gate is held for the duration. A half-boot mutates the same
+    state a real one does — registry, loader, configuration — so a ``start()``
+    racing a description is exactly the interleaving the gate exists to refuse;
+    reads issued from within the description (ready callbacks, the yield body)
+    inherit membership and still answer.
+    """
+    if framework.started:
+        raise SpocError(
+            "Cannot describe a started framework: describing runs its own "
+            "collect-only boot and would race the running one"
+        )
+    with framework._transitions.hold("describe()"):
+        try:
+            framework._boot_discovery(Path(base_dir))
+            yield framework
+        finally:
+            # Leave nothing behind that an ordinary start would not have.
+            framework._reset()

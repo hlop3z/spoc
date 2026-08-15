@@ -16,6 +16,7 @@ import json
 import subprocess
 import sys
 import textwrap
+import threading
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,7 @@ from spoc.projection import (
     schema_path,
     schema_text,
 )
+from spoc.projection.produce import collected
 from spoc.testing import ProjectTree
 
 pytestmark = pytest.mark.usefixtures("clean_sys_path_and_modules")
@@ -441,3 +443,92 @@ def test_the_projection_serializes_through_the_standard_library():
                 assert "formats" not in name.split("."), f"{path.name}: {name}"
 
     assert "import json" in (root / "document.py").read_text(encoding="utf-8")
+
+
+# ── The describing boot holds the transition gate ─────────────────────────
+
+
+def _located(base: Path) -> spoc.Framework:
+    """The project's framework, imported the way every describing surface does."""
+    from spoc.locate import locate_framework
+
+    sys.path.insert(0, str(base))
+    return locate_framework()
+
+
+def test_describing_a_started_framework_is_refused(tmp_path):
+    base = project_tree(tmp_path)
+    fw = _located(base)
+    fw.start(base)
+    try:
+        with (
+            pytest.raises(spoc.SpocError, match="started framework"),
+            collected(fw, base),
+        ):
+            pass  # pragma: no cover - the refusal precedes the yield
+    finally:
+        fw.shutdown()
+
+
+def test_lifecycle_call_from_inside_a_description_is_reentrancy(tmp_path):
+    """The describing boot is a transition: starting the framework from within
+    it is refused as reentrancy, never deadlocked on the gate's own lock."""
+    base = project_tree(tmp_path)
+    fw = _located(base)
+    with (
+        collected(fw, base),
+        pytest.raises(spoc.SpocError, match="inside a lifecycle transition"),
+    ):
+        fw.start(base)
+
+
+def test_read_racing_a_description_names_the_transition(tmp_path):
+    """A resolve arriving from another thread mid-description gets the gate's
+    timing error naming describe() — not a typo report, not a torn record."""
+    base = project_tree(tmp_path)
+    fw = _located(base)
+    outcomes: list[BaseException | str] = []
+
+    def read():
+        try:
+            fw.resolve("models:catalog.product")
+            outcomes.append("resolved")
+        except BaseException as caught:
+            outcomes.append(caught)
+
+    with collected(fw, base):
+        reader = threading.Thread(target=read)
+        reader.start()
+        reader.join(timeout=10)
+        assert not reader.is_alive(), "racing read never returned"
+
+    assert len(outcomes) == 1
+    (outcome,) = outcomes
+    assert isinstance(outcome, spoc.FrameworkTransitioningError)
+    assert "describe()" in str(outcome)
+
+
+def test_start_racing_a_description_serializes_after_it(tmp_path):
+    """A sync start launched mid-description waits for the gate and then boots
+    cleanly — the two half-boots never interleave."""
+    base = project_tree(tmp_path)
+    fw = _located(base)
+    started: list[bool] = []
+
+    def boot():
+        fw.start(base)
+        started.append(fw.started)
+
+    with collected(fw, base):
+        racer = threading.Thread(target=boot)
+        racer.start()
+        # The starter must still be waiting while the description is open.
+        racer.join(timeout=0.2)
+        assert racer.is_alive(), "start() proceeded during an open description"
+
+    racer.join(timeout=10)
+    assert not racer.is_alive(), "start() never acquired the gate"
+    try:
+        assert started == [True]
+    finally:
+        fw.shutdown()

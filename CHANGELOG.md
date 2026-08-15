@@ -67,6 +67,18 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
   **What a consumer must do:** nothing.
 
+- **The describing boot is a transition and holds the gate.** `spoc projection` and the
+  stub generator run the collect-only half of a boot; it mutated the same state a real
+  boot does — registry, loader, configuration — without serializing against `start()`
+  and `shutdown()`. The seam now lives beside the lifecycle it splits
+  (`spoc.framework.discovery_only`, internal tier) and holds the transition gate as
+  `describe()`: a racing read gets the gate's timing error naming the description, a
+  racing sync `start()` waits its turn, and the `Any`-typed reach into `Framework`'s
+  privates from another package is gone.
+
+  **What a consumer must do:** nothing — `spoc.projection.collected` keeps its name and
+  behavior; only the interleavings that were never safe are now refused or serialized.
+
 - **`Config.environment` is annotated as the dict it always was.** The field was typed
   `Any` while `load_environment` has only ever produced `dict[str, Any]`; the annotation
   now says so, so a type checker can finally see through `framework.config.environment`.

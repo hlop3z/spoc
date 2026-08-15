@@ -20,10 +20,8 @@ import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
 
-from ..core.exceptions import SpocError
-from ..framework import Framework
+from ..framework import Framework, discovery_only
 from ..locate import DEFAULT_FRAMEWORK_REF, locate_framework
 from ..testing import import_state
 from .document import ComponentEntry, Projection
@@ -38,22 +36,15 @@ def collected(framework: Framework, base_dir: Path | str) -> Iterator[Framework]
     Discovery runs; initialization does not. The framework returns to its
     pre-description state before this exits, on the failure path as well as the
     success one, so describing a project is never a way to half-start it.
+
+    A thin delegate: the collect-only boot itself is
+    :func:`spoc.framework.discovery_only`, defined beside the private steps it
+    composes and holding the transition gate. This name stays because it is the
+    seam the stub generator shares — one definition of what a describing boot
+    even is.
     """
-    if framework.started:
-        raise SpocError(
-            "Cannot describe a started framework: describing runs its own "
-            "collect-only boot and would race the running one"
-        )
-    # The collect-only half of start(). Reached through an Any-typed local
-    # because it is deliberately private: no caller outside this package may
-    # split a boot in half, and this is the one place that does.
-    boot: Any = framework._boot_discovery
-    try:
-        boot(Path(base_dir))
-        yield framework
-    finally:
-        # Leave nothing behind that an ordinary start would not have.
-        framework._reset()
+    with discovery_only(framework, base_dir) as discovered:
+        yield discovered
 
 
 def projection_of(framework: Framework) -> Projection:
