@@ -10,7 +10,9 @@ import ast
 import subprocess
 import sys
 import textwrap
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any, Literal, TypeVar
 from unittest import mock
 
 import pytest
@@ -22,7 +24,9 @@ from spoc.stubs import (
     NARROWING_LIMIT,
     StubReport,
     UnmirrorableRootError,
+    alias_for,
     generate,
+    reference_for,
     render,
     verify,
 )
@@ -671,3 +675,177 @@ def test_deleting_the_stub_changes_no_behavior(tmp_path):
     assert with_stub.returncode == 0, with_stub.stderr
     assert without_stub.returncode == 0, without_stub.stderr
     assert with_stub.stdout == without_stub.stdout
+
+
+# ── Rendering one annotation at a time ────────────────────────────────────
+#
+# Everything above reaches the renderer through a generated project, so it sees
+# only the annotations those fixtures happen to use. These call `reference_for`
+# directly, one annotation per test, because the branch that decides an
+# annotation is unnameable is the branch that puts `Any` in a published stub —
+# a silent widening no type checker downstream can report, since the stub it
+# reads is already the answer.
+
+
+_T = TypeVar("_T")
+
+# Annotation carriers: only their signatures are read, never their bodies, so
+# each raises rather than returning. An `...` body would be a genuine type error
+# in all but the first two — the return annotation promises a value the function
+# never produces — and suppressing that in thirteen places would cost more than
+# the one word it takes to be honest.
+
+
+def _never() -> Any:
+    raise NotImplementedError("declared for its annotation; never called")
+
+
+def _returns_none() -> None: ...
+
+
+def _returns_any() -> Any:
+    return _never()
+
+
+def _returns_union() -> int | str:
+    return _never()
+
+
+def _returns_optional() -> int | None:
+    return _never()
+
+
+def _returns_literal() -> Literal["read", "write"]:
+    return _never()
+
+
+def _returns_bare_list() -> list:
+    return _never()
+
+
+def _returns_parameterized() -> dict[str, list[int]]:
+    return _never()
+
+
+def _returns_callable_params() -> Callable[[int, str], bool]:
+    return _never()
+
+
+def _returns_callable_ellipsis() -> Callable[..., bool]:
+    return _never()
+
+
+def _returns_unresolvable() -> Nowhere:  # noqa: F821 # ty: ignore[unresolved-reference]
+    # The unresolvable annotation *is* the fixture: both checkers are right that
+    # `Nowhere` does not resolve, which is exactly what the renderer must meet.
+    return _never()
+
+
+def _returns_empty_tuple() -> tuple[()]:
+    return _never()
+
+
+def _returns_abstract_generic() -> Sequence[int]:
+    return _never()
+
+
+def _returns_type_variable() -> _T:
+    return _never()
+
+
+@pytest.mark.parametrize(
+    ("func", "expected"),
+    [
+        (_returns_none, "None"),
+        (_returns_any, "Any"),
+        (_returns_union, "int | str"),
+        (_returns_optional, "int | None"),
+        (_returns_literal, "Literal['read', 'write']"),
+        (_returns_bare_list, "list"),
+        (_returns_parameterized, "dict[str, list[int]]"),
+    ],
+)
+def test_an_annotation_renders_as_itself(func, expected):
+    reference = reference_for(func)
+    assert reference.expression.endswith(f"[[], {expected}]")
+    assert not reference.degraded
+
+
+def test_a_callable_annotation_keeps_its_parameter_list():
+    reference = reference_for(_returns_callable_params)
+    alias = alias_for("collections.abc", "Callable")
+    assert reference.expression == f"{alias}[[], {alias}[[int, str], bool]]"
+    assert not reference.degraded
+    assert ("collections.abc", "Callable") in reference.imports
+
+
+def test_a_callable_annotation_keeps_an_elided_parameter_list():
+    reference = reference_for(_returns_callable_ellipsis)
+    alias = alias_for("collections.abc", "Callable")
+    assert reference.expression == f"{alias}[[], {alias}[..., bool]]"
+    assert not reference.degraded
+
+
+def test_an_unresolvable_annotation_degrades_instead_of_quoting_itself():
+    reference = reference_for(_returns_unresolvable)
+    assert reference.degraded
+    assert "Nowhere" not in reference.expression
+    assert reference.expression.endswith("[[], Any]")
+
+
+def test_a_locally_defined_class_has_nothing_importable_to_name():
+    class Local: ...
+
+    reference = reference_for(Local)
+    assert reference.degraded
+    assert reference.expression == "Any"
+    assert reference.imports == ()
+
+
+def test_a_value_of_a_builtin_type_renders_without_an_import():
+    reference = reference_for({"already": "a dict"})
+    assert reference.expression == "dict"
+    assert reference.imports == ()
+    assert not reference.degraded
+
+
+def test_none_renders_as_none_rather_than_its_type():
+    reference = reference_for(None)
+    assert reference.expression == "None"
+    assert not reference.degraded
+
+
+def test_a_callable_without_an_introspectable_signature_degrades():
+    # `max` is a real builtin that `inspect.signature` refuses, which is the
+    # condition this branch exists for — a mock would test the mock.
+    reference = reference_for(max)
+    alias = alias_for("collections.abc", "Callable")
+    assert reference.expression == f"{alias}[..., Any]"
+    assert reference.degraded
+
+
+def test_an_empty_parameterization_renders_as_the_bare_origin():
+    reference = reference_for(_returns_empty_tuple)
+    assert reference.expression.endswith("[[], tuple]")
+    assert not reference.degraded
+
+
+@pytest.mark.parametrize(
+    "func",
+    [_returns_abstract_generic, _returns_type_variable],
+    ids=["abstract-generic", "type-variable"],
+)
+def test_an_unnameable_annotation_degrades_rather_than_approximating(func):
+    # A `Sequence[int]` is not `list[int]` and a type variable is not the type
+    # it happens to bind to. Narrowing either to a concrete spelling would put a
+    # claim in the stub that the source never made.
+    reference = reference_for(func)
+    assert reference.degraded
+    assert reference.expression.endswith("[[], Any]")
+
+
+def test_an_alias_is_derived_from_the_whole_module_path():
+    # Two apps declaring `Product` is the collision the alias exists to make
+    # impossible; the same input must also always give the same alias.
+    assert alias_for("shop.models", "Product") != alias_for("blog.models", "Product")
+    assert alias_for("shop.models", "Product") == alias_for("shop.models", "Product")

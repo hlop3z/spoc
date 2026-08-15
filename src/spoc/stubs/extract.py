@@ -148,14 +148,20 @@ def _render(state: _Render, annotation: Any) -> str:
 def _render_callable_generic(state: _Render, args: tuple[Any, ...]) -> str:
     state.imports.add(("collections.abc", "Callable"))
     name = alias_for("collections.abc", "Callable")
-    if not args:
+    if not args:  # pragma: no cover - a bare `Callable` never reaches here
+        # `get_origin` reports `Callable` only for a parameterized one, so the
+        # caller's guard means at least `([...], result)`. Bare `Callable` is a
+        # class, and is named by `_named_type` well before this.
         return f"{name}[..., Any]"
     *params, result = args
     rendered_result = _render(state, result)
     if len(params) == 1 and params[0] is Ellipsis:
         return f"{name}[..., {rendered_result}]"
     flat = params[0] if len(params) == 1 and isinstance(params[0], list) else params
-    if not isinstance(flat, list | tuple):
+    if not isinstance(flat, list | tuple):  # pragma: no cover - unpacking made it one
+        # Both arms above yield a list: `params` is one by construction, and the
+        # other is taken only when `params[0]` is. Kept because this reads a
+        # `get_args` result, and the shape of that is CPython's to change.
         return f"{name}[..., {rendered_result}]"
     rendered_params = ", ".join(_render(state, p) for p in flat)
     return f"{name}[[{rendered_params}], {rendered_result}]"

@@ -117,6 +117,23 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   only moved when someone dispatched it by hand and drifted several releases behind the
   code. The release now calls the docs deploy directly, after publishing.
 
+- **`astart` / `ashutdown` refusing a busy framework is now a stated guarantee, not an
+  accident of how it was written.** Both have always taken the transition lock without
+  waiting, so a caller arriving during another transition is refused immediately rather
+  than queued. Nothing required that: the contract asked only that a reentrant call not
+  *deadlock*, which a blocking acquire also satisfies — it does eventually get the lock.
+  The behavior rested on two open-coded call sites and a docstring.
+
+  That is the wrong footing for this one, because waiting here is worse than slow. The
+  transition being waited for may be running on the very event loop the waiter would park,
+  in which case it could never finish and the wait would never end. Refusing is also the
+  more useful answer: a caller refused for a busy framework may retry once the transition
+  settles, unlike one refused for reentrancy, and it can only decide that if it is told.
+
+  The guarantee is now written down and covered by a test that fails — rather than hangs —
+  if the acquire ever starts blocking. No behavior changed; what changed is that it can no
+  longer change silently.
+
 ### Removed
 
 - **`spoc.scaffold.extract_archive`** — import it from `spoc.scaffold.archive`
@@ -128,6 +145,18 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   chosen for that in `0.6.0` precisely so the policy would have run a full withdrawal
   before it started being enforced — the other 25 withdrawals in that release took the
   pre-1.0 allowance and were removed outright.
+
+- **`spoc.scaffold.errors.RevisionUnavailableError`** — the condition it named is
+  already raised, as `RetrievalError`, by the resolver that would have raised it
+  (`HttpRevisionResolver.resolve`, when the host reports no revision for a reference).
+  The class was declared in `0.7.0` alongside the leaves it sat with, and never raised
+  from anywhere: no code path constructed it, so no `except` clause could ever have
+  caught it. Two names for one condition is the drift a single error taxonomy exists
+  to prevent, and the one that was live keeps the name.
+
+  Removed under the pre-1.0 allowance, which this release spends. After `1.0.0` a leaf
+  in `spoc.scaffold.errors` — reachable, and named as importable in `0.7.0` — would
+  cost a full deprecation cycle to withdraw, for a class that never fired.
 
 ## [0.8.0] — 2026-08-13
 

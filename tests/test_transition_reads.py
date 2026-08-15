@@ -246,8 +246,8 @@ def test_the_exemption_ends_with_the_transition(tmp_path):
     fw = Framework("models").start(base)
     fw.shutdown()
 
-    assert fw._transitioning is None
-    assert not fw._inside_transition(), (
+    assert fw._transitions._label is None
+    assert not fw._transitions.inside, (
         "the transition marker survived the transition; every later read on this "
         "thread would be exempt"
     )

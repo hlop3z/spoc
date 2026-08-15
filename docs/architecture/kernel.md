@@ -41,6 +41,7 @@ flowchart TB
             identity["identity<br/>grammar · parse · compose<br/>snake_case derivation"]
             declaration["declaration<br/>KindSpec · markers · discovery"]
             registry[("Registry<br/>flat store of Component records<br/>kind : namespace . object_name")]
+            transition["transition<br/>TransitionGate — serializes start/shutdown<br/>and answers who is <i>inside</i> one"]
         end
 
         subgraph adapters ["adapters — touch the outside world"]
@@ -62,6 +63,7 @@ flowchart TB
     config --> core
     root --> core
     root --> adapters
+    root -- "hold() sync · claim() async<br/>refuse_racing_read() per read" --> transition
     registry -. "on_ready(registry)" .-> root
 
     surfaces -- "enumerate · resolve<br/>(read-only, public API)" --> registry
@@ -402,7 +404,12 @@ console script runs.
    rather than by the calling thread, and it governs a further transition as
    well as a read — so lifecycle code that reenters is told so, while a caller
    the transition never invoked is told a transition is in progress and may
-   retry once it settles. That refusal is not a drain — draining in-flight readers
+   retry once it settles. Both determinations live on one `TransitionGate` in
+   `core/transition`, which is what keeps them one determination rather than two
+   that agree today. The asynchronous path takes that gate's lock without
+   waiting: a transition it cannot have is refused rather than queued, because
+   the one it would wait for may be running on the very loop it would park.
+   That refusal is not a drain — draining in-flight readers
    belongs to whoever admitted the work, which is why a served application never
    sees the error at all, and why a component resolved before a transition and
    used after it stays the caller's responsibility.
