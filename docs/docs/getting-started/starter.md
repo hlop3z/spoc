@@ -49,7 +49,7 @@ myproject/
                          #   resources, hooks
 ```
 
-Note what is *not* here: no web framework, no message library, nothing to
+Note what is _not_ here: no web framework, no message library, nothing to
 `pip install`. The starter chooses no transport for you — `--kinds` does not
 apply to it, and the vocabulary is written out in full so you can rename or
 delete what you don't need.
@@ -67,7 +67,7 @@ delete what you don't need.
 ## Bind a transport
 
 `surface.routes(registry)` already derives an abstract route table from your
-views. Binding it to a real transport is a few lines *in your project*, using
+views. Binding it to a real transport is a few lines _in your project_, using
 whatever you prefer — the worked, runnable FastAPI example is
 [Bind a Transport](../how-to/bind-a-transport.md), and the same loop shape
 serves a message socket or a worker queue. SPOC never chooses your transport,

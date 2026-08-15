@@ -1,7 +1,7 @@
 # Ship a Framework
 
 You've built a framework on SPOC — you declared your kinds, and your users
-write apps against them. This page is about the part after that: giving *your*
+write apps against them. This page is about the part after that: giving _your_
 users the project-generation and inspection tooling you already have, without
 writing any of it.
 
@@ -46,7 +46,7 @@ they own.
 ## Ship your project template
 
 `spoc init` generates a project from a **template set**. Ship your own and your
-users start from *your* layout — your `framework.py`, your entry point, your
+users start from _your_ layout — your `framework.py`, your entry point, your
 conventions — instead of the generic one.
 
 A template set is a directory holding a `manifest.toml` beside its files.
@@ -82,7 +82,7 @@ thing that causes `spoc` to reach the network.
 ### What a template can and cannot do
 
 Templates are `$name` substitution and nothing else — no expressions, no
-conditionals, no evaluation. Both file *contents* and file *paths* substitute,
+conditionals, no evaluation. Both file _contents_ and file _paths_ substitute,
 and every placeholder a template uses must be declared in the manifest, so a
 typo fails at generation rather than shipping a file with a literal `$nmae` in
 it.
@@ -172,16 +172,16 @@ That error should be unreachable in a served application, because your surface
 already knows when its work is finished — it admitted the work. Call shutdown at
 the point where it has:
 
-| Surface | Call `shutdown()` / `ashutdown()` | Why it's safe there |
-| --- | --- | --- |
+| Surface                           | Call `shutdown()` / `ashutdown()`                                                    | Why it's safe there                                                                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | ASGI — Starlette, FastAPI, Falcon | In the lifespan shutdown handler (after the `yield` in a `lifespan` context manager) | The ASGI spec sends `lifespan.shutdown` only once the server "has stopped accepting connections and closed all active connections" |
-| gRPC | After `await server.stop(grace)` returns | New RPCs are already rejected with `UNAVAILABLE`, and in-flight ones had the grace period to finish |
-| WSGI behind a worker manager | In the worker's exit hook, after the worker stops accepting | The manager stops routing before it signals the worker |
+| gRPC                              | After `await server.stop(grace)` returns                                             | New RPCs are already rejected with `UNAVAILABLE`, and in-flight ones had the grace period to finish                                |
+| WSGI behind a worker manager      | In the worker's exit hook, after the worker stops accepting                          | The manager stops routing before it signals the worker                                                                             |
 
 Some surfaces have no ambient drain, and there the ordering is yours to write:
 
 - a message-queue loop (ZeroMQ, raw sockets) — stop receiving, finish the message
-  in hand, *then* shut down;
+  in hand, _then_ shut down;
 - a task your app spawned itself with `asyncio.create_task` — an ASGI server drains
   connections, not tasks you started behind its back. Cancel and await it first;
 - worker threads, schedulers, and CLIs that outlive a request.

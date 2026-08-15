@@ -19,13 +19,13 @@ A project does not have one audience for its data, so it should not be forced
 into one format. Each of these earns its place by **who writes the file and who
 reads it**:
 
-| Format   | Written by → read by         | Why this one                                                                                                                                                              |
-| -------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **YAML** | a person → the machine       | Comments, block strings, no quoting ceremony. The format to hand someone who edits configuration by hand and does not write Python. Needs the `yaml` extra.                |
-| **TOML** | the system → the machine     | Unambiguous types and one obvious way to write a table. The same format `spoc.toml` uses, so operational configuration reads the same everywhere. Reading is stdlib; writing needs the `toml` extra. |
-| **JSON** | a machine → a machine        | Universal, exact, no dialects to argue about. What you emit for another program to consume, and what every language already parses. Standard library.                      |
-| **CSV**  | a spreadsheet ↔ the machine  | Fixtures a non-programmer can open in Excel, Numbers or Sheets, edit, and hand back. Tabular data stays reviewable by the people who actually own it. Standard library.     |
-| **XML**  | a legacy system → the machine | Present because something upstream still emits it, not because you should reach for it. Needs the `xml` extra.                                                            |
+| Format   | Written by → read by          | Why this one                                                                                                                                                                                         |
+| -------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **YAML** | a person → the machine        | Comments, block strings, no quoting ceremony. The format to hand someone who edits configuration by hand and does not write Python. Needs the `yaml` extra.                                          |
+| **TOML** | the system → the machine      | Unambiguous types and one obvious way to write a table. The same format `spoc.toml` uses, so operational configuration reads the same everywhere. Reading is stdlib; writing needs the `toml` extra. |
+| **JSON** | a machine → a machine         | Universal, exact, no dialects to argue about. What you emit for another program to consume, and what every language already parses. Standard library.                                                |
+| **CSV**  | a spreadsheet ↔ the machine   | Fixtures a non-programmer can open in Excel, Numbers or Sheets, edit, and hand back. Tabular data stays reviewable by the people who actually own it. Standard library.                              |
+| **XML**  | a legacy system → the machine | Present because something upstream still emits it, not because you should reach for it. Needs the `xml` extra.                                                                                       |
 
 Choose per file, not per project. `collect()` reads a tree of mixed formats in
 one call, and everything downstream sees the same shape whichever format a
@@ -53,7 +53,7 @@ surfaces share a convention, never code.
 The kernel never imports this, importing `spoc` never loads it, and removing it
 entirely would leave startup unchanged — a boundary the test suite enforces
 rather than packaging. `spoc.toml` stays the kernel's own business, read through
-the standard library. Everything here is the *project* loading the project's
+the standard library. Everything here is the _project_ loading the project's
 files.
 
 ## Read and write files
@@ -81,7 +81,7 @@ print(formats.dumps({"port": 8080}, "toml"))    # value → text
 ```
 
 Works on a bare install: JSON, CSV, and TOML reading are pure standard
-library. YAML, XML, and TOML *writing* each need
+library. YAML, XML, and TOML _writing_ each need
 [one extra](../getting-started/installation.md#extras-only-if-you-want-them) —
 and ask for it by name when missing:
 
@@ -106,7 +106,7 @@ print(sorted(data))   # ['settings', 'users']
 
 Collection is all-or-nothing: a malformed file fails the call right there,
 naming the file — not later, in whatever code first touches the bad value.
-Two files that would claim the same key (`users.json` *and* `users.csv`) are
+Two files that would claim the same key (`users.json` _and_ `users.csv`) are
 a collision and fail loudly. Hidden files are skipped; pass `ignore=` globs to
 skip more.
 

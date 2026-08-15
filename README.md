@@ -8,25 +8,89 @@
 ![PyPI](https://img.shields.io/pypi/v/spoc?color=blue)
 ![Downloads](https://img.shields.io/pypi/dm/spoc?color=darkgreen)
 
-**Every framework has a part that finds your code.** Django finds `models.py`.
-pytest finds `test_*`. FastAPI collects the functions you decorated. Each of them
-built the same machinery from scratch: a naming rule, a discovery pass, a registry,
-a boot order.
+## Build a framework in 30 lines
 
-**SPOC is that machinery on its own** — so you can point it at _your_ kinds of thing.
-You name the kinds; SPOC gives you the decorators, the discovery, the registry, the
-lifecycle, the CLI, the autocomplete, and the test fixtures.
+Say what kinds of things your app has:
 
-Every component lands on one shelf under one name:
+```python title="framework.py"
+import spoc
 
+framework = spoc.Framework("models", "commands", "views")
+
+model = framework.kind("models")
+command = framework.kind("commands")
+view = framework.kind("views")
 ```
-kind:namespace.object_name        e.g.  models:blog.post
+
+Tag your code with them, anywhere in the project:
+
+```python title="apps/blog/models.py"
+from framework import model
+
+
+@model
+class Post:
+    """Registers as models:blog.post."""
 ```
 
-That name is the whole interface. SPOC describes what your app contains. It never
-runs it.
+```python title="apps/blog/commands.py"
+from framework import command
 
-## See it work
+
+@command
+def publish(title: str = "Hello, SPOC") -> str:
+    """Registers as commands:blog.publish."""
+    return f"published {title!r}"
+```
+
+```python title="apps/blog/views.py"
+from framework import view
+
+
+@view
+def posts_api() -> list[str]:
+    """Registers as views:blog.posts_api."""
+    return []
+```
+
+```toml title="config/spoc.toml"
+[spoc.apps]
+development = ["apps.blog"]
+```
+
+```python title="main.py"
+from pathlib import Path
+
+from framework import framework
+
+framework.start(Path(__file__).resolve().parent)
+```
+
+That's it — no registry to wire up, no list to keep in sync. Ask SPOC what it found:
+
+```bash
+spoc check
+spoc list
+spoc stubs
+```
+
+```text
+OK: /path/to/blog checks out clean
+commands:blog.publish
+models:blog.post
+views:blog.posts_api
+wrote framework.pyi (3 identifiers)
+```
+
+**SPOC turns your application's declarations into one typed, inspectable registry.**
+
+`check` dry-boots your project and reports what's wrong before anything runs.
+`list` reads the shelf. `stubs` writes real autocomplete for every name you just
+typed — so `framework.objects.models.blog.post` completes in your editor before
+you've written a single test. Add a fourth decorated function tomorrow; all three
+commands see it with no edit to any of these files.
+
+## See it work without writing a file
 
 ```bash
 pip install spoc
@@ -46,112 +110,9 @@ options:
   -h, --help            show this help message and exit
 ```
 
-**Nobody wrote that command list.** It was derived from what the app registered. Add
-a function to `apps/core/commands.py` and it becomes a subcommand; delete it and it
-leaves. The CLI file never changes.
-
-That's the whole trade: name your components once, and every surface reads them for
-free.
-
-## What SPOC decides — and what stays yours
-
-| SPOC decides                                    | You decide                                      |
-| ----------------------------------------------- | ----------------------------------------------- |
-| that the kinds are declared once, in one place  | what the kinds are — `models`, `jobs`, anything |
-| that every component has exactly one name       | what your components are and do                 |
-| that a folder is a namespace, a filename a kind | where those folders live                        |
-| which apps boot, and in what order              | what start and stop _mean_ for your resources   |
-| how the registry is read, typed, and tested     | every surface that reads it                     |
-
-**SPOC never runs your components.** That is what keeps it _underneath_ your stack
-instead of competing with it. FastAPI still serves your HTTP. Typer still parses your
-argv. Celery still runs your jobs. pytest still runs your tests. SPOC answers the one
-question none of them answer: _what does this app contain, and under what name?_
-
-## "Why not just…?"
-
-None of these are competitors. The question is only which one owns your structure.
-
-| You could use…   | Which is right until…                                                                                       |
-| ---------------- | ----------------------------------------------------------------------------------------------------------- |
-| **imports**      | you need _every_ thing of a kind at runtime — then someone hand-maintains a list, and it drifts.            |
-| **entry points** | you notice they are for installed distributions: flat, unordered, no lifecycle. In-repo packages have none. |
-| **pluggy**       | you see it solves the other half: pluggy _calls_ hooks you specified, SPOC _names_ objects you invented.    |
-| **Django**       | you want the registry without the ORM, the settings system, and an opinion about your transport.            |
-| **a container**  | you find DI answers "how is this built", not "what exists, under what name, in what boot order".            |
-
-## Should you use it?
-
-**Yes, if…**
-
-- one codebase feeds several surfaces — HTTP _and_ CLI _and_ workers — and each
-  re-discovers the same components its own way.
-- you are shipping a framework other people write apps against.
-- things must start in dependency order and stop in reverse.
-- a mistyped component name should be an editor error, not a `None` at 3am.
-
-**No, if…**
-
-- it's one app, one surface, a handful of modules. Imports are cheaper. SPOC pays off
-  above a complexity threshold, not below it.
-- you are already on Django. Its app registry _is_ a structural model.
-- you want something that _runs_ your components. SPOC only names and orders them.
-
-## Quick Start
-
-Four small files — that's the whole thing.
-
-**Your rules.** Which kinds exist, declared once:
-
-```python title="framework.py"
-# framework.py
-import spoc
-
-framework = spoc.Framework("models")   # the kinds
-model = framework.kind("models")       # a ready-made decorator
-```
-
-**Your app.** The folder is the namespace, the filename is the kind:
-
-```python title="apps/blog/models.py"
-# apps/blog/models.py
-from framework import model
-
-
-@model
-class Post:
-    """Registers as models:blog.post — the name is derived, not typed out."""
-```
-
-**Your settings.** Which apps boot:
-
-```toml title="config/spoc.toml"
-# config/spoc.toml
-[spoc.apps]
-development = ["apps.blog"]
-```
-
-**Your entry point.** Start, then read the shelf:
-
-```python title="main.py"
-# main.py
-from pathlib import Path
-
-from framework import framework
-
-framework.start(Path(__file__).resolve().parent)  # nothing happens until this
-
-# By name, or by path — the same record either way.
-post = framework.resolve("models:blog.post")
-post = framework.objects.models.blog.post
-
-# A surface is a loop over the shelf. Here, URLs:
-for c in framework.registry.by_kind("models"):
-    print(f"/{c.namespace}/{c.object_name}", c.object)
-```
-
-Prefer to start from a generated project? `uvx spoc init myproject` scaffolds one
-without installing anything.
+**Nobody wrote that command list.** It was derived from what the generated app
+registered — the same trick as above, scaffolded for you. `uvx spoc init myproject`
+works with nothing installed at all.
 
 ## What you get
 
@@ -172,27 +133,31 @@ without installing anything.
 - **Zero dependencies.** `dependencies = []`, enforced. Optional data-format codecs
   live behind extras (`pip install "spoc[full]"`).
 
-## What you build on top
+**SPOC never runs your components.** FastAPI still serves your HTTP, Typer still
+parses your argv, Celery still runs your jobs. SPOC only answers _what does this
+app contain, and under what name_ — how [architecture, names, and lifecycle work
+underneath](https://hlop3z.github.io/spoc/learn/framework/) is in the docs.
 
-```
-                          your apps
-                 (models, views, jobs, …)
-                              │  @decorators
-                              ▼
-                   ┌─────────────────────┐
-                   │    SPOC registry    │   kind:namespace.object_name
-                   └─────────────────────┘
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-         HTTP surface     CLI surface    worker surface
-         (FastAPI, …)     (Typer, …)     (Celery, …)
-```
+## Should you use it?
 
-Each surface is a loop over `registry.by_kind(...)` — written once, and every app you
-add later flows through it. [Build a
-framework](https://hlop3z.github.io/spoc/learn/build-a-framework/) takes an empty
-folder to `curl` talking to an HTTP framework _you_ wrote, in four files, with nothing
-installed but `spoc`.
+**Yes, if…**
+
+- one codebase feeds several surfaces — HTTP _and_ CLI _and_ workers — and each
+  re-discovers the same components its own way.
+- you are shipping a framework other people write apps against.
+- things must start in dependency order and stop in reverse.
+- a mistyped component name should be an editor error, not a `None` at 3am.
+
+**No, if…**
+
+- it's one app, one surface, a handful of modules. Imports are cheaper. SPOC pays off
+  above a complexity threshold, not below it.
+- you are already on Django. Its app registry _is_ a structural model.
+- you want something that _runs_ your components. SPOC only names and orders them.
+
+Weighing it against imports, entry points, pluggy, or a DI container specifically?
+[Why not just…?](https://hlop3z.github.io/spoc/#why-not-just) has the one-line answer
+for each.
 
 ## Install
 
@@ -202,10 +167,8 @@ installed but `spoc`.
 pip install spoc
 ```
 
-Scaffolding needs no install at all: `uvx spoc init myproject` generates a project
-without touching your environment. The generated project imports `spoc` at runtime, so
-install it where you run the project from —
-[installation guide](https://hlop3z.github.io/spoc/getting-started/installation/).
+The generated project imports `spoc` at runtime, so install it where you run the
+project from — [installation guide](https://hlop3z.github.io/spoc/getting-started/installation/).
 
 ## Documentation
 

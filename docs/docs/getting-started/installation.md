@@ -34,20 +34,20 @@ spoc --help
 
 ## Extras (only if you want them)
 
-Everything the kernel does works on a bare install. A few *optional* features
+Everything the kernel does works on a bare install. A few _optional_ features
 of [`spoc.formats`](../tools/formats.md) and
 [`spoc.testing`](../tools/testing.md) need one extra package each:
 
-| Extra  | Install                    | What it unlocks                          |
-| ------ | -------------------------- | ---------------------------------------- |
-| `yaml` | `pip install "spoc[yaml]"` | Reading and writing YAML files           |
-| `xml`  | `pip install "spoc[xml]"`  | Reading and writing XML files            |
-| `toml` | `pip install "spoc[toml]"` | *Writing* TOML (reading is built in)     |
-| `query`| `pip install "spoc[query]"`| JSONPath queries with `formats.query`    |
-| `full` | `pip install "spoc[full]"` | All of the above                         |
+| Extra   | Install                     | What it unlocks                       |
+| ------- | --------------------------- | ------------------------------------- |
+| `yaml`  | `pip install "spoc[yaml]"`  | Reading and writing YAML files        |
+| `xml`   | `pip install "spoc[xml]"`   | Reading and writing XML files         |
+| `toml`  | `pip install "spoc[toml]"`  | _Writing_ TOML (reading is built in)  |
+| `query` | `pip install "spoc[query]"` | JSONPath queries with `formats.query` |
+| `full`  | `pip install "spoc[full]"`  | All of the above                      |
 
 !!! tip "You can't pick wrong"
-    If you use a feature whose extra is missing, SPOC tells you exactly which
-    one to install. Nothing fails silently.
+If you use a feature whose extra is missing, SPOC tells you exactly which
+one to install. Nothing fails silently.
 
 Next: [build your first project](quick-start.md).

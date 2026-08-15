@@ -56,5 +56,5 @@ flowchart LR
 
 The split matters: the **build** column regenerates content, so it can never
 be stale; the **tests** column keeps hand-written prose but makes
-*incompleteness* a failure. Both run in the gate (`.canon/checks.md` — the
+_incompleteness_ a failure. Both run in the gate (`.canon/checks.md` — the
 Docs build and Unit tests rows).

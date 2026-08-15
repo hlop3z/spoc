@@ -15,8 +15,8 @@ Three simple rules:
 1. **The folder name is the namespace.** Blocks in `apps/blog/` get tags like
    `models:blog.post`.
 2. **The file name is the kind.** A `models` block lives in `models.py` — put
-   it in `views.py` and SPOC refuses with a clear error. Where a block *lives*
-   is what it *is*.
+   it in `views.py` and SPOC refuses with a clear error. Where a block _lives_
+   is what it _is_.
 3. **Importing is fine.** `from .models import Post` inside `views.py` is just
    a use, not a second claim. SPOC knows the difference.
 
@@ -51,8 +51,8 @@ framework = spoc.Framework(
 )
 ```
 
-A kind is a **phase**, and a phase spans every app. *All* apps' `models.py` load
-and initialize before *any* app's `views.py` — not just within one app. So a
+A kind is a **phase**, and a phase spans every app. _All_ apps' `models.py` load
+and initialize before _any_ app's `views.py` — not just within one app. So a
 `views` hook that reads the registry sees every model in the project, never a
 half-built world. A dependency cycle is refused at boot, with the cycle named.
 

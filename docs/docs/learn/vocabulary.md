@@ -1,32 +1,32 @@
 # The Default Vocabulary
 
 !!! note "One word, two spellings"
-    The beginner pages say **block**; the API says **`Component`**. They are the
-    same thing: a block is what you decorate, and after `start()` it sits on the
-    shelf as a `Component` record in `framework.registry` — identifier, facets,
-    and the object itself. Everything a block "is" lives on that record; see
-    [Name Tags & the Registry](names-and-registry.md) for the mapping and
-    [the API reference](../api/public.md) for the record's fields.
+The beginner pages say **block**; the API says **`Component`**. They are the
+same thing: a block is what you decorate, and after `start()` it sits on the
+shelf as a `Component` record in `framework.registry` — identifier, facets,
+and the object itself. Everything a block "is" lives on that record; see
+[Name Tags & the Registry](names-and-registry.md) for the mapping and
+[the API reference](../api/public.md) for the record's fields.
 
 SPOC lets you invent any kinds you like — that's the whole point. But an ecosystem
 needs a shared language: a reusable app published by someone else can only declare
-components of kinds *your* project happens to have. So SPOC blesses one **default
+components of kinds _your_ project happens to have. So SPOC blesses one **default
 vocabulary** — five kinds with agreed meanings.
 
 **The rule, up front:** deviate freely. Nothing enforces these names. The default is
 what the starter template emits, what these docs teach, and what reusable third-party
-apps may assume. Think of it like Django's `models.py`: powerful *because* everyone
+apps may assume. Think of it like Django's `models.py`: powerful _because_ everyone
 means the same thing by it — except here it's a convention, not a law.
 
 ## The five kinds
 
-| Kind        | A component is…                                    | Lifecycle role                                  |
-| ----------- | -------------------------------------------------- | ----------------------------------------------- |
-| `models`    | a domain data declaration (a class, a schema)      | none — purely declarative                       |
-| `views`     | a callable a surface exposes (a route, a page)     | none — a surface projects it                    |
-| `commands`  | a callable a project CLI exposes                   | none — the CLI projects it                      |
-| `resources` | a live process-wide object (a pool, a client)      | opened by `on_startup`, closed by `on_shutdown` |
-| `hooks`     | a callable a surface fires at named moments        | none — *your* code dispatches it                |
+| Kind        | A component is…                                | Lifecycle role                                  |
+| ----------- | ---------------------------------------------- | ----------------------------------------------- |
+| `models`    | a domain data declaration (a class, a schema)  | none — purely declarative                       |
+| `views`     | a callable a surface exposes (a route, a page) | none — a surface projects it                    |
+| `commands`  | a callable a project CLI exposes               | none — the CLI projects it                      |
+| `resources` | a live process-wide object (a pool, a client)  | opened by `on_startup`, closed by `on_shutdown` |
+| `hooks`     | a callable a surface fires at named moments    | none — _your_ code dispatches it                |
 
 Four of the five are purely declarative: SPOC registers them, and a **surface** — the
 web binding, the CLI, the worker loop you build — enumerates the registry and exposes
@@ -44,7 +44,7 @@ already has something better: the registry.
 
 The recipe is three small pieces, all public API you've already met: declare the
 kind with `on_startup`/`on_shutdown` hooks (the only kind in the vocabulary that
-uses them), register each resource as an *instance* that knows how to `open()` and
+uses them), register each resource as an _instance_ that knows how to `open()` and
 `close()` itself, and resolve it through the registry at call time. The complete,
 runnable project is [Add a Database](../how-to/add-a-database.md) — this page keeps
 the reasons.
@@ -62,7 +62,7 @@ Three fine points:
 - **If a module's own `initialize()` needs a resource**, declare the order:
   `spoc.KindSpec("models", depends_on=("resources",))`. That works across apps too —
   a kind is a phase, so every app's `resources` is up before any app's `models`. What
-  you cannot order that way is two apps' modules of the *same* kind; for those, the
+  you cannot order that way is two apps' modules of the _same_ kind; for those, the
   `[spoc.apps]` list decides, or resolve lazily.
 - **Async projects** declare coroutine `open`/`close` hooks and boot with
   `astart()`/`ashutdown()` — same recipe, awaited. See
@@ -70,7 +70,7 @@ Three fine points:
 
 ## Hooks: events without an event system
 
-A `hooks` component is a callable; *dispatching* it is your surface's job, not
+A `hooks` component is a callable; _dispatching_ it is your surface's job, not
 SPOC's — the kernel describes, it never executes. The pattern is one loop:
 
 ```python test="skip"

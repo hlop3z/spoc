@@ -30,11 +30,11 @@ with the same weight as breaking an API.
 The kind set is **closed and deliberate** — a new kind changes what the runtime must know how
 to manage, so introducing one is a recorded decision (`DECISIONS.md`), not an ad-hoc addition.
 
-| Kind     | Holds                | Examples                                        |
-| -------- | -------------------- | ----------------------------------------------- |
-| `scalar` | primitive types      | `scalar:core.int64`, `scalar:core.uuid`         |
-| `model`  | domain entities      | `model:blog.post`, `model:identity.user`        |
-| `event`  | immutable domain facts | `event:commerce.order_created`                |
+| Kind     | Holds                  | Examples                                 |
+| -------- | ---------------------- | ---------------------------------------- |
+| `scalar` | primitive types        | `scalar:core.int64`, `scalar:core.uuid`  |
+| `model`  | domain entities        | `model:blog.post`, `model:identity.user` |
+| `event`  | immutable domain facts | `event:commerce.order_created`           |
 
 ### `scalar` — the shared type system
 

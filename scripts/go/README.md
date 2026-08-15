@@ -43,5 +43,5 @@ in `internal/ensure/`. It is also where an **adopted** third-party CLI gets regi
 "not installed" never becomes a reason to reimplement something mature.
 
 Its `doctor` subcommand answers the same question one layer down — are the language toolchains
-themselves present? Those it only ever *reports* on, never installs: obtaining a single binary
+themselves present? Those it only ever _reports_ on, never installs: obtaining a single binary
 is a script's business, provisioning a compiler is the developer's.

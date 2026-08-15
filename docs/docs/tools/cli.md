@@ -53,12 +53,12 @@ Install it: add "apps.blog" to a mode list under [spoc.apps] in config/spoc.toml
 it, before SPOC looks at anything — so a typo is always reported as a typo,
 never as a missing directory you never named.
 
-| Form                            | Example                                     |
-| ------------------------------- | ------------------------------------------- |
-| An installed set's name         | `default`                                   |
-| A directory                     | `./mytemplates`, `C:\templates`             |
-| A GitHub repository             | `gh:owner/repo`                             |
-| Any archive URL                 | `https://host/sets.tar.gz`                  |
+| Form                    | Example                         |
+| ----------------------- | ------------------------------- |
+| An installed set's name | `default`                       |
+| A directory             | `./mytemplates`, `C:\templates` |
+| A GitHub repository     | `gh:owner/repo`                 |
+| Any archive URL         | `https://host/sets.tar.gz`      |
 
 The last two carry optional parts, spelled the way `pip` spells them:
 
@@ -89,7 +89,7 @@ generation. This is a guarantee, not an implementation detail, and it is what
 makes `--template gh:someone/repo` a reasonable thing to type — unlike
 scaffolding tools that execute template-supplied hooks by design.
 
-What you should still weigh: the *generated project* is code written by whoever
+What you should still weigh: the _generated project_ is code written by whoever
 wrote the template, and you're about to run it. That's the same trust decision
 as `git clone`, and no tool can make it for you.
 
@@ -121,8 +121,8 @@ precise wording the runtime error would. Exit code `0` means clean — perfect
 for CI.
 
 !!! note
-    A dry boot still *imports* your app modules. Nothing outlives the check —
-    the framework is torn down and import state restored.
+A dry boot still _imports_ your app modules. Nothing outlives the check —
+the framework is torn down and import state restored.
 
 When another tool is the reader, ask for the document instead:
 
@@ -172,7 +172,7 @@ shape:       constructible
 
 Both boot, read, and tear down — nothing stays running.
 
-`shape` is what you may *do* with the block: `constructible` if it is a class you can
+`shape` is what you may _do_ with the block: `constructible` if it is a class you can
 build, `callable` if it is a function you can call, `value` if it is just a thing.
 
 Both also take `--json`. `spoc list --json` emits
@@ -251,7 +251,7 @@ Three things make it safe to build on:
   unchanged project produce identical bytes and a diff means something really changed —
   not that you reordered your `[spoc.apps]` list.
 
-`format_version` is the version of *this document shape*, not of SPOC. Branch on it, not on
+`format_version` is the version of _this document shape_, not of SPOC. Branch on it, not on
 the release you happen to have installed.
 
 {{ cli_help("projection") }}

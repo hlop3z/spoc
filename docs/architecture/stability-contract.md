@@ -52,7 +52,7 @@ flowchart TB
 
 ## What may be exposed at all
 
-The rules above say what tier follows *from* exposure. A separate rule governs the
+The rules above say what tier follows _from_ exposure. A separate rule governs the
 exposure itself, so a published namespace cannot grow without anything being broken:
 a name is re-exported only if a consumer outside the package must write it to invoke
 an operation, implement a contract the package accepts, distinguish a condition they
@@ -107,7 +107,7 @@ every decision is made.
 ## Why `unverifiable` is a finding rather than a pass
 
 Griffe documents that it cannot see console scripts, entry points, or extras;
-`packaging.py` covers those, and some kinds — a file *schema*, for instance — no
+`packaging.py` covers those, and some kinds — a file _schema_, for instance — no
 observer covers at all. Rather than let a declared element pass because nothing
 looked at it, the core compares each element's kind against the set of kinds the
 observers claim, and reports the remainder.

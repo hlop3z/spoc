@@ -70,7 +70,7 @@ So `apps.demo.extras.hook` would register as `hooks:demo.hook`.
   a settings file has nowhere to carry the metadata, and SPOC says exactly
   that instead of reporting a contract violation you couldn't fix.
 - **Kind hooks don't fire for plugin-only kinds.** `on_startup`/`on_shutdown`
-  fire per app *module*, and a plugin has none.
+  fire per app _module_, and a plugin has none.
 
 Next: [build a framework](build-a-framework.md) — everything on these pages,
 in four files you author.

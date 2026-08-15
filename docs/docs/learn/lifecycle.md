@@ -17,7 +17,7 @@ framework.start(BASE_DIR)
 5. **Wake the modules** — for each app module: the kind's `on_startup` hook
    fires, then the module's own `initialize()` runs.
 
-If *anything* fails, SPOC tears down what already came up and returns the
+If _anything_ fails, SPOC tears down what already came up and returns the
 framework to its inert state — fix the cause and `start()` again cleanly.
 
 `shutdown()` walks the same road backwards: each module's `teardown()` and the
@@ -115,7 +115,7 @@ per project.
   → error. The boot is half-built; there is nothing correct that call could do.
 - **Two threads racing to start** → exactly one boots; the other gets the
   already-started error.
-- **A `teardown()` that raises** → the error reaches you unchanged, *and* the
+- **A `teardown()` that raises** → the error reaches you unchanged, _and_ the
   framework still goes back to sleep. You can fix the cause and `start()` again;
   it never gets stuck reporting itself running.
 - **An `async def` hook or `initialize()` on the synchronous path** → refused

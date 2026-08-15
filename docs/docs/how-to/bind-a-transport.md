@@ -3,7 +3,7 @@
 **How do I put my framework behind FastAPI (or anything else)?** The same way
 [the tutorial](../learn/build-a-framework.md) bound stdlib `http.server`: a
 loop over the registry. SPOC never chooses your transport — any library that
-maps *name → callable* binds in a few lines, and your components never learn
+maps _name → callable_ binds in a few lines, and your components never learn
 which one called them.
 
 This page reuses the tutorial's project — rules, app, settings — and swaps
@@ -66,7 +66,7 @@ def create_app():
 app = create_app()   # uvicorn http_app:app
 ```
 
-Serve it for real with `uvicorn http_app:app`. To *see* that the route table
+Serve it for real with `uvicorn http_app:app`. To _see_ that the route table
 came from the registry — no server needed:
 
 ```python title="main.py"

@@ -132,7 +132,7 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   `framework.objects.` and your editor offers your kinds, then that kind's namespaces,
   then its components, instead of one flat list of every identifier inside a pair of
   quotes. A wrong segment is a one-line error naming that member (mypy volunteers
-  near-misses: *maybe `product`?*) rather than a wall enumerating every overload — that
+  near-misses: _maybe `product`?_) rather than a wall enumerating every overload — that
   wall reaches 232 KB and 2,002 lines at 2,000 components. And the path is **always
   strict**: an undeclared member is an error in every emission mode, because it is absent
   rather than withheld, so typo detection no longer costs you `--strict`.
@@ -207,7 +207,7 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   decorator above it, so every strict stub arrived with an unsuppressed error. The
   suppression now sits where mypy reads it. The pyright suppression is gone entirely —
   probing showed pyright reports nothing for this narrowing, making the comment a claim no
-  checker verified. Conformance now checks *valid* code against a strict stub in all three
+  checker verified. Conformance now checks _valid_ code against a strict stub in all three
   checkers, which is the leg whose absence let this ship.
 
 - **The published documentation site stopped updating.** Its workflow listened for a
@@ -219,7 +219,7 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   accident of how it was written.** Both have always taken the transition lock without
   waiting, so a caller arriving during another transition is refused immediately rather
   than queued. Nothing required that: the contract asked only that a reentrant call not
-  *deadlock*, which a blocking acquire also satisfies — it does eventually get the lock.
+  _deadlock_, which a blocking acquire also satisfies — it does eventually get the lock.
   The behavior rested on two open-coded call sites and a docstring.
 
   That is the wrong footing for this one, because waiting here is worse than slow. The
@@ -306,7 +306,7 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 - **`Framework.resolve_type` and `Framework.resolve_object`** — typed access without
   generating anything. Each takes a caller-owned contract (typically a `Protocol` the
-  *calling* app declares), so a consumer can type what it resolves without importing the
+  _calling_ app declares), so a consumer can type what it resolves without importing the
   module that provides it. Shape — constructible, value, or callable — is checked at
   access time and raises the new `ComponentShapeError`; structure is deliberately left to
   the type checker rather than re-verified at runtime.
@@ -368,7 +368,7 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   latter, still after a full boot. Two private structures described the same components
   with four fields in common and neither able to leave the process — and they had already
   drifted: `RecordInfo` located an object by its `repr` when it carried no `__qualname__`,
-  which for a registered *instance* embeds a memory address. Untidy in prose output; in a
+  which for a registered _instance_ embeds a memory address. Untidy in prose output; in a
   document meant to be diffed it would have made two projections of one unchanged registry
   differ. Components are now located by their type in that case, in the one place the rule
   lives. `spoc explain` also reports `shape` now.
@@ -377,7 +377,7 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   `spoc.stubs.Shape` spelled the first one `"class"` while typed access's errors said
   "a constructible object", and the two classifiers were separate implementations of one
   rule. There is now a single classifier (`spoc.core.shape`), and the projection publishes
-  its tokens — `constructible` says what a consumer may *do* with an object, where
+  its tokens — `constructible` says what a consumer may _do_ with an object, where
   `"class"` named a Python spelling and would mean nothing to a reader in another
   language. No stub output changes; the token is not emitted into a `.pyi`.
 
@@ -429,8 +429,8 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   an app can bypass the registry entirely by importing another app directly — a
   system you can route around is not a kernel. The accurate classification is a
   component registry with a total naming grammar and a dependency-ordered lifecycle,
-  and the positioning line is the one the docs already used: *SPOC helps you build
-  your own framework.* **Documentation only** — no code, no API, and no behaviour
+  and the positioning line is the one the docs already used: _SPOC helps you build
+  your own framework._ **Documentation only** — no code, no API, and no behaviour
   changed. The word survives in `docs/architecture/kernel.md` and in source
   docstrings as shorthand for the core package as against the contained subpackages
   (`spoc.formats`, `spoc.testing`, `spoc.diagnostics`, `spoc.scaffold`); that
@@ -443,14 +443,14 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   project now states the set it actually verifies. The validation suite runs on all
   three, across every supported Python version, and the platform scope is recorded
   in `.canon/checks.md`, which CI and `task check` both derive from. Nothing about
-  where SPOC *runs* changed: it remains pure Python with no dependencies. What
+  where SPOC _runs_ changed: it remains pure Python with no dependencies. What
   changed is which platforms it is prepared to answer for. A green local run is now
   correctly described as evidence for one platform rather than for the pipeline.
 
 ### Fixed
 
 - **The concurrency contract claimed more than it covers.** It said reads after a completed
-  start need no coordination. Reads racing *shutdown* are not covered: reset swaps in a
+  start need no coordination. Reads racing _shutdown_ are not covered: reset swaps in a
   fresh registry rather than emptying the live one, so such a read observes one whole
   registry — never a torn state — but which of the two it observes is a race, and the empty
   one reports the same unknown-segment failure any absent component would. A caller that
@@ -499,7 +499,7 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   the generated variable needed spelling around the language. It now carries PEP 8's
   trailing underscore (`class_`), the escape applies to a singular that lands on a
   keyword too (`--kinds ifs` now gives `if_` where it previously fell back to `ifs`),
-  and derived names are checked for collisions *after* escaping, so no two kinds can
+  and derived names are checked for collisions _after_ escaping, so no two kinds can
   bind the same variable. **Affects newly generated projects only.**
 
 ## [0.7.0] — 2026-08-11
@@ -532,7 +532,7 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   **Error Index** mapping every public exception to its trigger and fix, held
   complete by a test.
 - **The `starter` template set** (provisional). `spoc init myproject --template starter`
-  generates a *running application*, not just a bootable skeleton: the five-kind
+  generates a _running application_, not just a bootable skeleton: the five-kind
   default vocabulary (`models`, `views`, `commands`, `resources`, `hooks`) wired end
   to end, a transport-neutral projection module (`surface.py`), and a working project
   CLI (`python main.py <namespace.command>`) — with zero dependencies beyond SPOC.
@@ -657,20 +657,20 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   because the export list is what a reader will diff, not because anything depended on
   them. Grouped by why:
 
-  - *The retrieval ports, and the vocabulary they speak* — `Reference`, `ReferenceKind`,
+  - _The retrieval ports, and the vocabulary they speak_ — `Reference`, `ReferenceKind`,
     `RevisionResolver`, `Fetcher`, `Cache`. None appears in the signature of a public
     operation; they exist to construct `RemoteTemplateSource`. Now in
     `spoc.scaffold.plan`.
-  - *The retrieval adapters* — `HttpRevisionResolver`, `HttpFetcher` (now in
+  - _The retrieval adapters_ — `HttpRevisionResolver`, `HttpFetcher` (now in
     `spoc.scaffold.remote`), `DirectoryCache`, `default_cache_root` (now in
     `spoc.scaffold.cache`), `RemoteTemplateSource` (now in `spoc.scaffold.sources`).
-  - *Archive admission bounds* — `MAX_EXPANDED_BYTES`, `MAX_MEMBERS`. Now in
+  - _Archive admission bounds_ — `MAX_EXPANDED_BYTES`, `MAX_MEMBERS`. Now in
     `spoc.scaffold.archive`.
-  - *The record-writing half of provenance* — `record_content`, `record_file`,
+  - _The record-writing half of provenance_ — `record_content`, `record_file`,
     `describe_divergence`. Reading a project's origin stays public; writing the record is
     the generating operation's own business, and `AddedApp.divergence` already carries
     the only comparison result a caller needs. Now in `spoc.scaffold.provenance`.
-  - *Ten error leaves whose only distinct response is different wording* —
+  - _Ten error leaves whose only distinct response is different wording_ —
     `PathConflictError`, `PathEscapeError`, `IncompleteTemplateSetError`,
     `UnsatisfiedValueError`, `UndeclaredValueError`, `ReservedTargetError`,
     `InsecureRedirectError`, `MemberRefusedError`, `BoundExceededError`,
@@ -799,8 +799,8 @@ more than they could possibly save. If you are on 0.3.x, read
   unknown key fails start with a `ConfigurationError` naming it and listing the valid
   set, instead of merging silently and booting the project on defaults it never asked
   for. Every offending key is reported in one run.
-- **BREAKING — a re-exported marked *instance* is refused rather than silently
-  re-namespaced.** When two apps' locations for the *same* kind both hold one marked
+- **BREAKING — a re-exported marked _instance_ is refused rather than silently
+  re-namespaced.** When two apps' locations for the _same_ kind both hold one marked
   instance, load order decided whose namespace it got. Discovery now raises
   `IdentityDivergenceError` naming both identities. Importing a registered object into
   a module of another kind (`from .models import repo` inside `views.py`) is a use,
@@ -818,7 +818,7 @@ more than they could possibly save. If you are on 0.3.x, read
 - **`collect()` skips hidden entries by default.** Any path segment starting with `.`
   is skipped before its key is derived, so a stray `.cache/x.json` can neither
   contribute entries nor fail the whole collection on a key grammar it was never going
-  to use. What *is* collected stays strict.
+  to use. What _is_ collected stays strict.
 - **`write()` creates missing parent directories** rather than failing on the directory
   above the file the caller named.
 - **The missing-`spoc.toml` warning obeys `echo`**, like every other configuration
@@ -844,7 +844,7 @@ more than they could possibly save. If you are on 0.3.x, read
 - **The Python floor drops to 3.12** (was 3.13), and CI runs 3.12/3.13/3.14.
 - **BREAKING — plugins register in the one flat registry.** `framework.plugins` — a second
   lookup surface keyed by dotted URI — is gone. A `[spoc.plugins]` group now names a
-  *declared kind*, and each loaded reference registers as a component under the canonical
+  _declared kind_, and each loaded reference registers as a component under the canonical
   grammar (`hooks = ["demo.extras.hook"]` → `hooks:demo.hook`), resolvable and enumerable
   like everything discovery finds. A group naming an undeclared kind fails start with
   `UnknownKindError`: configuration populates the kind set, it never widens it. A kind
@@ -852,7 +852,7 @@ more than they could possibly save. If you are on 0.3.x, read
 - **BREAKING — app-authored lifecycle failures propagate unwrapped.** A startup or
   shutdown hook, or a module `initialize`/`teardown`, that raises now surfaces its own
   exception with its own traceback — the blanket `SpocError("Error during
-  startup/shutdown: ...")` wrapper is gone, making the documented error doctrine true.
+startup/shutdown: ...")` wrapper is gone, making the documented error doctrine true.
   Kernel-authored failures are still `SpocError` subclasses, and a failed start still
   rolls back to inert.
 - **BREAKING — hooks receive an ordered, immutable tuple.** Kind lifecycle hooks get
@@ -877,7 +877,7 @@ more than they could possibly save. If you are on 0.3.x, read
 
 - **BREAKING — one identifier grammar.** Every object is addressed as
   `kind:namespace.object_name`, with each segment validated against `^[a-z][a-z0-9_]*$` at
-  registration. Invalid segments are *rejected, never normalized*.
+  registration. Invalid segments are _rejected, never normalized_.
 - **BREAKING — `Framework.resolve()` replaces `get_component()`.** Lookup fails per segment
   (kind → namespace → object_name), and each error names the segment, its value, and the valid
   candidates. There are no `None` returns anywhere in the lookup path.
@@ -888,10 +888,10 @@ more than they could possibly save. If you are on 0.3.x, read
   `@framework.on_ready` registers callbacks that fire exactly once after discovery with the
   completed registry, before module init.
 - **BREAKING — snake_case identifiers are derived from object names.** `@model class
-  UserAccount` registers as `user_account`; PEP 8 class names need no restatement. Three
+UserAccount` registers as `user_account`; PEP 8 class names need no restatement. Three
   boundaries stay strict so the kernel never guesses: an explicitly stated `name=` is used
-  verbatim and never converted, the grammar module stays pure and strict, and *resolution never
-  converts* — `resolve('models:blog.UserAccount')` fails. A derived name that cannot conform
+  verbatim and never converted, the grammar module stays pure and strict, and _resolution never
+  converts_ — `resolve('models:blog.UserAccount')` fails. A derived name that cannot conform
   even after conversion (a class named `2Cool`) still fails loudly.
 - **BREAKING — per-kind `required` replaces the framework-wide strict/loose switch.** Declaring
   a kind that only some apps implement no longer weakens the guarantee for every other kind.
@@ -957,7 +957,7 @@ more than they could possibly save. If you are on 0.3.x, read
   and returns the framework to its inert pre-start state; `shutdown()` performs the same
   reset (fresh registry and loader, injected import path removed), so restarting on a
   different project no longer resolves stale components or grows `sys.path`. Ejecting is
-  ownership-gated: `inject_apps` reports whether *it* inserted the entry, and only then
+  ownership-gated: `inject_apps` reports whether _it_ inserted the entry, and only then
   does shutdown remove it — a second framework, or a caller who put the path there
   themselves, keeps it.
 - **Scaffolder.** `spoc init BadName` exits with code 1 and a message instead of an
@@ -1005,7 +1005,7 @@ more than they could possibly save. If you are on 0.3.x, read
 - **An unreadable `spoc.toml` is a `ConfigurationError`**, not a raw `PermissionError`
   or `OSError` escaping the kernel's error family.
 - **`InvalidSegmentError` remediation matches the path taken.** A failure over a
-  *derived* name told the author their explicitly-passed name was used verbatim — advice
+  _derived_ name told the author their explicitly-passed name was used verbatim — advice
   for a path they had not taken. It now names the intrinsic name it was derived from.
 - **Template sets registered as importable packages resolve.** The entry-point group
   documented "a directory path or an importable package", but a package target was
@@ -1020,13 +1020,13 @@ more than they could possibly save. If you are on 0.3.x, read
 
 Installing `spoc` bare reads JSON, CSV, and TOML — all standard library.
 
-| Extra   | Installs                          | Enables                                    |
-| ------- | --------------------------------- | ------------------------------------------ |
-| `yaml`  | `ruamel.yaml`                     | YAML 1.2 read/write                        |
-| `xml`   | `xmltodict`                       | XML read/write                             |
-| `toml`  | `tomli-w`                         | TOML **writing** (stdlib `tomllib` reads)  |
-| `query` | `python-jsonpath`, `iregexp-check`| RFC 9535 JSONPath + RFC 6901 JSON Pointer  |
-| `full`  | all of the above                  | everything                                 |
+| Extra   | Installs                           | Enables                                   |
+| ------- | ---------------------------------- | ----------------------------------------- |
+| `yaml`  | `ruamel.yaml`                      | YAML 1.2 read/write                       |
+| `xml`   | `xmltodict`                        | XML read/write                            |
+| `toml`  | `tomli-w`                          | TOML **writing** (stdlib `tomllib` reads) |
+| `query` | `python-jsonpath`, `iregexp-check` | RFC 9535 JSONPath + RFC 6901 JSON Pointer |
+| `full`  | all of the above                   | everything                                |
 
 [1.0.0]: https://github.com/hlop3z/spoc/compare/v0.8.0...v1.0.0
 [0.8.0]: https://github.com/hlop3z/spoc/compare/v0.7.0...v0.8.0

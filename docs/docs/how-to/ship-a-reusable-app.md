@@ -1,6 +1,6 @@
 # Ship a Reusable App
 
-**How do I publish an app someone else can install into *their* framework?**
+**How do I publish an app someone else can install into _their_ framework?**
 The one rule: a reusable app must not import its host's `framework.py` — it
 can't know where that lives. The `spoc.component` marker puts the same name
 tag on a block without importing anything of the host's:

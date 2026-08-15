@@ -18,14 +18,14 @@
 SPOC's one honest DI gap: `resolve("models:catalog.product")` is stringly-typed
 service location. A typo is a runtime error; the type checker sees nothing; the IDE
 completes nothing. The runtime should stay exactly as it is — dynamic, inert,
-grammar-validated — but the *static* view of the registry is mechanically derivable,
+grammar-validated — but the _static_ view of the registry is mechanically derivable,
 and today we make the developer restate it by hand or go without.
 
 ## Inspirations, distilled to what actually transfers
 
 **Strawberry GraphQL** (annotations → schema):
 
-- Python type annotations are the *single source of truth*; the GraphQL schema is
+- Python type annotations are the _single source of truth_; the GraphQL schema is
   compiled from the type graph, never written separately.
 - **Scalars** are the extensibility seam: a small registry mapping a Python type to
   its leaf-level contract (serialize/parse pair). Adding a scalar never touches the
@@ -38,7 +38,7 @@ and today we make the developer restate it by hand or go without.
 - One introspection pass over live runtime objects (routes, signatures, Pydantic
   models) produces a **standard interchange document** (OpenAPI/JSON Schema).
 - The document — not the framework — is the contract surface. Swagger UI, client
-  codegen, and validation are all independent *consumers* of the same document.
+  codegen, and validation are all independent _consumers_ of the same document.
   FastAPI never wrote a docs renderer; it wrote a document and adopted renderers.
 - Shared types are deduplicated by `$ref` into `components/schemas` — the document
   has its own normalization, separate from Python's.
@@ -53,7 +53,7 @@ source of truth  →  canonical intermediate model  →  N emitters
 
 ## The SPOC version
 
-SPOC already has a *better* source of truth than either inspiration: the registry is
+SPOC already has a _better_ source of truth than either inspiration: the registry is
 flat, deterministic, read-sorted, and its names are pre-normalized by the identity
 grammar (`kind:namespace.object_name`). No name munging, no dedup heuristics. And the
 kernel "describes, never executes," so introspection is a collect-only boot — register
@@ -70,7 +70,7 @@ identifier, its Python type reference (module + qualname), its shape
 dependency edges. **Serializable to JSON Schema** (Rule 9: adopt the standard
 interchange) so non-Python consumers exist for free.
 
-The manifest — not the emitter — is the product. `types.py` becomes *one consumer*.
+The manifest — not the emitter — is the product. `types.py` becomes _one consumer_.
 
 ### 2. Kind contracts (the extensibility seam — Strawberry's scalars analogue)
 
@@ -110,12 +110,12 @@ inspirations inserts the manifest boundary, which buys:
    core never grows per-kind or per-output branches.
 3. **Staleness is checkable at the right layer.** `spoc types --check` regenerates
    the manifest in memory and diffs — same discipline as `/opsx:sync`, and it
-   catches drift in *any* emitted artifact, not just `types.py`.
+   catches drift in _any_ emitted artifact, not just `types.py`.
 
 ## Schema vocabulary: adopt OpenAPI 3.1 = JSON Schema 2020-12
 
 Rule 9 already mandates the standard; the sharp edge is the version. Adopt **JSON
-Schema 2020-12 + the OpenAPI format registry** (what OAS 3.1 uses verbatim), *not*
+Schema 2020-12 + the OpenAPI format registry** (what OAS 3.1 uses verbatim), _not_
 the OAS 3.0 subset dialect (`nullable:` etc.) whose divergence the ecosystem spent
 years unwinding. Then manifest schemas can be `$ref`'d into any OAS 3.1 document
 with zero translation.
@@ -153,7 +153,7 @@ with zero translation.
   `scaffold/`, `formats/`), surfaced as `spoc types`? Almost certainly yes.
 - `/ai:decide` pass: JSON Schema emit via stdlib-only hand-rolling vs. adopting a
   schema library — and whether any existing Python codegen tool (e.g. the
-  datamodel-code-generator family works the *other* direction) is worth adopting.
+  datamodel-code-generator family works the _other_ direction) is worth adopting.
   Suspected answer: Build for the facade emitter (~one stdlib file driven by our own
   IR), Adopt the JSON Schema vocabulary but not necessarily a library.
 - Zero-runtime-dependency mandate: everything above must hold under the base

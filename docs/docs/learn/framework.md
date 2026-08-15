@@ -30,14 +30,14 @@ framework = spoc.Framework(
 
 Everything a kind can say, on one record:
 
-| Field         | Default | Meaning                                                        |
-| ------------- | ------- | -------------------------------------------------------------- |
-| `name`        | —       | The kind's name (lowercase snake_case)                         |
-| `depends_on`  | `()`    | Kinds whose modules must load before this one's                |
-| `required`    | `True`  | Must every app provide a module for this kind?                 |
-| `metadata`    | `None`  | A class every block of this kind must carry as metadata        |
-| `on_startup`  | `None`  | Called with each app's blocks of this kind at boot             |
-| `on_shutdown` | `None`  | Called the same way at shutdown                                |
+| Field         | Default | Meaning                                                 |
+| ------------- | ------- | ------------------------------------------------------- |
+| `name`        | —       | The kind's name (lowercase snake_case)                  |
+| `depends_on`  | `()`    | Kinds whose modules must load before this one's         |
+| `required`    | `True`  | Must every app provide a module for this kind?          |
+| `metadata`    | `None`  | A class every block of this kind must carry as metadata |
+| `on_startup`  | `None`  | Called with each app's blocks of this kind at boot      |
+| `on_shutdown` | `None`  | Called the same way at shutdown                         |
 
 Declaring the same kind twice is refused — one declaration, no drift.
 
@@ -72,7 +72,7 @@ that (`spoc init shop --kinds class` gives you `class_`). The kind keeps the
 name you declared; only the variable is spelled around the language.
 
 A derived name is converted for you: `UserAccount` → `user_account`,
-`HTTPServer` → `http_server`. A name you *state* is used exactly as written —
+`HTTPServer` → `http_server`. A name you _state_ is used exactly as written —
 never silently rewritten. Blocks can be classes, functions, or objects.
 
 ## Metadata: a form every block must fill in

@@ -80,15 +80,15 @@ Conventional Commits, split by coherent intent, no attribution trailers. The ful
 
 ## Where things live
 
-| Path        | What                                                             |
-| ----------- | ---------------------------------------------------------------- |
-| `src/spoc/` | The kernel. Pure core; adapters isolate anything external.        |
-| `tests/`    | pytest suite; `testpaths` is pinned in `pyproject.toml`.          |
-| `docs/`     | MkDocs site. `docs/architecture/` holds the Mermaid diagrams.     |
-| `examples/` | Runnable example apps, linted the same as `src/`.                 |
-| `PROJECT.md` | Consolidated reference: architecture, behavior contracts, ADRs.  |
-| `scripts/`  | The tool workshop — see [`scripts/README.md`](scripts/README.md). |
-| `.canon/`   | The engineering rules this project lives by.                      |
+| Path         | What                                                              |
+| ------------ | ----------------------------------------------------------------- |
+| `src/spoc/`  | The kernel. Pure core; adapters isolate anything external.        |
+| `tests/`     | pytest suite; `testpaths` is pinned in `pyproject.toml`.          |
+| `docs/`      | MkDocs site. `docs/architecture/` holds the Mermaid diagrams.     |
+| `examples/`  | Runnable example apps, linted the same as `src/`.                 |
+| `PROJECT.md` | Consolidated reference: architecture, behavior contracts, ADRs.   |
+| `scripts/`   | The tool workshop — see [`scripts/README.md`](scripts/README.md). |
+| `.canon/`    | The engineering rules this project lives by.                      |
 
 ## Reporting issues
 

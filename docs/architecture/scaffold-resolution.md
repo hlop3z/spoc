@@ -2,7 +2,7 @@
 
 What **is**, as of remote template sources. A `--template` reference is parsed in
 the pure core into the form it designates, then dispatched to exactly one
-resolver. Retrieval sits entirely *before* the generation pipeline: by the time a
+resolver. Retrieval sits entirely _before_ the generation pipeline: by the time a
 plan exists, a remote set is indistinguishable from a local one.
 
 ## Resolution is scheme-first and total
@@ -90,12 +90,12 @@ Layers 1–3 can each be bypassed by a bug in the layer itself; layer 4 is the o
 that holds regardless. That is not defensive habit — it is a response to what has
 actually happened to this exact feature elsewhere:
 
-| Advisory | Where it was | Layer that stops it here |
-| --- | --- | --- |
-| Django CVE-2021-3281 | absolute paths and `..` in `archive.extract()` | 1, 2 |
-| Django CVE-2025-59682 | *partial* traversal via a shared common prefix | 4 — `is_relative_to` compares components, not string prefixes |
-| Django, Aug 2026 | `Content-Disposition` filename reached `os.path.join` | Nothing the remote party says is used to build a path |
-| CPython CVE-2025-4517 | traversal bypass **inside** `filter="data"` | 4 — the project's floor is 3.12, which admits unpatched interpreters |
+| Advisory              | Where it was                                          | Layer that stops it here                                             |
+| --------------------- | ----------------------------------------------------- | -------------------------------------------------------------------- |
+| Django CVE-2021-3281  | absolute paths and `..` in `archive.extract()`        | 1, 2                                                                 |
+| Django CVE-2025-59682 | _partial_ traversal via a shared common prefix        | 4 — `is_relative_to` compares components, not string prefixes        |
+| Django, Aug 2026      | `Content-Disposition` filename reached `os.path.join` | Nothing the remote party says is used to build a path                |
+| CPython CVE-2025-4517 | traversal bypass **inside** `filter="data"`           | 4 — the project's floor is 3.12, which admits unpatched interpreters |
 
 The last row is why layer 4 exists at all. The tests for it stub layers 1 and 2
 to pass everything, so they exercise containment rather than the standard
@@ -147,7 +147,7 @@ flowchart TB
 The record's values never enter `values`, so no substitution path reaches them —
 a set cannot supply what the record says. `.spoc-template.json` is a reserved
 destination, so a set cannot claim it either, and the refusal happens in the pure
-core before anything is written. The record joins the plan *before* the checks,
+core before anything is written. The record joins the plan _before_ the checks,
 so it inherits never-overwrite and all-or-nothing like any rendered file.
 
 `spoc app` renders app-shaped files through the same `build_plan` but contributes

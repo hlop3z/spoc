@@ -11,8 +11,8 @@ That shape is what an identifier already means, so it costs no fidelity: ``parse
 transforms nothing and the grammar admits neither ``:`` nor ``.``, which makes reaching
 a record through three segments and through its composed string the same lookup written
 two ways. It is also what makes reading one facet cost that facet rather than everything
-registered — the difference between microseconds and milliseconds at scale, and the
-reason a grouped view never has to be derived by walking the whole collection.
+registered: a grouped view is a sub-dictionary already in hand, never a derivation that
+walks the whole collection.
 
 The registry describes; it never executes. Resolution is a pure lookup that returns the
 object uninvoked, and that fails per segment — kind, then namespace, then object_name —

@@ -36,13 +36,13 @@ missing file boots an empty project in `development` mode.
 ## Modes: one project, different outfits
 
 A **mode** is the answer to "which apps should boot?" The three built-in modes
-*cascade* — each one includes the ones to its right:
+_cascade_ — each one includes the ones to its right:
 
-| Mode          | Boots the apps listed under…            |
-| ------------- | --------------------------------------- |
-| `production`  | `production`                            |
-| `staging`     | `staging`, then `production`            |
-| `development` | `development`, `staging`, `production`  |
+| Mode          | Boots the apps listed under…           |
+| ------------- | -------------------------------------- |
+| `production`  | `production`                           |
+| `staging`     | `staging`, then `production`           |
+| `development` | `development`, `staging`, `production` |
 
 So an app listed under `production` boots in **every** mode, and an app listed
 under `development` boots only while you develop. Order is kept, duplicates
@@ -89,7 +89,7 @@ Now `vendor.shop` registers under `vendor_shop` — `models:vendor_shop.order` �
 and `apps.shop` keeps `shop`. The `as` clause exists so you can settle this
 without renaming a package you may not own, like a vendored tree or something
 installed from PyPI. Any `[spoc.plugins]` reference inside an aliased app
-follows the alias too, because the *package* owns the name.
+follows the alias too, because the _package_ owns the name.
 
 You only ever write `as` when there is a clash. Everything else keeps deriving.
 

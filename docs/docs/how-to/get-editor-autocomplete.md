@@ -1,7 +1,7 @@
 # Get Editor Autocomplete
 
 `framework.resolve("models:shop.product")` hands you back an object, but your editor has
-no way to know *which* object — so it offers you nothing, and a typo in that string only
+no way to know _which_ object — so it offers you nothing, and a typo in that string only
 shows up when you run the program.
 
 `spoc stubs` fixes both. It boots your project once, writes down what every identifier
@@ -164,23 +164,23 @@ component reached both ways.
 
 They return the identical record, so pick per call site:
 
-| | `resolve("...")` | `objects.models.shop.product` |
-| --- | --- | --- |
-| Identifier known as you write it | works | works |
-| Identifier built at runtime | **works** | impossible — a path is literal |
-| Completion offers | the whole project, inside quotes | one step at a time |
-| Typo says | see "Catching typos" | `has no attribute "prodcut"; maybe "product"?` |
+|                                  | `resolve("...")`                 | `objects.models.shop.product`                  |
+| -------------------------------- | -------------------------------- | ---------------------------------------------- |
+| Identifier known as you write it | works                            | works                                          |
+| Identifier built at runtime      | **works**                        | impossible — a path is literal                 |
+| Completion offers                | the whole project, inside quotes | one step at a time                             |
+| Typo says                        | see "Catching typos"             | `has no attribute "prodcut"; maybe "product"?` |
 
 The path completes **per segment** — type `framework.objects.` and your editor offers your
 kinds, then that kind's namespaces, then that namespace's components. You do not have to
 remember any of it.
 
 !!! tip "Reach for the path in a large project"
-    Past about a thousand components, the `resolve` overloads make type checkers slow
-    down: they weigh every alternative on each call. The attribute path is one member
-    lookup however large your registry gets — SPOC's own gate checks a 2,000-component
-    path-based stub in about a second, where the overload equivalent takes mypy half a
-    minute. `spoc stubs` tells you when you cross that line.
+Past about a thousand components, the `resolve` overloads make type checkers slow
+down: they weigh every alternative on each call. The attribute path is one member
+lookup however large your registry gets — SPOC's own gate checks a 2,000-component
+path-based stub in about a second, where the overload equivalent takes mypy half a
+minute. `spoc stubs` tells you when you cross that line.
 
 If a kind or namespace is named for a Python keyword, its attribute takes the usual
 trailing underscore — a kind `class` is `framework.objects.class_` — while the identifier
@@ -191,8 +191,8 @@ string keeps the plain name.
 A `.pyi` file **never executes**. That matters more than it sounds.
 
 The whole reason to resolve `models:shop.product` through the registry instead of importing
-it is that your `orders` app should not depend on your `catalog` app. A *generated module*
-naming `Product` would import `catalog` and quietly destroy that. A generated *stub* names
+it is that your `orders` app should not depend on your `catalog` app. A _generated module_
+naming `Product` would import `catalog` and quietly destroy that. A generated _stub_ names
 it for the type checker only — at runtime the import does not exist, and your apps stay
 exactly as decoupled as they were.
 
@@ -215,7 +215,7 @@ mismatch, not a pass.
 By default the stub keeps a catch-all, so identifiers you build at runtime still work —
 that is the `f"{kind}:shop.product"` line in `main.py` above, and it resolves fine.
 
-The cost is that a *misspelled* literal falls through that catch-all and comes back as
+The cost is that a _misspelled_ literal falls through that catch-all and comes back as
 `Any` instead of erroring. If you always use literal identifiers, turn that off:
 
 ```bash
@@ -246,7 +246,7 @@ Add annotations to the source and the number goes down.
 
 ## One rule about `framework.py`
 
-A stub replaces its module *entirely* for type checking, so anything `spoc stubs` cannot
+A stub replaces its module _entirely_ for type checking, so anything `spoc stubs` cannot
 describe would silently vanish from your editor's view. Rather than let that happen, it
 refuses:
 

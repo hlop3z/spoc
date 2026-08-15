@@ -5,8 +5,8 @@ project, boot it in isolation, and try different modes. Nothing here touches
 the kernel — and nothing you boot in a test leaks into the next one.
 
 !!! note "One extra needed"
-    The tree builder and mode switcher *write* TOML, which needs
-    `pip install "spoc[toml]"`. If it's missing, the error says exactly that.
+The tree builder and mode switcher _write_ TOML, which needs
+`pip install "spoc[toml]"`. If it's missing, the error says exactly that.
 
 ## Build a throwaway project: `ProjectTree`
 
@@ -39,9 +39,9 @@ Every declared app is auto-installed under the `development` mode; pass
 `config={...}` to override any part of the `[spoc]` table.
 
 !!! note "Why `component` and not a decorator from `framework.py`?"
-    A test tree has no `framework.py` — the test itself constructs the
-    framework. The `component` marker puts the same name tag on a block
-    without importing one, which is exactly what a throwaway app needs.
+A test tree has no `framework.py` — the test itself constructs the
+framework. The `component` marker puts the same name tag on a block
+without importing one, which is exactly what a throwaway app needs.
 
 ## Boot it safely: `isolated`
 
@@ -65,7 +65,7 @@ def test_boot_in_isolation(tmp_path):
 Pass kinds and the scope builds the framework, or hand it a prebuilt one when
 the declaration needs hooks or `KindSpec` details:
 `isolated(base, framework=my_framework)`. Use `start=False` to get an inert
-framework when the thing you're testing *is* the boot.
+framework when the thing you're testing _is_ the boot.
 
 ## Try another mode: `mode`
 
@@ -85,7 +85,7 @@ def test_production_mode(tmp_path):
 
 ## With pytest: the fixtures
 
-Install SPOC and the fixtures are just *there* — no plugin registration, no
+Install SPOC and the fixtures are just _there_ — no plugin registration, no
 conftest wiring. The worked test is
 [Test Your App](../how-to/test-your-app.md); what each fixture gives you:
 

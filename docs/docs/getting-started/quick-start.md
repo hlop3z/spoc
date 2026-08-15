@@ -9,7 +9,7 @@ spoc init hello
 cd hello
 ```
 
-This generates the *default* template — the smallest project that runs, which
+This generates the _default_ template — the smallest project that runs, which
 is the right one to learn from. The README's demo used
 `spoc init myproject --template starter`, a fuller project with working CLI
 commands; that one is walked through in [The Starter](starter.md).
@@ -45,8 +45,8 @@ Installed apps: ['apps.core']
 That's SPOC booting: it read your settings, imported your app, found two
 blocks, and put them on the shelf with their name tags.
 
-Note the program says *components* where this page says *blocks* — those are
-one thing. **`Component`** is the API's name for a record on the shelf; *block*
+Note the program says _components_ where this page says _blocks_ — those are
+one thing. **`Component`** is the API's name for a record on the shelf; _block_
 is the word these guides use while you're learning. From here on you'll see
 both.
 

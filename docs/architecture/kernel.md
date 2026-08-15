@@ -89,7 +89,7 @@ flowchart LR
 ## Absent is not broken
 
 Optionality is decided per kind, never framework-wide, and it only governs
-*absence*. A module that exists and raises while importing is always an error —
+_absence_. A module that exists and raises while importing is always an error —
 the author wrote something that does not work rather than declining to write it.
 The two are told apart by which module the import system reports as missing.
 
@@ -196,7 +196,7 @@ that would break new projects fails here rather than reaching users.
 `spoc.formats` is a **contained subpackage** of the `spoc` distribution. The kernel never
 imports it and importing `spoc` never loads it — there is no edge between them in either
 direction, a boundary the test suite enforces rather than packaging. It exists for the
-*project's* own data — fixtures, tables, per-app settings — never for the kernel's
+_project's_ own data — fixtures, tables, per-app settings — never for the kernel's
 configuration, which stays `spoc.toml` through stdlib `tomllib`. The collection-key grammar
 restates the kernel's segment convention locally: the two surfaces share a convention,
 never code.
@@ -238,7 +238,7 @@ flowchart TB
 ```
 
 The dotted edges are the laziness: a codec's dependency is imported the first time that
-*direction* of that *format* is used, so importing `spoc.formats` on a bare install pulls in
+_direction_ of that _format_ is used, so importing `spoc.formats` on a bare install pulls in
 nothing, and a missing extra fails naming itself rather than as an `ImportError`.
 
 Reading and querying are separate boxes on purpose. Addressing is split by failure semantics —
@@ -249,7 +249,7 @@ never relaxed into each other.
 
 `spoc.testing` is the third contained subpackage, under the same boundary as the other
 two: the kernel never imports it, importing `spoc` never loads it, and the suite pins
-both directions. It consumes only the kernel's *public* contracts — construction,
+both directions. It consumes only the kernel's _public_ contracts — construction,
 `start`/`shutdown`, resolution — and owns the process state a boot touches in a test
 (`sys.path`, `sys.modules`), which the kernel itself never mutates.
 
@@ -354,7 +354,7 @@ between apps — the decoupling the registry exists to provide survives being de
 `spoc.locate` sits outside every subpackage because they all need it and only
 `spoc.cli` may import them.
 
-`spoc.projection` is the sixth, and the only one that is also depended *on*. It owns
+`spoc.projection` is the sixth, and the only one that is also depended _on_. It owns
 the collect-only boot — discovery runs, initialization does not — so a project whose
 startup hooks would fail is still describable, and it owns the single description of a
 registered component. Both other describing surfaces read that description rather than
@@ -414,7 +414,7 @@ console script runs.
    sees the error at all, and why a component resolved before a transition and
    used after it stays the caller's responsibility.
    One object, one identity: divergent re-registration raises.
-   The contract covers *derived* reads too, not only records: a failed `resolve`
+   The contract covers _derived_ reads too, not only records: a failed `resolve`
    is composed from one observation of the store, so it never names a candidate
    that did not exist when the lookup ran, and a lifecycle phase groups the
    store once for every hook it dispatches, so two hooks in one phase never read
@@ -426,7 +426,7 @@ console script runs.
     the declaration, so it is identical for every app and no absent optional
     module can shift it. A kind is therefore a **phase** that completes across
     every app before the next begins, and the app list only ever orders modules
-    *within* a phase — which is why no declaration can ask for one app's later
+    _within_ a phase — which is why no declaration can ask for one app's later
     kind ahead of another app's earlier one. `graphlib` is kept for refusing a
     cycle, not for producing the order.
 11. **The inert state is unconditional** — every transition out of `started`
@@ -443,6 +443,7 @@ console script runs.
     the alternative of swallowing failures or reporting them as a group, which
     would break the promise that the caller sees the exact exception the app
     raised. Fix the failing teardown; the kernel will not paper over it.
+
 12. **The synchronous path refuses coroutines before running anything** — it
     establishes that no hook or module function it is about to run is a
     coroutine, and names every one it finds, before invoking the first. A

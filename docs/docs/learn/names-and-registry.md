@@ -15,11 +15,11 @@ models : blog . post
 Three segments, always in that order, each one lowercase snake_case
 (`^[a-z][a-z0-9_]*$`). Some examples:
 
-| You write                              | The tag says                 |
-| -------------------------------------- | ---------------------------- |
-| `class Post` in `apps/blog/models.py`  | `models:blog.post`           |
-| `class HTTPServer` in `apps/web/views.py` | `views:web.http_server`   |
-| `@model(name="admin")` in `apps/blog`  | `models:blog.admin`          |
+| You write                                 | The tag says            |
+| ----------------------------------------- | ----------------------- |
+| `class Post` in `apps/blog/models.py`     | `models:blog.post`      |
+| `class HTTPServer` in `apps/web/views.py` | `views:web.http_server` |
+| `@model(name="admin")` in `apps/blog`     | `models:blog.admin`     |
 
 Two rules make names predictable:
 
@@ -150,7 +150,7 @@ except spoc.UnknownObjectError as error:
     # UnknownObjectError: Unknown object_name 'pots' in models:blog. Registered: post
 ```
 
-The same honesty applies when blocks go *onto* the shelf:
+The same honesty applies when blocks go _onto_ the shelf:
 
 - Two different blocks claiming the same tag → refused (`DuplicateComponentError`).
 - One block claiming two different tags → refused (`IdentityDivergenceError`).

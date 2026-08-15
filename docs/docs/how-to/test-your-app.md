@@ -1,7 +1,7 @@
 # Test Your App
 
 **How do I write a test that boots my app?** Install SPOC and the pytest
-fixtures are just *there* — no plugin registration, no conftest wiring. One
+fixtures are just _there_ — no plugin registration, no conftest wiring. One
 fixture, `spoc_framework`, builds a throwaway project and hands you a started
 framework; teardown always runs, so nothing leaks into the next test.
 
@@ -66,7 +66,7 @@ raise SystemExit(subprocess.run([sys.executable, "-m", "pytest", "-q"]).returnco
 
 ## In CI
 
-The fixtures test your app's *behavior*; `spoc check` tests its *structure* —
+The fixtures test your app's _behavior_; `spoc check` tests its _structure_ —
 settings, imports, dependency cycles, name collisions — without running any of
 it ([The Command Line](../tools/cli.md)). They catch different mistakes, and
 the second is one line:

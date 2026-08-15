@@ -141,8 +141,8 @@ curl http://127.0.0.1:8000/hello/greet
 {"message": "Hello from a framework you built"}
 ```
 
-That response came from a function *you* tagged, found by rules *you* wrote,
-served by a loop *you* can read in one screen.
+That response came from a function _you_ tagged, found by rules _you_ wrote,
+served by a loop _you_ can read in one screen.
 
 ## 7. The payoff: add a function, get an endpoint
 
@@ -174,7 +174,7 @@ curl http://127.0.0.1:8000/hello/goodbye
 {"message": "That's the whole trick"}
 ```
 
-Mistype a URL and the 404 names every route that *does* exist — the loud-
+Mistype a URL and the 404 names every route that _does_ exist — the loud-
 failure habit, inherited by your framework for free.
 
 ## What you just built

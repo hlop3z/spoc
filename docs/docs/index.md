@@ -3,7 +3,7 @@
 **SPOC helps you build your own framework.**
 
 Frameworks like Django have rules: "put models in `models.py`, and I will find
-them." SPOC lets *you* write rules like that — in about five lines — and it
+them." SPOC lets _you_ write rules like that — in about five lines — and it
 does all the finding for you. That claim is a tutorial, not a slogan:
 [build a framework](learn/build-a-framework.md) takes you from an empty folder
 to `curl` talking to your own framework, in four files.
@@ -46,7 +46,7 @@ Imagine your project is a big box of building blocks.
 
 Need a block? Ask the shelf by its name tag. That's the whole trick.
 
-*Block* is this guide's friendly word for what the API calls a **`Component`** —
+_Block_ is this guide's friendly word for what the API calls a **`Component`** —
 the record the shelf hands back, carrying the name tag and your object. Same
 thing, two spellings; you'll meet the second one in
 [the API reference](api/public.md).
@@ -111,19 +111,32 @@ print(record.object)  # <class 'apps.blog.models.Post'>
 
 SPOC is a **registry**: it discovers, organizes, and hands back your blocks.
 It never runs them. The web server, the CLI, the worker — those are thin
-layers *you* build by reading the shelf. That keeps SPOC small, and it keeps
+layers _you_ build by reading the shelf. That keeps SPOC small, and it keeps
 you in charge.
 
 So SPOC replaces nothing you already use. FastAPI still serves your HTTP,
 Typer still parses your argv, Celery still runs your jobs, pytest still runs
-your tests. SPOC answers the one question none of them answer: *what does
-this app contain, and under what name?*
+your tests. SPOC answers the one question none of them answer: _what does
+this app contain, and under what name?_
 
 - **Zero dependencies.** The core is pure standard library.
 - **Loud failures.** A typo never boots a half-working project; you get an
   error that names exactly what went wrong.
 - **Nothing happens at import.** Your project only boots when you say
   `start()`.
+
+## Why not just…?
+
+None of these are competitors. The question is only which one owns your
+structure.
+
+| You could use…   | Which is right until…                                                                                       |
+| ---------------- | ----------------------------------------------------------------------------------------------------------- |
+| **imports**      | you need _every_ thing of a kind at runtime — then someone hand-maintains a list, and it drifts.            |
+| **entry points** | you notice they are for installed distributions: flat, unordered, no lifecycle. In-repo packages have none. |
+| **pluggy**       | you see it solves the other half: pluggy _calls_ hooks you specified, SPOC _names_ objects you invented.    |
+| **Django**       | you want the registry without the ORM, the settings system, and an opinion about your transport.            |
+| **a container**  | you find DI answers "how is this built", not "what exists, under what name, in what boot order".            |
 
 ## Where to go next
 

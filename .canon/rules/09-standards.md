@@ -10,26 +10,26 @@ recognized standard; deviating from an applicable one is a decision recorded in
 
 ## Contracts and schemas
 
-| Contract               | Standard               |
-| ---------------------- | ---------------------- |
-| Data shape, validation | **JSON Schema**        |
-| Synchronous HTTP APIs  | **OpenAPI**            |
-| Events and messaging   | **AsyncAPI**           |
+| Contract               | Standard        |
+| ---------------------- | --------------- |
+| Data shape, validation | **JSON Schema** |
+| Synchronous HTTP APIs  | **OpenAPI**     |
+| Events and messaging   | **AsyncAPI**    |
 
 Schemas are native-format files loaded through an adapter, never string literals in code —
-see *Externalize native-format content* in `.canon/guidelines.md`.
+see _Externalize native-format content_ in `.canon/guidelines.md`.
 
 ## Identity
 
 When an entity has a globally recognized identifier, **store it** — a private key alone makes
 the data an island.
 
-| Entity                          | Identifier   |
-| ------------------------------- | ------------ |
-| Knowledge entities              | **Wikidata QID** |
-| Research publications, datasets | **DOI**      |
-| Researchers                     | **ORCID**    |
-| Legal entities                  | **LEI**      |
+| Entity                          | Identifier                                     |
+| ------------------------------- | ---------------------------------------------- |
+| Knowledge entities              | **Wikidata QID**                               |
+| Research publications, datasets | **DOI**                                        |
+| Researchers                     | **ORCID**                                      |
+| Legal entities                  | **LEI**                                        |
 | System-level records            | **UUID** (v7 where ordering by creation helps) |
 
 The pattern: a system-level UUID as the internal key, plus the external global identifier as

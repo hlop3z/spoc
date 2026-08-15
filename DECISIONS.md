@@ -111,7 +111,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   step to the one command whose whole purpose is removing friction.
 - **Considered**: copier (strong at new-project generation and its `update` feature is real,
   but carries Jinja and needs its own install for a once-per-project command); cookiecutter
-  (the incumbent, but renders a template directory to a *different* output directory by design
+  (the incumbent, but renders a template directory to a _different_ output directory by design
   — it cannot render in place, which ruled it out while the change still had an `add app`
   operation).
 - **Precedent**: Django's `TemplateCommand` backs `startproject` with no external templating
@@ -126,7 +126,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   `dependencies = []` untouched — verified in the built wheel, which declares no
   `Requires-Dist`. One command with a handful of flags is squarely inside what argparse does
   well.
-- **Considered**: cyclopts (this project's choice for *workshop* tools, where nothing ships —
+- **Considered**: cyclopts (this project's choice for _workshop_ tools, where nothing ships —
   that ADR does not transfer, because dependency weight counts against a stated invariant
   here); typer (same objection, heavier tree).
 - **Note**: the Go ADR above rejects stdlib `flag` for lacking subcommands. That reasoning is
@@ -148,7 +148,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 ### Decision D10: Declarative configuration validation — Build (minimal) on the standard library
 
 - **Status**: approved
-- **Why**: The reinvention here was never *validating the configuration* — it was having
+- **Why**: The reinvention here was never _validating the configuration_ — it was having
   written a general-purpose recursive schema engine to do it. The `[spoc]` table is four
   closed keys authored by the project owner, not untrusted input, so the fix is to delete the
   engine and check four keys explicitly: less build, not more. `tomllib` (stdlib) already
@@ -166,7 +166,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   rpds-py, four transitive dependencies to describe a four-key contract).
 - **Rule tension, accepted deliberately**: Rule 9 says adopt the recognized schema standard.
   It is aimed at contracts and identifiers exchanged with the outside world, not a four-key
-  internal config file, and the current code violates the *adopt-before-build* rule more
+  internal config file, and the current code violates the _adopt-before-build_ rule more
   severely than explicit checks ever could. Revisit if the configuration surface stops being
   closed.
 - **Isolation**: the configuration adapter module. The kernel core never reads a file.
@@ -182,7 +182,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   known facts on the kernel's hottest path.
 - **Considered**: msgspec structs for metadata and configuration alike (one tool, one mental
   model — rejected because declaring a kind would then require importing msgspec, making the
-  dependency part of spoc's *public API* rather than its internals); no runtime check at all
+  dependency part of spoc's _public API_ rather than its internals); no runtime check at all
   (smallest possible, but a wrong type would reach the registry and surface later inside an
   unrelated projection, violating the loud-discovery invariant).
 - **Isolation**: the registration boundary in the declaration layer — one check, one place.
@@ -195,7 +195,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   arbitrary caller-supplied strings into TOML, which is serialization, not substitution, and it
   was already producing unparseable output for any reference containing a backslash or a quote.
 - **Why**: Stdlib `tomllib` is read-only, and comment-preserving edits require `tomlkit` — but
-  only when *editing* an existing file. Dropping the scaffolder's `add app` operation left only
+  only when _editing_ an existing file. Dropping the scaffolder's `add app` operation left only
   emission of a fresh `spoc.toml` from a template, which is plain text substitution. The
   concern was removed rather than solved, which is why the scaffolder still ships with no
   dependencies.
@@ -207,7 +207,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 ### Decision D13: Multi-format loading and collection — Build (thin) over adopted parsers
 
 - **Status**: approved
-- **Why**: Adopting `anyconfig` would make it a dependency of *every* format including JSON,
+- **Why**: Adopting `anyconfig` would make it a dependency of _every_ format including JSON,
   breaking the bare-install requirement `format-codecs` already states — a conflict with an
   approved spec requirement, not a preference. What remains to build is a dispatch table, a
   directory walk, key derivation, and collision refusal — none of which is standard-format
@@ -223,7 +223,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 - **Status**: approved
 - **Why**: Maintained (1.0.4, February 2026), MIT, pure Python with no dependencies. Its
   `force_list` accepts a **callable** receiving `(path, key, value)` — the precise extension
-  point the declared-repeating-*paths* design needs, which the tag-name form alone could not
+  point the declared-repeating-_paths_ design needs, which the tag-name form alone could not
   express. `unparse` covers the write direction without a second library.
 - **Considered**: build over stdlib `ElementTree` (zero dependencies and `Element` is close to
   the right shape, but it is hand-rolling standard-format parsing against the canon, and
@@ -233,7 +233,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 - **Note**: there is no de-jure XML-to-JSON standard, deliberately — W3C standardized the
   opposite direction (`fn:json-to-xml`) because the mapping is lossy on attributes, namespaces,
   ordering, and mixed content. This convention is therefore necessarily a de-facto adoption.
-  For CSV the situation is the reverse: `csv2json` (W3C Recommendation, 2015) *is* de jure, and
+  For CSV the situation is the reverse: `csv2json` (W3C Recommendation, 2015) _is_ de jure, and
   its minimal-mode output is what stdlib `csv.DictReader` already produces, so standards
   alignment came free. CSVW's standard mode with a JSON-LD descriptor is the named upgrade path
   if typed columns are ever needed.
@@ -251,7 +251,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   (predates the RFC and implements a pre-standard dialect — rejected on those grounds before
   the gate).
 - **Criterion**: passes the JSONPath Compliance Test Suite.
-- **Risk accepted**: `python-jsonpath` is a deliberate *superset* of RFC 9535 — its
+- **Risk accepted**: `python-jsonpath` is a deliberate _superset_ of RFC 9535 — its
   strict-conformance sibling exists for that reason. Strictness is reached by pinning the
   RFC-strict entry points via sentinel tokens; if that ever proves unavailable, the fallback is
   the two-dependency option above. The companion `iregexp-check` is what makes the RFC's own
@@ -311,7 +311,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 - **Status**: approved
 - **Why**: Standard-format parsing is on the never-hand-roll list, and `tarfile`'s PEP 706
   `filter="data"` is the maintained answer — PEP 721 has pip extracting sdists with it. But it
-  cannot be the *sole* control: CVE-2025-4517 (CVSS 9.4) is arbitrary filesystem write via path
+  cannot be the _sole_ control: CVE-2025-4517 (CVSS 9.4) is arbitrary filesystem write via path
   traversal in `filter="data"` itself, patched only in 3.12.11 / 3.13.4, while this project
   requires `>=3.12` and cannot control a user's patch level. Re-verifying each materialized path
   with `resolve().is_relative_to()` makes that CVE — and any future filter bypass — inert, at a
@@ -325,7 +325,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 ### Decision D19: Expanded-size and member-count bounds — Build (thin), no dependency
 
 - **Status**: approved
-- **Why**: No standard-library API bounds *expanded* size — PEP 706 explicitly does not cover
+- **Why**: No standard-library API bounds _expanded_ size — PEP 706 explicitly does not cover
   it — and the only OSS candidate covers zip but not tar, so adopting it would still leave the
   tar path hand-written while breaking the empty-dependency invariant. Descending to Build is
   justified here because no viable option exists under the stated constraint, not because the
@@ -370,7 +370,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   taking it as a dependency breaks the invariant, and taking it as an extra reintroduces exactly
   the two-step install this change exists to eliminate. Reading `XDG_CACHE_HOME`,
   `LOCALAPPDATA`, and `~/Library/Caches` directly is about fifteen lines: this adopts the
-  platform *conventions*, declining only the library that wraps them.
+  platform _conventions_, declining only the library that wraps them.
 - **Considered**: `platformdirs` behind a `remote` extra (correct but self-defeating for this
   feature); caching inside the generated project (no platform logic, but no reuse across
   projects, so every new project re-fetches).
@@ -405,7 +405,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   to author it. The mechanism is structural rather than defensive: the record's values leave the
   substitution vocabulary entirely, so no rendering path exists through which a set — retrieved
   from anywhere, written by anyone — can reach it. The reserved-destination check is defense in
-  depth that makes an attempt *visible*, not the thing that makes it impossible. This is control
+  depth that makes an attempt _visible_, not the thing that makes it impossible. This is control
   flow inside a scaffolder already decided as Build (thin) on the standard library, and adopting
   anything here would mean adopting a template engine, which the specs forbid outright.
 - **Considered**: adopt Copier or cookiecutter wholesale (Copier is the positive precedent —
@@ -424,7 +424,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 - **Why**: Determining a Python package's true public API — `__all__` precedence, re-export
   and alias resolution, inherited members, signature changes — is a solved problem, and it is
   the input the stability contract's gate depends on. griffe (ISC, actively maintained, the
-  engine under mkdocstrings) does extraction *and* `griffe check` breakage classification
+  engine under mkdocstrings) does extraction _and_ `griffe check` breakage classification
   between two refs, so one adoption serves both the drift check and the release policy's
   compatibility assertions. Its public-API rules already match ours. Verified before building
   on it: it classified a removed export as "Public object was removed" (exit 1) and stayed
@@ -432,7 +432,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 - **Considered**: hand-rolling extraction on `importlib`/`inspect`/`ast` (re-implements
   `__all__` precedence and alias resolution, and yields no breakage classification — the
   `loc`/tokei mistake again); snapshotting the rendered surface into a golden file (cheap and
-  does catch drift, but reports only *that* something changed, never what kind, so it cannot
+  does catch drift, but reports only _that_ something changed, never what kind, so it cannot
   support the version-increment assertions).
 - **Scope limit**: griffe documents that it cannot see console scripts, entry points, or
   extras — roughly half this surface. Those are observed by `apicheck.packaging` from
@@ -440,7 +440,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   same as adopting everything, and the manifest declares kinds no observer covers as
   `unverifiable` rather than passing them silently.
 - **Isolation**: `apicheck.extract`, one adapter in `scripts/py/tools/apicheck/`. The diff core
-  receives an extracted surface and knows nothing about griffe. Deliberately *not* shipped in
+  receives an extracted surface and knows nothing about griffe. Deliberately _not_ shipped in
   `src/spoc/`: a checker inside the package would need a tier of its own and would have to
   police itself.
 
@@ -453,7 +453,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   this package's floor is 3.12, so ~40 lines bridge the gap. On 3.13+ the stdlib decorator is
   used unchanged, and the fallback deletes itself the day the floor moves to 3.13.
 - **Considered**: adopt `typing_extensions`, the canonical backport — rejected outright, it is
-  a *runtime* dependency and `dependencies = []` is load-bearing; bump `requires-python` to
+  a _runtime_ dependency and `dependencies = []` is load-bearing; bump `requires-python` to
   `>=3.13` and drop the fallback entirely (strictly cleaner code, but dropping 3.12 is a scope
   change, not a tooling one — available later at no cost); hand-roll a bespoke decorator
   (reinvents a standard that type checkers already understand).
@@ -471,7 +471,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   `BreakageKind` has twelve members, none of them deprecation-related. So the archived
   `decide-scaffold-surface` note that "griffe already reads `__deprecated__`" is wrong, and
   waiting for upstream is not an option. Griffe stays the adopted extractor for the hard part
-  (`__all__` precedence, alias and re-export resolution); recognizing *our own* mark on top of
+  (`__all__` precedence, alias and re-export resolution); recognizing _our own_ mark on top of
   it is a project-specific rule with no upstream to adopt. The mark is read with `ast` because
   the message spans implicitly concatenated string literals, which is standard-format parsing —
   on the never-hand-roll list — and because `extract.py` already opens every source file for
@@ -501,7 +501,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   `packaging.version`, already in use for `declared_version`. The walk is driven by removals and
   stops at the first release lacking the mark, so in the ordinary case it costs nothing.
 - **Considered**: adopt griffe's `load_git` — it is publicly exported and does check out a ref,
-  but it returns a `Module` where `apicheck` needs a path to run its *own* extractor over (tier
+  but it returns a `Module` where `apicheck` needs a path to run its _own_ extractor over (tier
   derivation, `#:` comments, packaging facts), so it would introduce a second way of reading a
   ref, which is the exact failure `release.py`'s docstring exists to prevent; it also creates a
   worktree, taking a repository lock that `git archive` was deliberately chosen to avoid. Build
@@ -527,15 +527,15 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   untouched. Hatch 1.17.1 (July 2026), MIT, maintained by the PyPA.
 - **Considered**: `bump-my-version` 1.5.1 (the maintained successor to bump2version and
   bumpversion, both dead upstream — richer, with commit and tag built in, but it pulls nine
-  runtime dependencies and needs its own `[tool.bumpversion]` block, a *second* declaration of
+  runtime dependencies and needs its own `[tool.bumpversion]` block, a _second_ declaration of
   where the version lives beside `[tool.hatch.version]`, and its commit/tag feature duplicates
   `version:release`, which already gates on `task check`); keeping the hand-rolled regex (works
   today, installs nothing, but is the reinvention the adopt-before-build rule forbids).
-- **Ruled out before scoring**: `uv version --bump` — verified failing here, *"We cannot get or
-  set dynamic project versions in: pyproject.toml"*, since the version is declared `dynamic`.
+- **Ruled out before scoring**: `uv version --bump` — verified failing here, _"We cannot get or
+  set dynamic project versions in: pyproject.toml"_, since the version is declared `dynamic`.
   `hatch-vcs` / `setuptools-scm`, which derive the version from the tag and would remove the
   chance to mistype it entirely — **hard reject**: `apicheck.release.declared_version` reads
-  `__about__.py` statically *before* a tag exists, and `apidiff` gates the surface delta against
+  `__about__.py` statically _before_ a tag exists, and `apidiff` gates the surface delta against
   that declared increment. Deriving the version from tags would disable the deprecation
   lifecycle enforcement.
 - **Obtaining it**: invoked as `uvx hatch`, so `uv` — already required by `task doctor` — fetches
@@ -637,8 +637,8 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   does not parse. The concern reads as "turn a category name into a legal identifier",
   which sounds like an inflection problem and is not: singularization is already decided
   and deliberately conservative, and the half that was broken is answered by a convention
-  Python publishes about itself — PEP 8's *"single trailing underscore … to avoid
-  conflicts with Python keyword, e.g. `class_`"*. Detection is `keyword.iskeyword`, the
+  Python publishes about itself — PEP 8's _"single trailing underscore … to avoid
+  conflicts with Python keyword, e.g. `class_`"_. Detection is `keyword.iskeyword`, the
   authoritative list, from the standard library, already imported in the module. Adopting
   the standard costs one helper; a reader who has met `class_` needs no explanation.
 - **Considered**: an inflection library (`inflect`, `inflection`) — solves the half that
@@ -671,10 +671,10 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 ### Decision D37: Verifying platform-conditional behavior — Extend the cache-location build, platform as a value
 
 - **Status**: approved
-- **Why**: this re-examined *Cache location — Build (thin) on the platform conventions* above and
+- **Why**: this re-examined _Cache location — Build (thin) on the platform conventions_ above and
   confirmed it: `platformdirs` is still the mature answer, no standard-library equivalent has
   landed (the discuss.python.org thread remains a discussion, not a PEP), and `dependencies = []`
-  still blocks it. What changes is only *how* the already-built fifteen lines are shaped.
+  still blocks it. What changes is only _how_ the already-built fifteen lines are shaped.
   `default_cache_root()` splits into a pure function over an explicit platform identifier and
   environment mapping, plus a thin adapter reading `sys.platform` and `os.environ`. Branch
   selection stops being an ambient effect and becomes a value, so every arm is reachable from
@@ -682,7 +682,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   requires and what makes the coverage figure stop being a property of the machine that produced
   it.
 - **Considered**: the pytest platform plugins (`pytest-platform-markers`, `pytest-skip-markers`)
-  — mature and actively maintained, but they *skip* tests on the wrong platform, which is the
+  — mature and actively maintained, but they _skip_ tests on the wrong platform, which is the
   categorical opposite of the requirement; adopting either would defeat it. Monkeypatching
   `sys.platform` per test — no production change, but it patches a global other code may have
   already read and leaves selection ambient.
@@ -701,7 +701,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   already a safe segment, `rev-<sha256 truncated>` otherwise, and a refusal when it is empty.
   Total, collision-free to the strength of the digest, incapable of traversal, and it extends the
   `url-<digest>` scheme `HttpRevisionResolver` already uses rather than inventing a second one —
-  the same move the *Collisions introduced by escaping* decision above made, for the same reason.
+  the same move the _Collisions introduced by escaping_ decision above made, for the same reason.
   Hashing is on the never-hand-roll list; `hashlib.sha256` is the standard library's answer and is
   already imported in `remote.py`.
 - **Considered**: refusing every non-path-safe revision — strictest and simplest, but the revision
@@ -779,7 +779,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 ### Decision D43: Type-reference extraction for stub generation — Build on stdlib
 
 - **Status**: approved
-- **Why**: the describe pass holds the *live* registered objects, so `__module__` /
+- **Why**: the describe pass holds the _live_ registered objects, so `__module__` /
   `__qualname__` and `inspect.signature` answer the question directly and exactly. Every
   candidate tool reads source statically — the wrong side of the boundary: a static reader
   would re-derive what the registry already knows, and could not see components registered
@@ -839,7 +839,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 
 - **Status**: approved
 - **Why**: Pylance, the extension supplying completion in VS Code, is built on pyright, so
-  pyright resolving a type correctly *is* the evidence that completion works — there is no
+  pyright resolving a type correctly _is_ the evidence that completion works — there is no
   separate Pylance behavior to test. `reveal_type(expr, expected_text=...)` asserts the
   rendered type a hover would show, which is the closest programmatic analogue to what the
   user sees. A one-time manual check in VS Code is recorded in the docs so the human-visible
@@ -859,12 +859,12 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   label raise `ImproperlyConfigured: Application labels aren't unique, duplicates: <label>`
   at startup; the documented fix is a custom `AppConfig` stating an explicit `label`. The
   model — derive by default, fail loudly on contest, allow an explicit override — is what
-  is adopted. The *code* is built, because there is nothing to install: the enforcement is
+  is adopted. The _code_ is built, because there is nothing to install: the enforcement is
   a `dict[str, str]` from namespace to owning package inside `Framework`, and it is domain
   logic about SPOC's own identifier grammar (Rule 11), not a general concern any library
   could hold. One improvement on the precedent: Django's error names the duplicated label
   but not which apps produced it — a recurring complaint in its issue tracker — so ours
-  names the namespace *and* both claiming paths.
+  names the namespace _and_ both claiming paths.
 - **Considered**: auto-disambiguating a collision by prefixing the parent segment
   (`vendor_shop`) — rejected because a component's identity would then change depending on
   which other apps happen to be installed, which is a worse failure than the one being
@@ -880,7 +880,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 - **Why**: `"vendor.shop as vendor_shop"` reuses the language's own vocabulary for rebinding
   a name to avoid a clash, so there is nothing new to learn — the DX bar this project holds.
   It also avoids overloading `:`, which already means "attribute" in `module.path:attribute`
-  (the `--framework` reference and the plugin reference form). Parsing is a split on ` as `
+  (the `--framework` reference and the plugin reference form). Parsing is a split on `as`
   with surrounding whitespace, which a dotted module path cannot contain; a parser library
   for this would be more code to configure than to write, and would be the `loc` mistake
   again.
@@ -953,7 +953,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   order in which the items were inserted in the graph", which is a caveat, not a contract.
   The app-list tiebreak is exactly that unpromised half, and it holds today only because
   `Framework._register_apps` happens to insert app-major. Sorting by `(kind_depth,
-  app_index)` moves the guarantee into code a reader can check, and satisfies every edge by
+app_index)` moves the guarantee into code a reader can check, and satisfies every edge by
   construction because `depends_on` runs only from a lower depth to a higher one. The shape
   is standard: Odoo's module graph sorts by `(phase, depth, order_name)` and networkx
   exposes the same idea as `lexicographical_topological_sort(key=…)`.
@@ -997,7 +997,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 - **Why**: Rule 9 settles the language; the gate had to settle authorship and the draft.
   Pinned to `https://json-schema.org/draft/2020-12/schema` — the current published draft,
   where its successor is still an unexpired IETF Internet-Draft and could yet change. The
-  schema is hand-written and checked in because the change's design makes the *document* the
+  schema is hand-written and checked in because the change's design makes the _document_ the
   format and the Python dataclass one producer of it; a generator inverts that authority.
   Generation also cannot express what carries the most meaning — the
   `kind:namespace.object_name` pattern, the closed shape vocabulary, and a format version
@@ -1027,8 +1027,8 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   stays empty and no downstream framework inherits it.
 - **Reconciles with the earlier rejection**: "Configuration validation — Adopt `tomllib`,
   build the four-key check" rejected `jsonschema` for pulling four transitive dependencies
-  to describe a four-key contract. That rejection stands. It was a *runtime* dependency
-  there and is a *test* dependency here, so the zero-`Requires-Dist` invariant behind it is
+  to describe a four-key contract. That rejection stands. It was a _runtime_ dependency
+  there and is a _test_ dependency here, so the zero-`Requires-Dist` invariant behind it is
   untouched; and that ADR scoped Rule 9 to "contracts and identifiers exchanged with the
   outside world, not a four-key internal config file" — the registry projection is exactly
   such a contract, which is why the same rule now points the other way on the same tool.
@@ -1044,15 +1044,15 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 
 - **Status**: approved
 - **Why**: Rule 9 points at Schema.org/RDF for vocabularies, so the question was asked and
-  the answer is negative: nothing standard describes *what an application registered
-  in-process*. Schema.org `SoftwareApplication` describes software products for search and
+  the answer is negative: nothing standard describes _what an application registered
+  in-process_. Schema.org `SoftwareApplication` describes software products for search and
   discovery; SPDX (ISO/IEC 5962) and CycloneDX describe dependency inventories keyed by
   Package URL for licence compliance and supply-chain use; OpenAPI and AsyncAPI describe API
   surfaces. Each models a different subject, and adopting one would bend this format to an
   ill-fitting vocabulary for interoperability no consumer would exercise. JSON Schema alone
   is the whole of the adoption.
 - **Recorded so it is not re-asked**: the negative answer is the deliverable. The revisit
-  trigger is a change of *subject*, not of scale — if the projection ever describes packages
+  trigger is a change of _subject_, not of scale — if the projection ever describes packages
   rather than in-process components, adopt CycloneDX plus purl at that point.
 - **Considered**: aligning field names with Schema.org properties for familiarity (buys no
   interoperability while constraining naming; `shape` has no analogue at all).
@@ -1098,7 +1098,7 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   `test_racing_duplicates_have_one_winner` called `.result()` on each submission before
   submitting the next, so its two "racing" threads never overlapped and the test passed for
   twenty iterations without testing a race at all. The lesson generalizes: a concurrency test
-  must *establish* the overlap, never assume it.
+  must _establish_ the overlap, never assume it.
 - **Considered**: `blanket` (deterministic concurrency testing — wraps threading primitives and
   drives execution from the main thread so a test chooses which thread takes the lock next;
   better for inherently probabilistic races, but it intercepts threading primitives and is
@@ -1107,11 +1107,11 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 - **Outcome**: the barrier repaired the duplicate race, and the escalation to `blanket` was
   not needed for the resolution-failure guarantee either — but not because a barrier
   sufficed. The store only ever grows, so a multi-observation failure could only name
-  candidates that appeared *after* the lookup, and exposing that requires suspending
-  execution *inside* `resolve` between the lookup and the candidate scan, which no barrier
+  candidates that appeared _after_ the lookup, and exposing that requires suspending
+  execution _inside_ `resolve` between the lookup and the candidate scan, which no barrier
   placed outside it can reach. Counting lock acquisitions instead pins the mechanism
   exactly and deterministically. Recorded because "adopt the deterministic tool" was the
-  anticipated answer and a deterministic *assertion* turned out to beat it.
+  anticipated answer and a deterministic _assertion_ turned out to beat it.
 - **Revisit trigger**: a concurrency test that cannot be made reliable with a barrier and has
   no deterministic invariant to assert instead. Adopt `blanket` for that test rather than
   tolerating flakiness or deleting the coverage.
@@ -1122,14 +1122,14 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
 - **Status**: approved
 - **Why**: stdlib `logging` is the mature standard for a library's position in the stack. The
   canon's never-hand-roll rule points at OpenTelemetry for observability, and the 2026 guidance
-  resolves the apparent conflict rather than overriding it: a *library* emits to a named logger
-  and the *application* owns the telemetry pipeline. Three consequences are taken deliberately:
+  resolves the apparent conflict rather than overriding it: a _library_ emits to a named logger
+  and the _application_ owns the telemetry pipeline. Three consequences are taken deliberately:
   a `NullHandler` on the `spoc` root logger, because otherwise Python's `lastResort` handler
   prints WARNING and above to stderr and any error-level log ships as noise to every
   application that never configured logging; `getLogger(__name__)` everywhere, replacing a
   hardcoded `getLogger("spoc")` that coexisted with the `__name__` convention and denied
   consumers per-subsystem control; and lazily-formatted `%s` arguments with `exc_info=True`
-  rather than pre-formatted text, which is what makes records OTel-bridgeable *without* an OTel
+  rather than pre-formatted text, which is what makes records OTel-bridgeable _without_ an OTel
   dependency — an application routing them through `LoggingHandler` gets a structured
   exception record with attributes instead of a string to parse back apart.
 - **The logger-name contract**: `spoc` is the stable handle a consumer configures. Names below
@@ -1151,8 +1151,8 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   and `source_factory` exist precisely so a downstream composition root can supply them — but each
   `register` was exposed only from a plain module, which under the derivation rule makes it
   `internal`: no promise, removable in a patch. Meanwhile `ENTRY_POINT_GROUP` is exported and
-  `template-set:default` is listed public, so a framework author was *promised* the template path
-  and *not* the command path. Half a guaranteed extension point is worse than neither, because the
+  `template-set:default` is listed public, so a framework author was _promised_ the template path
+  and _not_ the command path. Half a guaranteed extension point is worse than neither, because the
   unguaranteed half is the one that most looks like an invitation. Each `register` is now
   re-exported from its package with a provisional notice, and the general rule — an extension
   point's parts carry coherent tiers — is now a requirement in `public-api-surface` rather than a
@@ -1163,11 +1163,11 @@ tool; `PROJECT.md` summarizes the architecture these decisions produced.
   mounted by `spoc.cli` and by nothing else. Promoting only the scaffolder would have left a
   framework author with `hello init` promised and `hello check` not — the same defect one level
   down. The Django-admin line the how-to already draws settles it: `django-admin` is `startproject`
-  *and* `check`, and a downstream CLI that can generate but not validate is half a CLI. One path,
+  _and_ `check`, and a downstream CLI that can generate but not validate is half a CLI. One path,
   one decision (Rule 7).
 - **Why `provisional` and not `public`**: the signature takes `argparse._SubParsersAction`, a
-  private standard-library type. Promising it in perpetuity would commit SPOC *and every downstream
-  framework* to `argparse`, so a later move to another parser would either be blocked or force a
+  private standard-library type. Promising it in perpetuity would commit SPOC _and every downstream
+  framework_ to `argparse`, so a later move to another parser would either be blocked or force a
   major release for a reason unrelated to the kernel. `provisional` states exactly what is true:
   publicly documented, intended for this use, unsettled in shape, breakable in a minor but never in
   a patch. Each notice names two settling conditions — a framework outside SPOC actually mounting
