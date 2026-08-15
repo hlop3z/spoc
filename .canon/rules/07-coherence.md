@@ -18,7 +18,7 @@ architecture. "It was already like that" is not a justification.
 
 When two implementations solve the same problem, collapse them into one. Parallel versions may
 exist only with a deliberate, documented reason — a labeled migration period with a removal
-plan, recorded as a decision (`/ai:decide`), not an accident left in place.
+plan, recorded as a decision in `DECISIONS.md`, not an accident left in place.
 
 ## Scope discipline
 

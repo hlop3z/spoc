@@ -5,22 +5,18 @@ of every external tool.
 
 ## Why this folder exists
 
-`openspec/` belongs to the OpenSpec CLI, and `.claude/commands/opsx/` is vendored from it.
-Both can be reinstalled, upgraded, or regenerated at any time. Nothing that matters may live
-only in a folder someone else can overwrite.
-
-So the canon lives here and external tooling points _into_ it. Reinstalling OpenSpec touches
-`openspec/` and `.claude/commands/opsx/` — never `.canon/`.
+Workflow tooling comes and goes — one change-tracking system has already been adopted,
+outgrown, and removed from this repository. Nothing that matters may live only in a
+folder some tool can overwrite or a migration can delete, so the canon lives here,
+owned directly, and whatever tooling is in use points _into_ it.
 
 ## Precedence
 
-1. **`.canon/`** — these rules come first. When an opsx command's instructions conflict with
-   a rule here, the rule here wins. Say so out loud rather than silently following the command.
-2. **`openspec/config.yaml`** — a _bridge_: the content is ours, the location and schema are
-   OpenSpec's. It condenses this canon for injection into generated artifacts. If a reinstall
-   overwrites it, re-derive it from here — never the reverse.
-3. **`.claude/commands/opsx/`** — vendored, regenerable, expendable. An edit there is never a
-   rule's only home.
+**`.canon/` comes first.** When any tool's or workflow's instructions conflict with a
+rule here, the rule here wins — say so out loud rather than silently following the tool.
+A condensed projection of these rules may live wherever a tool requires one; it is
+re-derived from here, never the reverse, and an edit to a projection is never a rule's
+only home.
 
 ## What's here
 
@@ -31,8 +27,8 @@ So the canon lives here and external tooling points _into_ it. Reinstalling Open
 - **`checks.md`** — this project's canonical validation commands (Rule 6). Per-project; the
   template ships it nearly empty.
 
-The trigger index lives in `CLAUDE.md`, which loads every session. It is not duplicated here —
-one index, one home.
+Where a change's documentation belongs is decided by the doc taxonomy in `guidelines.md`;
+decision records go to `DECISIONS.md` at the repository root.
 
 ## Lifecycle
 

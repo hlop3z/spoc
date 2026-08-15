@@ -28,7 +28,7 @@ with the same weight as breaking an API.
 ## Kinds
 
 The kind set is **closed and deliberate** — a new kind changes what the runtime must know how
-to manage, so introducing one is a recorded decision (`/ai:decide`), not an ad-hoc addition.
+to manage, so introducing one is a recorded decision (`DECISIONS.md`), not an ad-hoc addition.
 
 | Kind     | Holds                | Examples                                        |
 | -------- | -------------------- | ----------------------------------------------- |

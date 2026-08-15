@@ -1,13 +1,17 @@
 # Decisions
 
-Build-vs-adopt decisions recorded per `/ai:decide`. This is the fallback home the command
-uses when a project has no active OpenSpec change and no `PROJECT.md`.
+The build-vs-adopt decision log: every tool this project rented, adopted, extended,
+forked, or built, each with its rationale, the alternatives considered, and the isolation
+seam that keeps it replaceable. Records are numbered `D01`–`D60` in the order they were
+made; the numbering is the stable way to cite one. New records append at the end with
+the next number.
 
-Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abstract.
+Concrete tool names live here only — `.canon/` states rules abstractly and never names a
+tool; `PROJECT.md` summarizes the architecture these decisions produced.
 
 ## Decisions
 
-### Decision: Counting lines of code — Adopt tokei
+### Decision D01: Counting lines of code — Adopt tokei
 
 - **Status**: approved
 - **Why**: Mature, fast, covers every language, and packaged on every platform we target
@@ -23,7 +27,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: invoked as a command from `.canon/checks.md`. Nothing imports it, so
   swapping to scc means editing one row.
 
-### Decision: Obtaining adopted CLIs — Build a thin `ensure` command
+### Decision D02: Obtaining adopted CLIs — Build a thin `ensure` command
 
 - **Status**: approved
 - **Why**: Adopting a tool only works if it is actually installed, and "it isn't installed"
@@ -41,7 +45,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   rather than growing this. That is the line where glue would become a reimplementation.
 - **Isolation**: `scripts/go/internal/ensure`, invoked by `cmd/ensure`. No other tool imports it.
 
-### Decision: Python dependency and workspace management — Adopt uv
+### Decision D03: Python dependency and workspace management — Adopt uv
 
 - **Status**: approved
 - **Why**: Specified by the user, and it is the only Python tool that covers workspaces, the
@@ -52,7 +56,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: `scripts/py/pyproject.toml`. Tool source imports nothing from uv; swapping it
   would change the run commands, not any tool's code.
 
-### Decision: Go CLI framework — Adopt cobra
+### Decision D04: Go CLI framework — Adopt cobra
 
 - **Status**: approved
 - **Why**: The mature standard (kubectl, gh, hugo; ~44k stars) with subcommands, generated
@@ -65,7 +69,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: `cmd/<name>/main.go` only. Logic lives in `internal/`, which imports no CLI
   library, so replacing cobra touches adapters alone.
 
-### Decision: Python CLI framework — Adopt cyclopts
+### Decision D05: Python CLI framework — Adopt cyclopts
 
 - **Status**: approved
 - **Scope**: workshop tools under `scripts/`, which ship to nobody. It does **not** govern CLI
@@ -84,7 +88,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: `src/<name>/cli.py` only. `core.py` holds plain functions that import no CLI
   library.
 
-### Decision: Disposable script packaging — Adopt PEP 723 inline metadata
+### Decision D06: Disposable script packaging — Adopt PEP 723 inline metadata
 
 - **Status**: approved
 - **Why**: A uv workspace member needs a `pyproject.toml` and enters the shared lockfile,
@@ -97,7 +101,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   experiment's dependency becomes everyone's).
 - **Isolation**: `scripts/py/lab/`, listed under `exclude` in the workspace root.
 
-### Decision: Project generation and template rendering — Build (thin) on the standard library
+### Decision D07: Project generation and template rendering — Build (thin) on the standard library
 
 - **Status**: approved
 - **Why**: `string.Template` matches the scaffolder's spec by construction where Jinja would
@@ -115,7 +119,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: the `TemplateSource` port. The renderer is called from one adapter; swapping
   to Jinja later changes that adapter and nothing in the core.
 
-### Decision: CLI framework for shipped surfaces — Adopt the standard library (`argparse`)
+### Decision D08: CLI framework for shipped surfaces — Adopt the standard library (`argparse`)
 
 - **Status**: approved
 - **Why**: Zero dependencies, so a CLI can ship inside the published package with
@@ -129,7 +133,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   Go-specific — Python's `argparse` has subparsers, required arguments, and short/long pairing.
 - **Isolation**: the CLI entry-point module only. The operation is callable without argv.
 
-### Decision: Filesystem write safety — Build (thin) on standard-library primitives
+### Decision D09: Filesystem write safety — Build (thin) on standard-library primitives
 
 - **Status**: approved
 - **Why**: The requirement is narrow — stage, verify, commit, never traverse outside the target
@@ -141,7 +145,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   outweigh ~40 lines of stdlib).
 - **Isolation**: the `ProjectSink` port.
 
-### Decision: Declarative configuration validation — Build (minimal) on the standard library
+### Decision D10: Declarative configuration validation — Build (minimal) on the standard library
 
 - **Status**: approved
 - **Why**: The reinvention here was never *validating the configuration* — it was having
@@ -167,7 +171,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   closed.
 - **Isolation**: the configuration adapter module. The kernel core never reads a file.
 
-### Decision: Component metadata validation — Adopt `ty` statically, build the boundary check
+### Decision D11: Component metadata validation — Adopt `ty` statically, build the boundary check
 
 - **Status**: approved
 - **Why**: This data originates in Python source that the framework author writes, and never
@@ -183,7 +187,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   unrelated projection, violating the loud-discovery invariant).
 - **Isolation**: the registration boundary in the declaration layer — one check, one place.
 
-### Decision: TOML writing — not needed, dissolved by scope
+### Decision D12: TOML writing — not needed, dissolved by scope
 
 - **Status**: superseded by "Origin record serialization — Adopt the standard library (`json`)"
 - **Superseded because**: the premise below — that the scaffolder only emits fresh TOML by plain
@@ -200,7 +204,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   editing (rejected outright on that same rule).
 - **Isolation**: n/a — the kernel's existing `tomllib` read path is untouched.
 
-### Decision: Multi-format loading and collection — Build (thin) over adopted parsers
+### Decision D13: Multi-format loading and collection — Build (thin) over adopted parsers
 
 - **Status**: approved
 - **Why**: Adopting `anyconfig` would make it a dependency of *every* format including JSON,
@@ -214,7 +218,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   `_MODE_CASCADE` already implements, and is a settings framework rather than a codec layer).
 - **Isolation**: the `Codec` port. Calling code sees the port, never a codec.
 
-### Decision: XML dict convention — Adopt `xmltodict`
+### Decision D14: XML dict convention — Adopt `xmltodict`
 
 - **Status**: approved
 - **Why**: Maintained (1.0.4, February 2026), MIT, pure Python with no dependencies. Its
@@ -236,7 +240,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: one codec adapter, which owns the path-matching predicate handed to
   `force_list`.
 
-### Decision: JSON Pointer and JSONPath engine — Adopt `python-jsonpath`
+### Decision D15: JSON Pointer and JSONPath engine — Adopt `python-jsonpath`
 
 - **Status**: approved
 - **Why**: One MIT dependency with no third-party requirements covers both access standards —
@@ -254,7 +258,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   `match()`/`search()` functions available, so conformance is not partial.
 - **Isolation**: an access module that no codec imports.
 
-### Decision: YAML parser — Adopt `ruamel.yaml`
+### Decision D16: YAML parser — Adopt `ruamel.yaml`
 
 - **Status**: approved
 - **Why**: YAML 1.2 is a strict JSON superset, which matches the "IR is a JSON value" contract
@@ -275,12 +279,12 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   change, and `ruyaml` is a drop-in replacement if upstream stalls. **Revisit ~August 2027.**
 - **Isolation**: one codec adapter, restricted to safe loading.
 
-### Decision: Formats packaging — one distribution, containment enforced by tests
+### Decision D17: Formats packaging — one distribution, containment enforced by tests
 
 - **Status**: approved. **Supersedes** "Multi-distribution packaging — Adopt uv
-  workspaces" (recorded in the archived change
-  `openspec/changes/archive/2026-08-04-production-hardening/design.md`, D8), reversed
-  before anything was published.
+  workspaces" (recorded in a design document of the since-retired change-tracking
+  workflow; the archive is no longer in the tree), reversed before anything was
+  published.
 - **Why**: SPOC is the single point of connections and reading data files is a
   capability of that point, not a separate context. The split's unique benefits
   (independent cadence, wheel purity) solve problems this project does not have, while
@@ -302,7 +306,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   by tests. Re-splitting is not an open option to revisit; it would take a new
   owner decision superseding this one.
 
-### Decision: Archive member admission — Adopt the standard library filter, Extend with our own containment
+### Decision D18: Archive member admission — Adopt the standard library filter, Extend with our own containment
 
 - **Status**: approved
 - **Why**: Standard-format parsing is on the never-hand-roll list, and `tarfile`'s PEP 706
@@ -318,7 +322,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   CVE-2021-3281 and CVE-2025-59682 in the same feature).
 - **Isolation**: the admission step of the remote resolver, behind the `Fetcher` port.
 
-### Decision: Expanded-size and member-count bounds — Build (thin), no dependency
+### Decision D19: Expanded-size and member-count bounds — Build (thin), no dependency
 
 - **Status**: approved
 - **Why**: No standard-library API bounds *expanded* size — PEP 706 explicitly does not cover
@@ -332,7 +336,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: one function in the retrieval adapter, with each bound a named constant beside
   the concept it bounds. Flagged in `design.md` as the likeliest defect site in this change.
 
-### Decision: Retrieval transport and redirect policy — Adopt the standard library, Extend the redirect handler
+### Decision D20: Retrieval transport and redirect policy — Adopt the standard library, Extend the redirect handler
 
 - **Status**: approved
 - **Why**: Transport is never hand-rolled, and the empty-dependency invariant rules out `httpx`
@@ -344,7 +348,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   since any reference can be redirected onto a weaker location).
 - **Isolation**: the `Fetcher` port. Tests run against an in-memory fake and never open a socket.
 
-### Decision: Template reference grammar — Adopt the pip / PEP 508 direct-reference shape
+### Decision D21: Template reference grammar — Adopt the pip / PEP 508 direct-reference shape
 
 - **Status**: approved
 - **Why**: Rule 9 — a reference grammar is an identifier scheme, and inventing one where a
@@ -359,7 +363,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: `parse_reference` in the pure core — a total function over strings, tested
   without network or filesystem.
 
-### Decision: Cache location — Build (thin) on the platform conventions
+### Decision D22: Cache location — Build (thin) on the platform conventions
 
 - **Status**: approved
 - **Why**: `platformdirs` is the mature answer and there is no standard-library equivalent, but
@@ -373,7 +377,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: the `Cache` port. Keyed by exact revision, so retained content is never stale
   for the revision it is held under; swapping to `platformdirs` later changes one adapter.
 
-### Decision: Origin record serialization — Adopt the standard library (`json`)
+### Decision D23: Origin record serialization — Adopt the standard library (`json`)
 
 - **Status**: approved
 - **Why**: The record interpolates arbitrary caller-supplied strings — a reference may be
@@ -394,7 +398,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: `spoc.scaffold.provenance` — it owns both directions of the record's shape, so
   the writer and `read_origin` cannot drift. Nothing else in the codebase constructs or parses it.
 
-### Decision: Origin record integrity — Build by construction
+### Decision D24: Origin record integrity — Build by construction
 
 - **Status**: approved
 - **Why**: The record describes a template set to a later operation, so the set must not be able
@@ -414,7 +418,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   rendered the set; the reserved-destination check lives in `validate_template_set` in the pure
   core, beside `_reject_escape`, sourcing the name from `provenance.RECORD_NAME`.
 
-### Decision: Public API surface extraction — Adopt griffe
+### Decision D25: Public API surface extraction — Adopt griffe
 
 - **Status**: approved
 - **Why**: Determining a Python package's true public API — `__all__` precedence, re-export
@@ -440,7 +444,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   `src/spoc/`: a checker inside the package would need a tier of its own and would have to
   police itself.
 
-### Decision: Deprecation signal — Extend PEP 702 (`warnings.deprecated` + a 3.12 fallback)
+### Decision D26: Deprecation signal — Extend PEP 702 (`warnings.deprecated` + a 3.12 fallback)
 
 - **Status**: approved
 - **Why**: PEP 702 is the standard and satisfies the release policy outright — a
@@ -457,7 +461,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   decorator and never observe which implementation supplied it. Both paths are tested on every
   interpreter, so the fallback is not left unexercised on versions CI may not run.
 
-### Decision: Reading the withdrawal mark from source — Extend griffe with a stdlib `ast` pass
+### Decision D27: Reading the withdrawal mark from source — Extend griffe with a stdlib `ast` pass
 
 - **Status**: approved
 - **Why**: The gate has to know which elements have entered the deprecation lifecycle without
@@ -484,7 +488,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   sanctioned form remains `spoc.core.deprecation` per the PEP 702 decision above, which is what
   makes "any other spelling is a finding" enforceable rather than aspirational.
 
-### Decision: Reconstructing per-release history — Extend `apicheck.release`
+### Decision D28: Reconstructing per-release history — Extend `apicheck.release`
 
 - **Status**: approved
 - **Why**: Establishing that a removal completed the lifecycle is a question about three points
@@ -509,7 +513,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   yields facts. The lifecycle verdict itself is pure and lives in `apicheck.core`, which is
   handed an element's per-release presence and marks and knows nothing about git or tags.
 
-### Decision: Incrementing the declared version — Adopt `hatch version`
+### Decision D29: Incrementing the declared version — Adopt `hatch version`
 
 - **Status**: approved
 - **Why**: The version's location is already declared once, in hatchling's own format —
@@ -541,7 +545,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   `version:bump:{major,minor,patch}` entry points pass a segment name and know nothing about
   the implementation, so replacing hatch means editing one line.
 
-### Decision: Starter template's surface stack — Adopt the stdlib (no third-party binding)
+### Decision D30: Starter template's surface stack — Adopt the stdlib (no third-party binding)
 
 - **Status**: approved
 - **Why**: the kernel is surface-plural ("HTTP, CLI, workers … FastAPI, Robyn, anything"),
@@ -558,7 +562,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   recipes live in the docs and run under the `examples` dependency group. Nothing in
   `src/spoc` imports any of it.
 
-### Decision: Settings-validation seam — Adopt pydantic (worked example only)
+### Decision D31: Settings-validation seam — Adopt pydantic (worked example only)
 
 - **Status**: approved
 - **Why**: app-owned `spoc.toml` tables reach the app already parsed on
@@ -572,7 +576,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: documentation only — the kernel neither imports nor depends on it, and
   the seam works identically with any validator or none.
 
-### Decision: Doc snippet execution — Adopt `pytest-examples`
+### Decision D32: Doc snippet execution — Adopt `pytest-examples`
 
 - **Status**: approved
 - **Why**: the "docs examples must run" bar is currently enforced for exactly one snippet
@@ -591,7 +595,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: one test module (`tests/test_docs_examples.py`) plus the docs dependency
   group. The docs themselves stay plain markdown; nothing in `src/spoc` is touched.
 
-### Decision: API reference member lists — Adopt (configure) mkdocstrings/griffe `__all__` derivation
+### Decision D33: API reference member lists — Adopt (configure) mkdocstrings/griffe `__all__` derivation
 
 - **Status**: approved
 - **Why**: the member lists in `api/public.md` and `api/tooling.md` are hand-enumerated, so
@@ -608,7 +612,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   mkdocstrings handler config in `docs/mkdocs.yml`. No source changes; `__all__` remains
   the single declaration.
 
-### Decision: CLI reference generation — Extend `mkdocs-macros` with a help-dump macro
+### Decision D34: CLI reference generation — Extend `mkdocs-macros` with a help-dump macro
 
 - **Status**: approved
 - **Why**: `tools/cli.md` is hand-written prose that can drift from the real argparse
@@ -626,7 +630,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   `tools/cli.md`. The CLI itself is untouched; the macro imports the parser factory the
   shipped console script already uses.
 
-### Decision: Keyword-safe decorator names — Adopt the standard (PEP 8 + stdlib `keyword`)
+### Decision D35: Keyword-safe decorator names — Adopt the standard (PEP 8 + stdlib `keyword`)
 
 - **Status**: approved
 - **Why**: `spoc init --kinds class` generated `class = framework.kind("class")`, which
@@ -648,7 +652,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   The templates interpolate `$decorator` and never spell a name themselves, so no template
   changed.
 
-### Decision: Collisions introduced by escaping — Build (thin), append underscores
+### Decision D36: Collisions introduced by escaping — Build (thin), append underscores
 
 - **Status**: approved
 - **Why**: escaping can create a duplicate the pre-escape check cannot see — kinds `class`
@@ -664,7 +668,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: the loop inside `decorator_names`. Order comes from the declared kinds
   tuple, so the result is deterministic.
 
-### Decision: Verifying platform-conditional behavior — Extend the cache-location build, platform as a value
+### Decision D37: Verifying platform-conditional behavior — Extend the cache-location build, platform as a value
 
 - **Status**: approved
 - **Why**: this re-examined *Cache location — Build (thin) on the platform conventions* above and
@@ -686,7 +690,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   The earlier ADR's "swapping to `platformdirs` later changes one adapter" gets strictly easier,
   not harder.
 
-### Decision: Retention key for a revision — Adopt `hashlib`, Extend the existing digest scheme
+### Decision D38: Retention key for a revision — Adopt `hashlib`, Extend the existing digest scheme
 
 - **Status**: approved
 - **Why**: the revision reaches the cache as a path segment, and today it is filtered to path-safe
@@ -709,7 +713,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: `DirectoryCache._entry` in `src/spoc/scaffold/cache.py`. Every revision reachable
   through the reference grammar today is already path-safe, so no retained content is invalidated.
 
-### Decision: Evidence that the retention key is injective — Adopt Hypothesis
+### Decision D39: Evidence that the retention key is injective — Adopt Hypothesis
 
 - **Status**: approved
 - **Why**: "two distinct revisions never share retained content" is an injectivity property over an
@@ -723,7 +727,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: `tests/test_properties.py` for the property, `tests/test_scaffold_cache.py` for
   the named regressions.
 
-### Decision: Provoking the concurrent-retention race — Adopt pytest's `monkeypatch` at the seam
+### Decision D40: Provoking the concurrent-retention race — Adopt pytest's `monkeypatch` at the seam
 
 - **Status**: approved
 - **Why**: `Cache.retain` catches a failed publish and accepts the entry if another process
@@ -738,7 +742,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   that the underlying rename is atomic on every filesystem — which the multi-platform gate now at
   least executes for real on each declared platform.
 
-### Decision: Coverage floor — Adopt `coverage.py` reporting, decline the gate
+### Decision D41: Coverage floor — Adopt `coverage.py` reporting, decline the gate
 
 - **Status**: approved
 - **Why**: no `fail_under` is introduced. The lines that mattered in this change were invariant
@@ -754,7 +758,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: `[tool.coverage.report]` in `pyproject.toml` and the review-aid row in
   `.canon/checks.md`.
 
-### Decision: Multi-platform execution of the gate — Rent, on the CI platform already in use
+### Decision D42: Multi-platform execution of the gate — Rent, on the CI platform already in use
 
 - **Status**: approved
 - **Why**: infrastructure, so the hierarchy answers it without further evaluation; the runners are
@@ -772,7 +776,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   scope stated in `.canon/checks.md`. The `go`, `docs-build`, and `doc-links` rows stay
   single-platform, which the capability permits for checks whose outcome cannot differ by platform.
 
-### Decision: Type-reference extraction for stub generation — Build on stdlib
+### Decision D43: Type-reference extraction for stub generation — Build on stdlib
 
 - **Status**: approved
 - **Why**: the describe pass holds the *live* registered objects, so `__module__` /
@@ -791,7 +795,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: one extraction module inside `src/spoc/stubs/`, consumed only by the
   describe pass. Nothing in `src/spoc/core/` or `src/spoc/framework.py` imports it.
 
-### Decision: Stub emission and byte-stable formatting — Build the emitter, Adopt ruff
+### Decision D44: Stub emission and byte-stable formatting — Build the emitter, Adopt ruff
 
 - **Status**: approved
 - **Why**: the emitter is a pure function over our own manifest IR — roughly one stdlib
@@ -809,7 +813,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   file-writing adapter in `src/spoc/stubs/`, and the `PYI` rule selection lives in
   `[tool.ruff.lint]` in `pyproject.toml`.
 
-### Decision: Stub conformance verification — Adopt `assert_type` under mypy, pyright, and ty
+### Decision D45: Stub conformance verification — Adopt `assert_type` under mypy, pyright, and ty
 
 - **Status**: approved
 - **Why**: the feature's entire promise is that a type checker resolves the promised type, so
@@ -831,7 +835,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   dependencies only and nothing in `src/spoc` imports them. `ty` remains the checker for
   ordinary source; the two additions check the generated stub, not the library.
 
-### Decision: IDE autocomplete verification — Adopt pyright as the proxy
+### Decision D46: IDE autocomplete verification — Adopt pyright as the proxy
 
 - **Status**: approved
 - **Why**: Pylance, the extension supplying completion in VS Code, is built on pyright, so
@@ -847,7 +851,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: the same fixture project and CI job as the conformance decision above; the
   manual check is a documented step, not a gate.
 
-### Decision: Namespace-collision model — Adopt Django's app-label contract, build the check
+### Decision D47: Namespace-collision model — Adopt Django's app-label contract, build the check
 
 - **Status**: approved
 - **Why**: Django solved this exact problem with this exact derivation. `AppConfig.label`
@@ -870,7 +874,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: one ownership map built in `Framework._register_apps` before any import,
   consulted by `_register_plugins`. No new module, no dependency, no public type.
 
-### Decision: Explicit-namespace syntax — Adopt Python's `as` convention, build the split
+### Decision D48: Explicit-namespace syntax — Adopt Python's `as` convention, build the split
 
 - **Status**: approved
 - **Why**: `"vendor.shop as vendor_shop"` reuses the language's own vocabulary for rebinding
@@ -887,7 +891,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: parsed once where app entries are read, immediately validated by the
   existing `validate_segment("namespace", …)`, so the grammar keeps one enforcement point.
 
-### Decision: Per-app metadata location — Adopt Django's central app list, refuse a colocated manifest
+### Decision D49: Per-app metadata location — Adopt Django's central app list, refuse a colocated manifest
 
 - **Status**: approved
 - **Why**: Odoo carries roughly thirty keys in a `__manifest__.py` beside each addon, and it
@@ -916,7 +920,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Revisit when**: an app is distributed separately from the project that installs it. That
   is the single fact this decision waits on; until it is true there is no owner for the file.
 
-### Decision: Per-app framework-version compatibility — Rent the packaging ecosystem's check
+### Decision D50: Per-app framework-version compatibility — Rent the packaging ecosystem's check
 
 - **Status**: approved
 - **Why**: Odoo's `adapt_version`/`check_version` refuse an addon whose release series does
@@ -940,7 +944,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   because this check only has work to do when the app and the framework are acquired
   separately.
 
-### Decision: The load-ordering guarantee — Extend `graphlib` with an explicit `(kind_depth, app_index)` key
+### Decision D51: The load-ordering guarantee — Extend `graphlib` with an explicit `(kind_depth, app_index)` key
 
 - **Status**: approved
 - **Why**: CPython defines `static_order()` as the `get_ready()`/`done()` loop, so the
@@ -970,7 +974,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   sequence. Graph construction is untouched and nothing else in the kernel learns what a
   kind depth is.
 
-### Decision: Cycle detection in the kind graph — Adopt `graphlib`, unchanged
+### Decision D52: Cycle detection in the kind graph — Adopt `graphlib`, unchanged
 
 - **Status**: approved
 - **Why**: an ordering key sorts a DAG but cannot notice that the graph is not one.
@@ -987,7 +991,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   failure or nothing).
 - **Isolation**: unchanged — the `except graphlib.CycleError` clause in `Loader.ordered()`.
 
-### Decision: The registry projection's schema — Adopt JSON Schema 2020-12, hand-written
+### Decision D53: The registry projection's schema — Adopt JSON Schema 2020-12, hand-written
 
 - **Status**: approved
 - **Why**: Rule 9 settles the language; the gate had to settle authorship and the draft.
@@ -1012,7 +1016,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: the published schema file and the projection module that produces the
   document. Nothing in the kernel imports a validator.
 
-### Decision: Validating the projection in the suite — Adopt `jsonschema`, dev group only
+### Decision D54: Validating the projection in the suite — Adopt `jsonschema`, dev group only
 
 - **Status**: approved
 - **Why**: Standard-format validation is on the never-hand-roll list, so the question is
@@ -1036,7 +1040,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: the test module asserting conformance. No source module imports it, and the
   schema file stays validatable by any external tool.
 
-### Decision: A domain vocabulary for the projection — none applies
+### Decision D55: A domain vocabulary for the projection — none applies
 
 - **Status**: approved
 - **Why**: Rule 9 points at Schema.org/RDF for vocabularies, so the question was asked and
@@ -1054,7 +1058,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   interoperability while constraining naming; `shape` has no analogue at all).
 - **Isolation**: not applicable — nothing is adopted.
 
-### Decision: Serializing the projection — Adopt the standard library's `json`
+### Decision D56: Serializing the projection — Adopt the standard library's `json`
 
 - **Status**: approved
 - **Why**: Standard-format serialization is on the never-hand-roll list and the standard
@@ -1067,7 +1071,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   a third-party JSON encoder (nothing to gain, and `dependencies` stays empty).
 - **Isolation**: the projection module's emitter, with a test pinning the boundary.
 
-### Decision: A kernel lifecycle's state transitions — Build, hand-written flags under one lock
+### Decision D57: A kernel lifecycle's state transitions — Build, hand-written flags under one lock
 
 - **Status**: approved
 - **Why**: `dependencies = []` is an enforced invariant, so a runtime state-machine library is
@@ -1085,7 +1089,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: the private transition helper in `framework.py` — the one place the flags and
   the lock are touched.
 
-### Decision: Exercising a race in the test suite — Extend the existing pattern with `threading.Barrier`
+### Decision D58: Exercising a race in the test suite — Extend the existing pattern with `threading.Barrier`
 
 - **Status**: approved
 - **Why**: test-only, so the runtime dependency invariant does not bind, and the stdlib
@@ -1113,7 +1117,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
   tolerating flakiness or deleting the coverage.
 - **Isolation**: `tests/test_concurrency.py`. No barrier appears in `src/`.
 
-### Decision: Logging from a zero-dependency library — Adopt the standard library's `logging`, bridgeable but unbridged
+### Decision D59: Logging from a zero-dependency library — Adopt the standard library's `logging`, bridgeable but unbridged
 
 - **Status**: approved
 - **Why**: stdlib `logging` is the mature standard for a library's position in the stack. The
@@ -1138,7 +1142,7 @@ Concrete tool names live here only — `.canon/` and `openspec/specs/` stay abst
 - **Isolation**: one `NullHandler` registration at the package root; every module keeps its own
   `__name__` logger and nothing else touches logging configuration.
 
-### Decision: Tiering the downstream command mount points — Provisional, all four of them
+### Decision D60: Tiering the downstream command mount points — Provisional, all four of them
 
 - **Status**: approved — raised 2026-08-12, decided 2026-08-12 in `tier-command-mount-points`
 - **Why**: `init`, `app`, `check`, `list`, `explain`, `stubs`, and `projection` all mount into a

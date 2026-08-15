@@ -21,6 +21,6 @@ deployment topology.
 ## Where diagrams live
 
 `docs/architecture/` is committed and canonical. `.ai_notes/` is gitignored scratch and is
-**not** a home for anything durable — a diagram left there is lost work. This extends the
-routing table in `CLAUDE.md`: an architecture diagram of the current system is a durable
-artifact, so it gets promoted, never parked.
+**not** a home for anything durable — a diagram left there is lost work. This follows the
+document taxonomy in `.canon/guidelines.md`: an architecture diagram of the current system
+is a durable artifact, so it gets promoted, never parked.

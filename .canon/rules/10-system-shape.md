@@ -46,7 +46,7 @@ dependency direction, applied at system scale).
   return data and change nothing.
 - **Where the domain warrants it**: full CQRS with independent read models, and event
   sourcing where history *is* the domain (audit trails, temporal queries, replay). These are
-  heavy machinery — gate them per context via `/ai:decide`, not as a blanket default.
+  heavy machinery — gate them per context with a recorded decision, not as a blanket default.
 
 ## Simplicity discipline
 

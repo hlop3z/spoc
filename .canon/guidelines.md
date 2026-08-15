@@ -1,8 +1,8 @@
 # Engineering Guidelines
 
 The reference the canon cites. `.canon/rules/` says what to do and when; this file holds the
-hierarchies, rubrics, and tables those rules lean on. `openspec/config.yaml` is a condensed
-projection of both. Commands point here — they don't restate it.
+hierarchies, rubrics, and tables those rules lean on. Tooling that needs a condensed
+projection derives it from here — nothing restates it.
 
 ## Build-vs-adopt hierarchy (EDF)
 
@@ -47,7 +47,7 @@ Evaluate **lifecycle** cost (integration, upgrades, patching, ops), not just fir
 
 ### Never hand-roll (mandatory adopt)
 
-Some concerns are a defect the moment they are hand-written, regardless of score — the failure modes are subtle, security- or correctness-critical, and mature standards already exist. For these, `/ai:decide` records _which_ tool, never _whether_ to build:
+Some concerns are a defect the moment they are hand-written, regardless of score — the failure modes are subtle, security- or correctness-critical, and mature standards already exist. For these, the decision record (`DECISIONS.md`) states _which_ tool, never _whether_ to build:
 
 - **Cryptography & hashing** — vetted libraries only; never invent ciphers, token signing/verification, or password hashing.
 - **Authentication & authorization** — adopt a mature engine/policy layer; no bespoke session, token, or access-control logic.
@@ -62,7 +62,7 @@ Domain models stay tool-agnostic: instrumentation, auth, and persistence live in
 
 Telemetry is an **adapter concern**. Application code emits signals through the OpenTelemetry **API**; the **SDK**, exporter, and collector/backend are wired once at the composition root. Libraries depend on the API only (vendor-neutral); the application owns export. Guiding principle: production services should emit telemetry, but application code must not be tightly coupled to telemetry APIs.
 
-**Default metrics backend — VictoriaMetrics.** When a change needs a metrics/time-series store or long-term telemetry storage, default to the **VictoriaMetrics family** (VictoriaMetrics for metrics, VictoriaLogs for logs, vmagent/vmalert for collection and alerting). Choosing anything else requires a very good, recorded reason (a hard requirement Victoria can't meet) captured in the `/ai:decide` ADR block — Victoria is the presumed answer, alternatives carry the burden of justification. This is a backend/adapter choice only: application code still emits through the vendor-neutral OpenTelemetry API and stays decoupled from the store; VictoriaMetrics ingests via its Prometheus/OTLP-compatible endpoints at the composition root.
+**Default metrics backend — VictoriaMetrics.** When a change needs a metrics/time-series store or long-term telemetry storage, default to the **VictoriaMetrics family** (VictoriaMetrics for metrics, VictoriaLogs for logs, vmagent/vmalert for collection and alerting). Choosing anything else requires a very good, recorded reason (a hard requirement Victoria can't meet) captured in the decision's ADR record — Victoria is the presumed answer, alternatives carry the burden of justification. This is a backend/adapter choice only: application code still emits through the vendor-neutral OpenTelemetry API and stays decoupled from the store; VictoriaMetrics ingests via its Prometheus/OTLP-compatible endpoints at the composition root.
 
 **Signals** — Traces (request lifecycle, latency, dependency mapping), Metrics (time-series: counters, up/down counters, gauges, histograms), Logs (structured records), plus Events (milestones embedded in a span) and Profiles (emerging: CPU/heap/lock sampling). The correlation chain `log → span → trace` turns an error into an exact request path; context propagation (trace/span IDs + baggage) carries it across service boundaries. Follow the semantic conventions (`http.*`, `db.*`, `service.name`, `deployment.environment`) so every tool reads the data the same way.
 

@@ -5,8 +5,8 @@ classification.
 
 This is Rule 7's never-reinvent principle applied to **data**: an invented schema format, ID
 scheme, or vocabulary is a wheel reinvented, and it costs interoperability forever. Prefer the
-recognized standard; deviating from an applicable one is a decision recorded via `/ai:decide`,
-never a silent default.
+recognized standard; deviating from an applicable one is a decision recorded in
+`DECISIONS.md`, never a silent default.
 
 ## Contracts and schemas
 

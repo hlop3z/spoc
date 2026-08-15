@@ -14,5 +14,5 @@ failing test. It is worse than absent documentation, because it is trusted.
 - If a doc genuinely cannot be updated in the same change set, leave an explicit tracked TODO
   **and say so in the report**. Never silently.
 
-Which doc, and where it lives, follows the routing table in `CLAUDE.md` and the document
-taxonomy in `.canon/guidelines.md`. Diagrams follow Rule 1.
+Which doc, and where it lives, follows the document taxonomy in `.canon/guidelines.md`.
+Diagrams follow Rule 1.
