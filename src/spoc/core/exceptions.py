@@ -18,6 +18,8 @@ messages below are the user-visible surface of all three promises.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 
 class SpocError(Exception):
     """Base for every kernel error."""
@@ -164,6 +166,34 @@ class FrameworkTransitioningError(SpocError):
             "from its server, which finishes in-flight work before shutting the "
             "application down"
         )
+
+
+class CoroutineLifecycleError(SpocError):
+    """The synchronous lifecycle was asked to run coroutine functions.
+
+    Raised before any step has run, so no side effect precedes the refusal.
+    ``offenders`` names every coroutine callable the phase would have had to
+    run — an author who declared two of them learns about both from one
+    raise — and ``phase`` says which half of the lifecycle refused
+    (``"startup"`` or ``"shutdown"``). The type, not the message text, is
+    what a caller branches on to retry a boot via the async path.
+    """
+
+    def __init__(self, offenders: Sequence[str], phase: str) -> None:
+        self.offenders = tuple(offenders)
+        self.phase = phase
+        subject = ", ".join(self.offenders)
+        if len(self.offenders) == 1:
+            detail = (
+                f"{subject} is a coroutine function; the synchronous lifecycle "
+                "cannot run it — use astart()/ashutdown() to await it"
+            )
+        else:
+            detail = (
+                f"{subject} are coroutine functions; the synchronous lifecycle "
+                "cannot run them — use astart()/ashutdown() to await them"
+            )
+        super().__init__(detail)
 
 
 class IdentityDivergenceError(SpocError):

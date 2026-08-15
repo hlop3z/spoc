@@ -23,6 +23,7 @@ suite — a new error type cannot ship without a row here.
 | `AppNotFoundError` | An installed app's dotted path doesn't import. | Check the entry under `[spoc.apps]` against the folder on disk — the path is imported exactly as written; see [Apps & Modes](../learn/apps.md). |
 | `MissingModuleError` | An app has no module for a kind that requires one. | Add the module file, or declare the kind `required=False` if apps may omit it; see [Apps & Modes](../learn/apps.md). |
 | `CircularDependencyError` | `depends_on` between kinds forms a cycle — the cycle is named. | Break the cycle in the `KindSpec` declarations; see [The Framework Object](../learn/framework.md). |
+| `CoroutineLifecycleError` | A startup/shutdown hook or a module's `initialize`/`teardown` is a coroutine function, and the synchronous `start()`/`shutdown()` was asked to run it. `offenders` names every one; `phase` says which half refused. | Boot with `astart()`/`ashutdown()`, or make the hooks synchronous; see [Start & Stop](../learn/lifecycle.md). |
 
 ## The name grammar
 

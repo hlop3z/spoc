@@ -28,6 +28,7 @@ from typing import Any
 from .exceptions import (
     AppNotFoundError,
     CircularDependencyError,
+    CoroutineLifecycleError,
     MissingModuleError,
     SpocError,
     UnresolvedReferenceError,
@@ -284,20 +285,10 @@ class Loader:
         return list(dict.fromkeys(offenders))
 
     @staticmethod
-    def _refuse_coroutines(offenders: Sequence[str]) -> None:
+    def _refuse_coroutines(offenders: Sequence[str], phase: str) -> None:
         """Refuse before any step has run, so no side effect precedes the refusal."""
-        if not offenders:
-            return
-        subject = ", ".join(offenders)
-        if len(offenders) == 1:
-            raise SpocError(
-                f"{subject} is a coroutine function; the synchronous lifecycle "
-                "cannot run it — use astart()/ashutdown() to await it"
-            )
-        raise SpocError(
-            f"{subject} are coroutine functions; the synchronous lifecycle "
-            "cannot run them — use astart()/ashutdown() to await them"
-        )
+        if offenders:
+            raise CoroutineLifecycleError(offenders, phase)
 
     # Each driver resolves the load order once and hands that one list to every
     # step below it. Ordering re-derives a topological check and a sort on each
@@ -312,7 +303,9 @@ class Loader:
     ) -> None:
         """Fire each module's startup hook, then its own ``initialize()``."""
         entries = self.ordered()
-        self._refuse_coroutines(self._coroutines_in(entries, hooks, startup=True))
+        self._refuse_coroutines(
+            self._coroutines_in(entries, hooks, startup=True), "startup"
+        )
         for call, args in self._startup_steps(entries, hooks, components_for):
             call(*args)
 
@@ -334,7 +327,9 @@ class Loader:
     ) -> None:
         """Fire each module's shutdown hook, then its own ``teardown()``, in reverse."""
         entries = self.ordered()
-        self._refuse_coroutines(self._coroutines_in(entries, hooks, startup=False))
+        self._refuse_coroutines(
+            self._coroutines_in(entries, hooks, startup=False), "shutdown"
+        )
         for call, args in self._shutdown_steps(entries, hooks, components_for):
             call(*args)
 

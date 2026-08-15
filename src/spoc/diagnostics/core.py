@@ -22,7 +22,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..core.config import load_spoc_toml
-from ..core.exceptions import ConfigurationError, SpocError, UnknownKindError
+from ..core.exceptions import (
+    ConfigurationError,
+    CoroutineLifecycleError,
+    SpocError,
+    UnknownKindError,
+)
 from ..framework import Framework
 from ..locate import DEFAULT_FRAMEWORK_REF, LocateError, locate_framework
 from ..projection import ComponentEntry
@@ -36,10 +41,6 @@ __all__ = [
     "explain",
     "list_records",
 ]
-
-#: The marker the loader's sync-path refusal carries; seeing it means the
-#: declaration is async-lifecycle and the dry boot should retry via astart.
-_ASYNC_REFUSAL_MARKER = "use astart()"
 
 
 @dataclass(frozen=True)
@@ -64,9 +65,9 @@ class CheckReport:
 
 
 def _start_any(fw: Framework, base: Path) -> str:
-    """Boot on the sync path, falling back to astart when the declaration is
-    async-lifecycle. Returns which path booted ('sync' | 'async'); re-raises
-    the refusal so the caller decides whether it is a finding."""
+    """Boot on the sync path and say so. The async fallback lives at the two
+    call boundaries, which catch :class:`CoroutineLifecycleError` and decide
+    whether the refusal is a finding."""
     fw.start(base)
     return "sync"
 
@@ -90,9 +91,7 @@ def _booted(
         fw = locate_framework(framework_ref)
         try:
             booted = _start_any(fw, base)
-        except SpocError as exc:
-            if _ASYNC_REFUSAL_MARKER not in str(exc):
-                raise
+        except CoroutineLifecycleError:
             asyncio.run(fw.astart(base))
             booted = "async"
         try:
@@ -127,19 +126,18 @@ def check(
         booted: str | None = None
         try:
             booted = _start_any(fw, base)
+        except CoroutineLifecycleError as exc:
+            # The sync path would refuse this declaration at first boot —
+            # worth flagging — but the declaration itself may be fine, so
+            # the dry run continues on the async path.
+            findings.append(Finding("lifecycle", str(exc)))
+            try:
+                asyncio.run(fw.astart(base))
+                booted = "async"
+            except SpocError as async_exc:
+                findings.append(Finding("boot", str(async_exc)))
         except SpocError as exc:
-            if _ASYNC_REFUSAL_MARKER in str(exc):
-                # The sync path would refuse this declaration at first boot —
-                # worth flagging — but the declaration itself may be fine, so
-                # the dry run continues on the async path.
-                findings.append(Finding("lifecycle", str(exc)))
-                try:
-                    asyncio.run(fw.astart(base))
-                    booted = "async"
-                except SpocError as async_exc:
-                    findings.append(Finding("boot", str(async_exc)))
-            else:
-                findings.append(Finding("boot", str(exc)))
+            findings.append(Finding("boot", str(exc)))
         finally:
             _teardown(fw, booted)
 

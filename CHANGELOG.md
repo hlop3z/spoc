@@ -9,6 +9,23 @@ the pre-1.0 allowance, where a **minor** was where breaking changes landed.
 What each version increment promises, and for which parts of the surface, is written
 down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
+## [Unreleased]
+
+### Added
+
+- **`CoroutineLifecycleError` — the sync-lifecycle refusal is now a type, not a
+  message.** When `start()` or `shutdown()` meets a coroutine hook or module, the
+  refusal used to arrive as a bare `SpocError` whose text callers had to match — which
+  the stability policy explicitly says not to do. The refusal now has its own class,
+  carrying `offenders` (every coroutine callable the phase would have run) and `phase`
+  (`"startup"` or `"shutdown"`) as attributes. `spoc check` itself was the first
+  consumer: its async-fallback retry now branches on the type instead of searching the
+  message for `"use astart()"`.
+
+  **What a consumer must do:** nothing — `except SpocError` still catches it. Code that
+  matched the message text should switch to `except CoroutineLifecycleError`, which is
+  the covered surface.
+
 ## [1.0.0] — 2026-08-13
 
 ### Added

@@ -12,7 +12,7 @@ import threading
 import pytest
 
 from spoc import Framework, KindSpec
-from spoc.core.exceptions import SpocError
+from spoc.core.exceptions import CoroutineLifecycleError, SpocError
 from tests.conftest import MODELS_BODY, make_project
 
 pytestmark = pytest.mark.usefixtures("clean_sys_path_and_modules")
@@ -123,11 +123,24 @@ def test_sync_start_refuses_coroutine_hook_and_rolls_back(tmp_path):
     async def up(objects): ...
 
     fw = Framework(KindSpec("models", on_startup=up))
-    with pytest.raises(SpocError, match="astart"):
+    with pytest.raises(CoroutineLifecycleError, match="astart") as excinfo:
         fw.start(base)
 
+    assert excinfo.value.phase == "startup"
+    assert excinfo.value.offenders == ("startup hook for kind 'models'",)
     assert fw.started is False
     assert len(fw.registry) == 0  # rolled back to inert
+
+
+def test_coroutine_refusal_is_still_a_spoc_error(tmp_path):
+    """The typed refusal stays inside the family: `except SpocError` catches it."""
+    base = make_project(tmp_path, "shier")
+
+    async def up(objects): ...
+
+    fw = Framework(KindSpec("models", on_startup=up))
+    with pytest.raises(SpocError):
+        fw.start(base)
 
 
 def test_sync_start_refuses_coroutine_module_initialize(tmp_path):
@@ -137,8 +150,11 @@ def test_sync_start_refuses_coroutine_module_initialize(tmp_path):
         MODELS_BODY + "\n    async def initialize():\n        ...\n",
     )
     fw = Framework("models")
-    with pytest.raises(SpocError, match=r"srefusemod\.models\.initialize"):
+    with pytest.raises(
+        CoroutineLifecycleError, match=r"srefusemod\.models\.initialize"
+    ) as excinfo:
         fw.start(base)
+    assert excinfo.value.offenders == ("srefusemod.models.initialize",)
     assert fw.started is False
 
 

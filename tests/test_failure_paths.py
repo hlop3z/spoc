@@ -20,7 +20,7 @@ import logging
 import pytest
 
 from spoc import Framework, KindSpec
-from spoc.core.exceptions import SpocError
+from spoc.core.exceptions import CoroutineLifecycleError
 from spoc.testing import ProjectTree
 from tests.conftest import MODELS_BODY, make_project
 
@@ -236,10 +236,11 @@ def test_sync_refusal_precedes_every_lifecycle_side_effect(tmp_path, monkeypatch
 
     fw = Framework(KindSpec("models", on_startup=lambda c: ran.append("up")))
 
-    with pytest.raises(SpocError) as exc:
+    with pytest.raises(CoroutineLifecycleError) as exc:
         fw.start(base)
 
     assert "coroutine" in str(exc.value)
+    assert exc.value.phase == "startup"
     assert not sentinel.exists(), (
         "an earlier app's initialize ran before the coroutine refusal"
     )

@@ -59,13 +59,13 @@ real `--help` at build time — don't hand-edit those listings; build the docs i
 
 ## How work is organized
 
-Changes are driven through **OpenSpec**, governed by a canon of engineering rules in
-[`.canon/`](.canon/README.md); [`CLAUDE.md`](CLAUDE.md) describes the pipeline end to end.
-A small fix doesn't need that machinery, but for anything that changes behavior the rules
-still apply — most importantly:
+Work is governed by a canon of engineering rules in [`.canon/`](.canon/README.md);
+[`PROJECT.md`](PROJECT.md) is the consolidated reference — architecture, behavior
+contracts, and decision records in one place. A small fix doesn't need that machinery,
+but for anything that changes behavior the rules still apply — most importantly:
 
-- **Behavior contracts live in `openspec/specs/`**, not in code comments. If you change what
-  the kernel guarantees, the spec changes with it.
+- **Behavior contracts live in [`PROJECT.md`](PROJECT.md)** (the Capabilities section), not
+  in code comments. If you change what the kernel guarantees, the contract changes with it.
 - **Docs that contradict the code are defects** ([Rule 8](.canon/rules/08-docs.md)) — fixed in
   the same change set, not later.
 - **Architecture is drawn, not described** ([Rule 1](.canon/rules/01-diagrams.md)) — see
@@ -86,7 +86,7 @@ Conventional Commits, split by coherent intent, no attribution trailers. The ful
 | `tests/`    | pytest suite; `testpaths` is pinned in `pyproject.toml`.          |
 | `docs/`     | MkDocs site. `docs/architecture/` holds the Mermaid diagrams.     |
 | `examples/` | Runnable example apps, linted the same as `src/`.                 |
-| `openspec/` | Specs, in-flight changes, and the archive.                        |
+| `PROJECT.md` | Consolidated reference: architecture, behavior contracts, ADRs.  |
 | `scripts/`  | The tool workshop — see [`scripts/README.md`](scripts/README.md). |
 | `.canon/`   | The engineering rules this project lives by.                      |
 
