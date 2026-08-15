@@ -107,6 +107,23 @@ def test_check_exit_codes(tmp_path, capsys):
     assert "nope" in err and "problem" in err
 
 
+def test_an_app_authored_value_error_propagates_through_the_cli(tmp_path):
+    """The CLI maps SPOC refusals to exit codes; an app author's own exception
+    is theirs, traceback and all — and check imports your apps."""
+    base = project(
+        tmp_path,
+        "authored",
+        apps={
+            "blog": {
+                "models": MODELS_BODY
+                + "\n    raise ValueError('the author needs this traceback')\n"
+            }
+        },
+    )
+    with pytest.raises(ValueError, match="the author needs this traceback"):
+        cli_main(["check", str(base)])
+
+
 def test_library_and_cli_report_the_same_findings(tmp_path, capsys):
     base = project(tmp_path, config={"apps": {"development": ["blog", "gone"]}})
     report = check(base)

@@ -26,7 +26,33 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   matched the message text should switch to `except CoroutineLifecycleError`, which is
   the covered surface.
 
+- **`spoc --version`.** The one flag every CLI is asked for first. Prints
+  `spoc <version>` and exits 0.
+
+  **What a consumer must do:** nothing; scripts that ran
+  `python -c "import spoc; print(spoc.__version__)"` for this can stop.
+
 ### Changed
+
+- **An app-authored `ValueError` is no longer swallowed by the CLI.** The composed
+  program caught bare `ValueError` for its own argument-shape refusals, which also
+  flattened any `ValueError` raised by an app's module code during `spoc check` into a
+  one-line error with no traceback — against the CLI's own stated doctrine that an app
+  author's exception propagates untouched. The scaffold now renders its refusals at its
+  own mount boundary, kind derivation failures are `LocateError` (which they are), and
+  the composed program catches only SPOC's own error families.
+
+  **What a consumer must do:** nothing for well-formed projects. If `spoc check` now
+  shows a traceback where it used to print one line, that traceback is your app's own
+  `ValueError` — it was always your error; now you can see where it came from.
+
+- **Console-bound CLI text is ASCII.** Help and error strings that argparse renders
+  reached cp1252 Windows consoles as mojibake (`ΓÇö` for an em dash). The strings the
+  terminal actually receives now stay ASCII; the projection document already escaped
+  non-ASCII, and its `ensure_ascii=True` is now explicit rather than inherited from a
+  default.
+
+  **What a consumer must do:** nothing.
 
 - **`Config.environment` is annotated as the dict it always was.** The field was typed
   `Any` while `load_environment` has only ever produced `dict[str, Any]`; the annotation

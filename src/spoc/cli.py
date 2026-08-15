@@ -22,6 +22,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from .__about__ import __version__
 from .core.exceptions import SpocError
 from .diagnostics import register as register_diagnostics
 from .locate import LocateError, locate_framework
@@ -62,8 +63,11 @@ def _derive_kinds(project_root: Path) -> tuple[str, ...]:
             sys.path.insert(0, str(project_root))
             return locate_framework().kinds
     except LocateError as exc:
-        raise ValueError(
-            f"Could not derive the kinds: {exc} — or state them explicitly "
+        # Still a locate failure — re-raised as one, with the remedy this
+        # command actually offers appended. ASCII only: this line reaches a
+        # console whose encoding nobody chose.
+        raise LocateError(
+            f"Could not derive the kinds: {exc}; state them explicitly "
             "with --kinds models,views"
         ) from exc
 
@@ -78,6 +82,9 @@ def _build_parser() -> argparse.ArgumentParser:
             "stubs writes the types an editor needs to complete resolve(); "
             "projection writes the registry as JSON for any other tool."
         ),
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
     )
     subcommands = parser.add_subparsers(dest="command", required=True)
     register_scaffold(
@@ -96,9 +103,11 @@ def main(argv: list[str] | None = None) -> int:
         return int(args.handler(args))
     # SpocError covers the scaffolder's refusals, the kernel's identity and
     # configuration errors, and the diagnostics' resolution failures alike;
-    # LocateError is the diagnostics' own "framework not found"; ValueError
-    # covers argument-shape refusals from the operations layer.
-    except (SpocError, LocateError, ValueError) as exc:
+    # LocateError is "framework not found", including kind derivation. Nothing
+    # broader: an app author's own ValueError raised while check imports their
+    # modules is theirs, traceback and all — the scaffold catches its own
+    # argument-shape refusals at its boundary.
+    except (SpocError, LocateError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 

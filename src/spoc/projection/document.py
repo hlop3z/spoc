@@ -124,4 +124,4 @@ def dumps(projection: Projection) -> str:
     would otherwise turn a describable project into an encoding error — the one
     failure mode a *description* must not have.
     """
-    return json.dumps(projection.to_dict(), indent=2) + "\n"
+    return json.dumps(projection.to_dict(), indent=2, ensure_ascii=True) + "\n"

@@ -14,6 +14,7 @@ inside a package whose published dependency set is empty.
 from __future__ import annotations
 
 import argparse
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -33,18 +34,33 @@ DeriveKinds = Callable[[Path], tuple[str, ...]]
 SourceFactory = Callable[[], TemplateSource]
 
 
+def _refused(exc: ValueError) -> int:
+    """Render an argument-shape refusal as the one-line error the mount promises.
+
+    Caught here rather than in the composed program: any parser this surface is
+    mounted on — a downstream framework's as much as ``spoc``'s — must render
+    the operations layer's refusals identically, and the composed program must
+    stay free to let app-authored exceptions propagate untouched.
+    """
+    print(f"error: {exc}", file=sys.stderr)
+    return 1
+
+
 def _run_init(args: argparse.Namespace, sources: SourceFactory) -> int:
     destination = args.path if args.path is not None else Path.cwd() / args.name
     kinds = tuple(k.strip() for k in args.kinds.split(",") if k.strip())
 
-    plan = init_project(
-        source=sources(),
-        sink=DirectorySink(destination),
-        project_name=args.name,
-        app_name=args.app,
-        kinds=kinds,
-        template_set=args.template,
-    )
+    try:
+        plan = init_project(
+            source=sources(),
+            sink=DirectorySink(destination),
+            project_name=args.name,
+            app_name=args.app,
+            kinds=kinds,
+            template_set=args.template,
+        )
+    except ValueError as exc:
+        return _refused(exc)
 
     print(f"Created {destination}")
     for planned in plan:
@@ -82,24 +98,27 @@ def _run_app(
     derive_kinds: DeriveKinds | None,
     sources: SourceFactory,
 ) -> int:
-    if args.kinds is not None:
-        kinds = tuple(k.strip() for k in args.kinds.split(",") if k.strip())
-    elif derive_kinds is not None:
-        kinds = derive_kinds(args.path)
-    else:
-        raise ValueError(
-            "State the kinds with --kinds models,views, or run inside a "
-            "project whose framework declaration is locatable"
-        )
+    try:
+        if args.kinds is not None:
+            kinds = tuple(k.strip() for k in args.kinds.split(",") if k.strip())
+        elif derive_kinds is not None:
+            kinds = derive_kinds(args.path)
+        else:
+            raise ValueError(
+                "State the kinds with --kinds models,views, or run inside a "
+                "project whose framework declaration is locatable"
+            )
 
-    added = add_app(
-        source=sources(),
-        sink_factory=lambda app_dir: DirectorySink(args.path / app_dir),
-        app_name=args.name,
-        kinds=kinds,
-        template_set=args.template,
-        read_origin=lambda: read_origin(args.path),
-    )
+        added = add_app(
+            source=sources(),
+            sink_factory=lambda app_dir: DirectorySink(args.path / app_dir),
+            app_name=args.name,
+            kinds=kinds,
+            template_set=args.template,
+            read_origin=lambda: read_origin(args.path),
+        )
+    except ValueError as exc:
+        return _refused(exc)
 
     if added.divergence:
         print(f"note: {added.divergence}\n")
@@ -156,9 +175,11 @@ def register(
     init = subcommands.add_parser(
         "init",
         help="Generate a new project that starts unedited.",
+        # ASCII only: argparse renders this on a console whose encoding nobody
+        # chose — a cp1252 Windows terminal turns an em dash into mojibake.
         description=(
             "Generate a new project: configuration, framework declaration, one "
-            "app, and an entry point. Add further apps with `spoc app <name>` — "
+            "app, and an entry point. Add further apps with `spoc app <name>`; "
             "a spoc app is an __init__ plus a module per kind."
         ),
     )
@@ -192,8 +213,9 @@ def register(
     app = subcommands.add_parser(
         "app",
         help="Generate one additional app into an existing project.",
+        # ASCII only, same rule as init's description above.
         description=(
-            "Generate an app — one module per kind, each holding a declared "
+            "Generate an app: one module per kind, each holding a declared "
             "component, the same shape init emits. Kinds are derived from the "
             "project's framework declaration unless stated with --kinds. The "
             "configuration is never edited; the exact entry to add is printed."

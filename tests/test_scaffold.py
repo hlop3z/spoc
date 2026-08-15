@@ -4,6 +4,7 @@ Scaffolder tests: one per scenario in the `project-scaffolding` and
 (pure core, one-way dependency, generated project starts unedited).
 """
 
+import argparse
 import re
 import subprocess
 import sys
@@ -24,6 +25,7 @@ from spoc.scaffold import (
     TemplateSetNotFoundError,
     init_project,
 )
+from spoc.scaffold import register as register_scaffold
 from spoc.scaffold.core import (
     build_plan,
     declared_identifiers,
@@ -772,6 +774,37 @@ class TestCommandLine:
         with pytest.raises(SystemExit) as exc:
             cli_main([])
         assert exc.value.code == 2
+
+    def test_version_flag_prints_the_version_and_exits_zero(self, capsys):
+        from spoc import __version__
+
+        with pytest.raises(SystemExit) as exc:
+            cli_main(["--version"])
+
+        assert exc.value.code == 0
+        assert __version__ in capsys.readouterr().out
+
+    def test_empty_kinds_is_an_exit_code_not_a_traceback(self, tmp_path, capsys):
+        """The operations layer's argument-shape refusal renders as one line."""
+        code = cli_main(
+            ["init", "kindless", "--path", str(tmp_path / "out"), "--kinds", ","]
+        )
+
+        assert code == 1
+        assert "error:" in capsys.readouterr().err
+        assert not (tmp_path / "out").exists()
+
+    def test_a_bare_mount_renders_the_app_refusal_as_an_exit_code(
+        self, tmp_path, capsys
+    ):
+        """A mount without derive_kinds one-lines the refusal — the boundary
+        catch lives in this surface, not in the composed spoc program."""
+        parser = argparse.ArgumentParser(prog="bare")
+        register_scaffold(parser.add_subparsers(dest="command", required=True))
+        args = parser.parse_args(["app", "extra", "--path", str(tmp_path)])
+
+        assert args.handler(args) == 1
+        assert "error:" in capsys.readouterr().err
 
 
 # ── Path escapes: every form the platform would resolve outward ───────────
