@@ -69,9 +69,14 @@
 
 ## 5. Validate and close out
 
-- [ ] 5.1 Run `task check` and confirm every gate row passes; report any row that could not
-      run as unverified (Rule 6).
-- [ ] 5.2 Review the diff and split the commits by intent — the collection traversal and the
-      listing read are two changes, not one (Rule 3).
+- [x] 5.1 Run `task check` and confirm every gate row passes; report any row that could not
+      run as unverified (Rule 6). **All rows green on Windows: 964 passed / 5 skipped (up 7),
+      111 tool tests, ruff, ty + mypy --strict, three-checker stub conformance, doc links,
+      strict mkdocs, apicheck 0 fatal. `apidiff` reports the same pre-existing 0.8.0 → 1.0.0
+      delta as before this change. Unverified: the other two declared platforms — this is a
+      single-host run, and the matrix is CI's leg of the gate.**
+- [x] 5.2 Review the diff and split the commits by intent — the collection traversal and the
+      listing read are two changes, not one (Rule 3). **Three commits: the traversal, the
+      facet read, and the artifact corrections.**
 - [ ] 5.3 Run `/opsx:sync` to fold both delta specs into the main specs, then archive with
       `openspec archive -y --skip-specs`.
