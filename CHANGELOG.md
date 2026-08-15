@@ -9,7 +9,7 @@ the pre-1.0 allowance, where a **minor** was where breaking changes landed.
 What each version increment promises, and for which parts of the surface, is written
 down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
-## [Unreleased]
+## [0.9.0] — 2026-08-15
 
 ### Added
 
@@ -44,72 +44,6 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
   **What a consumer must do:** nothing. Scripts that scraped the prose output should
   move to `--json`, which is the covered surface.
-
-### Changed
-
-- **An app-authored `ValueError` is no longer swallowed by the CLI.** The composed
-  program caught bare `ValueError` for its own argument-shape refusals, which also
-  flattened any `ValueError` raised by an app's module code during `spoc check` into a
-  one-line error with no traceback — against the CLI's own stated doctrine that an app
-  author's exception propagates untouched. The scaffold now renders its refusals at its
-  own mount boundary, kind derivation failures are `LocateError` (which they are), and
-  the composed program catches only SPOC's own error families.
-
-  **What a consumer must do:** nothing for well-formed projects. If `spoc check` now
-  shows a traceback where it used to print one line, that traceback is your app's own
-  `ValueError` — it was always your error; now you can see where it came from.
-
-- **Console-bound CLI text is ASCII.** Help and error strings that argparse renders
-  reached cp1252 Windows consoles as mojibake (`ΓÇö` for an em dash). The strings the
-  terminal actually receives now stay ASCII; the projection document already escaped
-  non-ASCII, and its `ensure_ascii=True` is now explicit rather than inherited from a
-  default.
-
-  **What a consumer must do:** nothing.
-
-- **The describing boot is a transition and holds the gate.** `spoc projection` and the
-  stub generator run the collect-only half of a boot; it mutated the same state a real
-  boot does — registry, loader, configuration — without serializing against `start()`
-  and `shutdown()`. The seam now lives beside the lifecycle it splits
-  (`spoc.framework.discovery_only`, internal tier) and holds the transition gate as
-  `describe()`: a racing read gets the gate's timing error naming the description, a
-  racing sync `start()` waits its turn, and the `Any`-typed reach into `Framework`'s
-  privates from another package is gone.
-
-  **What a consumer must do:** nothing — `spoc.projection.collected` keeps its name and
-  behavior; only the interleavings that were never safe are now refused or serialized.
-
-- **`Config.environment` is annotated as the dict it always was.** The field was typed
-  `Any` while `load_environment` has only ever produced `dict[str, Any]`; the annotation
-  now says so, so a type checker can finally see through `framework.config.environment`.
-
-  **What a consumer must do:** nothing — the attribute always held a dict; the
-  annotation now admits it.
-
-### Fixed
-
-- **`spoc stubs --check` no longer reports a false "stale" across ruff versions.**
-  Verification byte-compared the stored stub against a freshly rendered one, and both
-  sides pass through ruff's formatter when it is present — so a ruff upgrade between
-  generating and verifying compared two formatter versions' opinions and called the
-  difference staleness. The stored text is now normalized through the same formatter
-  before the comparison, and the formatter subprocess carries a timeout so a wedged
-  toolchain degrades to pass-through instead of hanging a CI job.
-
-  **What a consumer must do:** nothing; a CI ruff pin added to work around the false
-  positive can be deleted.
-
-- **Format resolution settles once under threads.** `spoc.formats`' registry caches each
-  direction's first probe, but the caches were written without a lock, so two threads
-  racing a first use could both run discovery and disagree about the settled answer. The
-  probe and its cache write now happen under one lock acquisition — the same
-  derive-inside-the-lock rule the kernel registry already follows.
-
-  **What a consumer must do:** nothing.
-
-## [1.0.0] — 2026-08-13
-
-### Added
 
 - **`framework.objects` — the registry, navigated instead of spelled.** An identifier is
   `kind:namespace.object_name`. You can write it as that string, or walk those same three
@@ -158,6 +92,45 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
 
 ### Changed
 
+- **An app-authored `ValueError` is no longer swallowed by the CLI.** The composed
+  program caught bare `ValueError` for its own argument-shape refusals, which also
+  flattened any `ValueError` raised by an app's module code during `spoc check` into a
+  one-line error with no traceback — against the CLI's own stated doctrine that an app
+  author's exception propagates untouched. The scaffold now renders its refusals at its
+  own mount boundary, kind derivation failures are `LocateError` (which they are), and
+  the composed program catches only SPOC's own error families.
+
+  **What a consumer must do:** nothing for well-formed projects. If `spoc check` now
+  shows a traceback where it used to print one line, that traceback is your app's own
+  `ValueError` — it was always your error; now you can see where it came from.
+
+- **Console-bound CLI text is ASCII.** Help and error strings that argparse renders
+  reached cp1252 Windows consoles as mojibake (`ΓÇö` for an em dash). The strings the
+  terminal actually receives now stay ASCII; the projection document already escaped
+  non-ASCII, and its `ensure_ascii=True` is now explicit rather than inherited from a
+  default.
+
+  **What a consumer must do:** nothing.
+
+- **The describing boot is a transition and holds the gate.** `spoc projection` and the
+  stub generator run the collect-only half of a boot; it mutated the same state a real
+  boot does — registry, loader, configuration — without serializing against `start()`
+  and `shutdown()`. The seam now lives beside the lifecycle it splits
+  (`spoc.framework.discovery_only`, internal tier) and holds the transition gate as
+  `describe()`: a racing read gets the gate's timing error naming the description, a
+  racing sync `start()` waits its turn, and the `Any`-typed reach into `Framework`'s
+  privates from another package is gone.
+
+  **What a consumer must do:** nothing — `spoc.projection.collected` keeps its name and
+  behavior; only the interleavings that were never safe are now refused or serialized.
+
+- **`Config.environment` is annotated as the dict it always was.** The field was typed
+  `Any` while `load_environment` has only ever produced `dict[str, Any]`; the annotation
+  now says so, so a type checker can finally see through `framework.config.environment`.
+
+  **What a consumer must do:** nothing — the attribute always held a dict; the
+  annotation now admits it.
+
 - **The pre-1.0 allowance is spent.** Until now a `public` element could change
   incompatibly in a minor release, without a deprecation period. From this release it
   cannot: an incompatible change to a `public` element ships only in a major release,
@@ -201,6 +174,25 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   runtime.
 
 ### Fixed
+
+- **`spoc stubs --check` no longer reports a false "stale" across ruff versions.**
+  Verification byte-compared the stored stub against a freshly rendered one, and both
+  sides pass through ruff's formatter when it is present — so a ruff upgrade between
+  generating and verifying compared two formatter versions' opinions and called the
+  difference staleness. The stored text is now normalized through the same formatter
+  before the comparison, and the formatter subprocess carries a timeout so a wedged
+  toolchain degrades to pass-through instead of hanging a CI job.
+
+  **What a consumer must do:** nothing; a CI ruff pin added to work around the false
+  positive can be deleted.
+
+- **Format resolution settles once under threads.** `spoc.formats`' registry caches each
+  direction's first probe, but the caches were written without a lock, so two threads
+  racing a first use could both run discovery and disagree about the settled answer. The
+  probe and its cache write now happen under one lock acquisition — the same
+  derive-inside-the-lock rule the kernel registry already follows.
+
+  **What a consumer must do:** nothing.
 
 - **`spoc stubs --strict` emitted a stub that failed mypy.** The override suppression sat
   on the first overload's `def` line, but mypy anchors `[override]` on the `@overload`
@@ -1028,7 +1020,7 @@ Installing `spoc` bare reads JSON, CSV, and TOML — all standard library.
 | `query` | `python-jsonpath`, `iregexp-check` | RFC 9535 JSONPath + RFC 6901 JSON Pointer |
 | `full`  | all of the above                   | everything                                |
 
-[1.0.0]: https://github.com/hlop3z/spoc/compare/v0.8.0...v1.0.0
+[0.9.0]: https://github.com/hlop3z/spoc/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/hlop3z/spoc/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/hlop3z/spoc/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/hlop3z/spoc/compare/v0.5.0...v0.6.0
