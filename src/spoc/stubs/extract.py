@@ -44,6 +44,12 @@ def alias_for(module: str, name: str) -> str:
 
     Derived from the full module path, so two apps declaring the same class
     name cannot collide, and the same input always produces the same alias.
+
+    Deliberately not memoized, though it is pure and called repeatedly. The body
+    is two `str.replace` calls on short strings; a cache would have to hash both
+    arguments and probe a dict to avoid that, which costs more than it saves and
+    retains a keyspace as large as the set of types any project names. Recorded
+    here because an audit reads "pure, hot, uncached" as a finding twice.
     """
     flattened = module.replace(".", "_")
     return f"_{flattened}_{name.replace('.', '_')}"
