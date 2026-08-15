@@ -369,6 +369,117 @@ def test_reading_one_facet_does_not_pay_for_the_rest(what, read):
     )
 
 
+class TestOrderingIsDerivedOnce:
+    """Ordering is paid per registration, not per read (spec: component-registry).
+
+    The registry is written once at boot and read for the rest of the process,
+    so re-sorting per read charges every reader for a fact that only changes
+    when someone registers. These tests pin the cost model the spec states, not
+    a timing: they count the derivations rather than measure them, so the
+    guarantee holds on a slow machine and a fast one alike.
+    """
+
+    @staticmethod
+    def _counting_sort(monkeypatch) -> Callable[[], int]:
+        """Count orderings performed inside the registry module."""
+        calls = 0
+        real = sorted
+
+        def counting(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return real(*args, **kwargs)
+
+        # The module never defines `sorted`, so it resolves the builtin at call
+        # time; a module-global shadows it for exactly the code under test.
+        monkeypatch.setattr(registry_module, "sorted", counting, raising=False)
+        return lambda: calls
+
+    def test_repeated_enumeration_does_not_re_derive_order(self, registry, monkeypatch):
+        derivations = self._counting_sort(monkeypatch)
+
+        reads = [registry.all() for _ in range(5)]
+
+        assert derivations() == 1
+        assert all(read == reads[0] for read in reads)
+        assert [c.identifier for c in reads[0]] == sorted(
+            c.identifier for c in reads[0]
+        )
+
+    def test_each_facet_is_derived_once_on_its_own(self, registry, monkeypatch):
+        """A cached facet does not answer for a facet nobody has asked about."""
+        derivations = self._counting_sort(monkeypatch)
+
+        registry.by_kind("models")
+        registry.by_kind("models")
+        assert derivations() == 1
+
+        registry.by_kind("views")
+        assert derivations() == 2
+
+        registry.by_namespace("blog")
+        assert derivations() == 3
+
+    def test_a_registration_between_reads_is_observed(self, registry, monkeypatch):
+        before = [c.identifier for c in registry.all()]
+        derivations = self._counting_sort(monkeypatch)
+
+        registry.add("models", "blog", "author", object())
+        after = [c.identifier for c in registry.all()]
+
+        assert "models:blog.author" not in before
+        assert after == sorted([*before, "models:blog.author"])
+        assert derivations() == 1, "the read after a registration re-derives once"
+
+    def test_every_facet_reflects_a_registration(self, registry):
+        """Invalidation is not per-facet — no reader keeps a pre-registration view."""
+        registry.by_kind("models")
+        registry.by_namespace("blog")
+        registry.all()
+
+        registry.add("models", "blog", "author", object())
+
+        assert "models:blog.author" in {
+            c.identifier for c in registry.by_kind("models")
+        }
+        assert "models:blog.author" in {
+            c.identifier for c in registry.by_namespace("blog")
+        }
+        assert "models:blog.author" in {c.identifier for c in registry.all()}
+
+    def test_an_absent_facet_is_answered_but_not_retained(self, registry):
+        """`by_*` takes any string, so misses must not be a memory sink.
+
+        Caching them would let a caller asking about namespaces that do not
+        exist grow the registry's memory without registering anything.
+        """
+        kept = len(registry._ordered_views)
+
+        for i in range(50):
+            assert registry.by_namespace(f"absent_{i}") == []
+            assert registry.by_kind(f"absent_{i}") == []
+
+        assert len(registry._ordered_views) == kept
+
+    def test_a_facet_that_appears_later_is_answered_from_the_store(self, registry):
+        """A miss is not remembered as a miss — registering fills it."""
+        assert registry.by_namespace("archive") == []
+
+        registry.add("models", "archive", "snapshot", object())
+
+        assert [c.identifier for c in registry.by_namespace("archive")] == [
+            "models:archive.snapshot"
+        ]
+
+    def test_a_reader_cannot_edit_what_the_next_reader_sees(self, registry):
+        """Caching an ordered view must not hand callers the cache itself."""
+        first = registry.all()
+        first.clear()
+
+        assert len(registry.all()) == 4
+        assert registry.by_kind("models") is not registry.by_kind("models")
+
+
 class TestOneWriter:
     """The registry has exactly one mutator, and that is checked, not trusted.
 
@@ -380,12 +491,26 @@ class TestOneWriter:
     enforces it. This is what enforces it.
     """
 
-    #: Every attribute holding registry state. A new one must join this list,
-    #: which is the moment to ask whether it can drift from the store.
-    STATE: ClassVar[tuple[str, ...]] = ("_components", "_count", "_identifier_of")
+    #: Every attribute holding registry state, mapped to the methods allowed to
+    #: write it. A new attribute must join this table, which is the moment to ask
+    #: whether it can drift from the store — and to justify any writer beyond
+    #: `_admit` rather than widen a shared list and weaken it for everything.
+    #:
+    #: `_ordered_views` is the one entry with a second writer, because it is the
+    #: one entry that is *derived*: it holds no fact the store does not already
+    #: hold, so it cannot disagree with the store, only lag it. `_ordered` fills
+    #: it and `_admit` empties it, both under the lock, and filling happens in the
+    #: same acquisition that reads the store — so a view can never be stored over
+    #: an invalidation that overtook it.
+    WRITERS: ClassVar[dict[str, set[str]]] = {
+        "_components": {"__init__", "_admit"},
+        "_count": {"__init__", "_admit"},
+        "_identifier_of": {"__init__", "_admit"},
+        "_ordered_views": {"__init__", "_admit", "_ordered"},
+    }
 
-    #: The only place allowed to write them.
-    WRITERS: ClassVar[set[str]] = {"__init__", "_admit"}
+    #: Every attribute holding registry state.
+    STATE: ClassVar[tuple[str, ...]] = tuple(WRITERS)
 
     def _mutating_methods(self) -> dict[str, set[str]]:
         """Method name → the state attributes it writes, by reading the source."""
@@ -442,15 +567,17 @@ class TestOneWriter:
     def test_every_state_attribute_is_written_in_one_place_only(self):
         writers = self._mutating_methods()
         unexpected = {
-            method: sorted(attrs)
+            method: sorted(
+                attr for attr in attrs if method not in self.WRITERS.get(attr, set())
+            )
             for method, attrs in writers.items()
-            if method not in self.WRITERS
         }
+        unexpected = {method: attrs for method, attrs in unexpected.items() if attrs}
         assert not unexpected, (
-            f"registry state is written outside {sorted(self.WRITERS)}: {unexpected}. "
-            "Every write belongs in `_admit`, so a record cannot become visible "
-            "through one read and not another. If this is a deliberate new writer, "
-            "it needs its own atomicity argument before this list grows."
+            f"registry state is written outside its declared writers: {unexpected}. "
+            "Authoritative state belongs in `_admit`, so a record cannot become "
+            "visible through one read and not another. If this is a deliberate new "
+            "writer, it needs its own atomicity argument before this table grows."
         )
 
     def test_the_declared_state_is_the_real_state(self):
