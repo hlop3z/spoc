@@ -137,10 +137,9 @@ def load_spoc_toml(base_dir: Path, echo: bool = False) -> dict[str, Any]:
             merged = {**deepcopy(SPOC_DEFAULTS), **deepcopy(declared)}
             # Declared modes extend the default set per mode rather than
             # replacing it, so adding `test` never forces restating the triple.
-            merged["modes"] = {
-                **deepcopy(DEFAULT_MODES),
-                **deepcopy(declared.get("modes", {})),
-            }
+            # The declared modes are read back out of `merged`, which already
+            # holds the one copy of them — `declared` is never copied twice.
+            merged["modes"] = {**deepcopy(DEFAULT_MODES), **merged["modes"]}
             # Application-owned tables ride along untouched: parsed, never
             # validated, never silently dropped.
             tables = {k: deepcopy(v) for k, v in config.items() if k != "spoc"}

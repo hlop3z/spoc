@@ -112,13 +112,7 @@ class _Level:
     # ── Reflection: what an editor, `dir()`, and a human get ──────────────
 
     def __dir__(self) -> list[str]:
-        if self._kind is None:
-            names: tuple[str, ...] = self._registry.kinds
-        elif self._namespace is None:
-            names = self._namespaces()
-        else:
-            names = self._object_names()
-        return sorted(escape_keyword(name) for name in names)
+        return sorted(escape_keyword(name) for name in self._names())
 
     def __repr__(self) -> str:
         walked = ".".join(
@@ -126,11 +120,21 @@ class _Level:
             for part in (self._kind, self._namespace)
             if part is not None
         )
-        offers = len(self.__dir__())
+        # Counted from the store, not from `__dir__`: escaping is one-to-one, so
+        # the two lengths always agree and a repr need not sort to say how many.
+        offers = len(self._names())
         at = f" at {walked}" if walked else ""
         return f"<objects{at}: {offers} name(s)>"
 
     # ── Reading the store, once per question ──────────────────────────────
+
+    def _names(self) -> tuple[str, ...]:
+        """What the store holds at this depth, as declared — unescaped, unsorted."""
+        if self._kind is None:
+            return self._registry.kinds
+        if self._namespace is None:
+            return self._namespaces()
+        return self._object_names()
 
     def _namespaces(self) -> tuple[str, ...]:
         return self._registry.namespaces(self._kind)

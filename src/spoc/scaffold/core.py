@@ -233,8 +233,15 @@ def validate_template_set(template_set: TemplateSet, values: Values) -> None:
         raise IncompleteTemplateSetError("any template file")
 
     declared = set(template_set.values)
+    # Both bindings are built once, not per file: `values` is fixed across the
+    # loop, so a file's binding is one of only two sets. Spelling it inside
+    # rebuilt the whole set on every template file — the same mistake the
+    # placeholder scan above already documents.
+    bound_plain = set(values)
+    supplied = bound_plain | PER_KIND_VALUES
+
     for file in template_set.files:
-        bound = set(values) | (PER_KIND_VALUES if file.per_kind else set())
+        bound = supplied if file.per_kind else bound_plain
         for text in (file.content, file.target):
             for name in Template(text).get_identifiers():
                 if name not in declared:
@@ -242,7 +249,6 @@ def validate_template_set(template_set: TemplateSet, values: Values) -> None:
                 if name not in bound:
                     raise UnsatisfiedValueError(name)
 
-    supplied = set(values) | PER_KIND_VALUES
     for name in template_set.values:
         if name not in supplied:
             raise UnsatisfiedValueError(name)
