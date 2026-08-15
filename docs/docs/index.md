@@ -46,6 +46,11 @@ Imagine your project is a big box of building blocks.
 
 Need a block? Ask the shelf by its name tag. That's the whole trick.
 
+*Block* is this guide's friendly word for what the API calls a **`Component`** —
+the record the shelf hands back, carrying the name tag and your object. Same
+thing, two spellings; you'll meet the second one in
+[the API reference](api/public.md).
+
 ```mermaid
 flowchart LR
     F["Your rules<br/>(framework.py)"] --> S["spoc.Framework"]

@@ -45,6 +45,11 @@ Installed apps: ['apps.core']
 That's SPOC booting: it read your settings, imported your app, found two
 blocks, and put them on the shelf with their name tags.
 
+Note the program says *components* where this page says *blocks* — those are
+one thing. **`Component`** is the API's name for a record on the shelf; *block*
+is the word these guides use while you're learning. From here on you'll see
+both.
+
 ## 3. Read the three files
 
 **`framework.py` — your rules.** One declaration says which kinds of blocks
