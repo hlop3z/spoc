@@ -689,44 +689,68 @@ def test_deleting_the_stub_changes_no_behavior(tmp_path):
 
 _T = TypeVar("_T")
 
+# Annotation carriers: only their signatures are read, never their bodies, so
+# each raises rather than returning. An `...` body would be a genuine type error
+# in all but the first two — the return annotation promises a value the function
+# never produces — and suppressing that in thirteen places would cost more than
+# the one word it takes to be honest.
+
+
+def _never() -> Any:
+    raise NotImplementedError("declared for its annotation; never called")
+
 
 def _returns_none() -> None: ...
 
 
-def _returns_any() -> Any: ...
+def _returns_any() -> Any:
+    return _never()
 
 
-def _returns_union() -> int | str: ...
+def _returns_union() -> int | str:
+    return _never()
 
 
-def _returns_optional() -> int | None: ...
+def _returns_optional() -> int | None:
+    return _never()
 
 
-def _returns_literal() -> Literal["read", "write"]: ...
+def _returns_literal() -> Literal["read", "write"]:
+    return _never()
 
 
-def _returns_bare_list() -> list: ...
+def _returns_bare_list() -> list:
+    return _never()
 
 
-def _returns_parameterized() -> dict[str, list[int]]: ...
+def _returns_parameterized() -> dict[str, list[int]]:
+    return _never()
 
 
-def _returns_callable_params() -> Callable[[int, str], bool]: ...
+def _returns_callable_params() -> Callable[[int, str], bool]:
+    return _never()
 
 
-def _returns_callable_ellipsis() -> Callable[..., bool]: ...
+def _returns_callable_ellipsis() -> Callable[..., bool]:
+    return _never()
 
 
-def _returns_unresolvable() -> Nowhere: ...  # noqa: F821
+def _returns_unresolvable() -> Nowhere:  # noqa: F821 # ty: ignore[unresolved-reference]
+    # The unresolvable annotation *is* the fixture: both checkers are right that
+    # `Nowhere` does not resolve, which is exactly what the renderer must meet.
+    return _never()
 
 
-def _returns_empty_tuple() -> tuple[()]: ...
+def _returns_empty_tuple() -> tuple[()]:
+    return _never()
 
 
-def _returns_abstract_generic() -> Sequence[int]: ...
+def _returns_abstract_generic() -> Sequence[int]:
+    return _never()
 
 
-def _returns_type_variable() -> _T: ...
+def _returns_type_variable() -> _T:
+    return _never()
 
 
 @pytest.mark.parametrize(

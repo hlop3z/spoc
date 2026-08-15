@@ -7,6 +7,7 @@ half-running them.
 """
 
 import asyncio
+import threading
 
 import pytest
 
@@ -248,4 +249,84 @@ def test_atransition_spawned_by_a_hook_is_reentrant(tmp_path):
 
     assert "inside a lifecycle transition" in seen["spawned"], (
         f"a task spawned by a shutdown hook was not treated as inside it: {seen['spawned']!r}"
+    )
+
+
+def test_a_busy_framework_is_refused_without_parking_the_event_loop(tmp_path):
+    """Refusing a busy framework is not the same promise as not deadlocking.
+
+    A blocking acquire does not deadlock — it does eventually get the lock — so
+    it satisfies every other requirement here while stalling every unrelated task
+    the caller is running. On this path it is worse than a stall: the transition
+    holding the lock is running on this same thread, so blocking for it can never
+    let it finish.
+
+    The scenario runs in a thread with a wall-clock bound because that is the
+    failure this pins. A blocking implementation would hang here rather than
+    assert, and a hang reports nothing.
+    """
+    base = make_project(tmp_path, "abusy")
+    seen: dict[str, str] = {}
+    state: dict[str, Framework] = {}
+    ticks = 0
+
+    async def ticker(release):
+        """Unrelated scheduled work: it must keep advancing while the refusal happens."""
+        nonlocal ticks
+        while not release.is_set():
+            ticks += 1
+            await asyncio.sleep(0)
+
+    async def racing(release):
+        try:
+            await state["fw"].astart(base)
+            seen["racing"] = "served"
+        except SpocError as e:
+            seen["racing"] = str(e)
+        release.set()
+
+    async def scenario():
+        release = asyncio.Event()
+
+        async def on_shutdown(objects):
+            # Holds the transition open until the racing caller has been answered,
+            # so the refusal is decided while the lock is genuinely held.
+            await release.wait()
+
+        fw = Framework(KindSpec("models", on_shutdown=on_shutdown))
+        state["fw"] = fw
+        await fw.astart(base)
+        # Created before the transition, so neither copies its marker: both are
+        # outside it, which is what makes one racing rather than reentrant.
+        work = asyncio.gather(ticker(release), racing(release))
+        await fw.ashutdown()
+        await work
+
+    finished = threading.Event()
+    failure: dict[str, BaseException] = {}
+
+    def run():
+        try:
+            asyncio.run(scenario())
+        except BaseException as e:  # reported below, on the test's own thread
+            failure["error"] = e
+        finally:
+            finished.set()
+
+    threading.Thread(target=run, daemon=True).start()
+
+    assert finished.wait(timeout=10), (
+        "the asynchronous path waited for the in-flight transition instead of "
+        "refusing it — the event loop is parked on a lock held by work scheduled "
+        "on the same loop, which can never be released"
+    )
+    if "error" in failure:
+        raise failure["error"]
+
+    assert "already in progress" in seen["racing"], (
+        f"a caller refused for a busy framework got the wrong diagnosis: {seen['racing']!r}"
+    )
+    assert ticks > 0, (
+        "unrelated scheduled work never ran while the transition was in flight, "
+        "so the refusal cost the loop its progress even though it did return"
     )

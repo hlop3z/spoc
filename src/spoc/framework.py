@@ -29,13 +29,10 @@ to the surfaces built on top.
 
 from __future__ import annotations
 
-import contextvars
 import graphlib
 import importlib
 import logging
-import threading
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
@@ -57,7 +54,6 @@ from .core.exceptions import (
     CircularDependencyError,
     ComponentShapeError,
     ConfigurationError,
-    FrameworkTransitioningError,
     SpocError,
     UnknownKindError,
 )
@@ -66,6 +62,7 @@ from .core.loader import KindHooks, LoadedModule, Loader
 from .core.navigation import navigator
 from .core.registry import Component, Registry
 from .core.shape import shape_prose
+from .core.transition import TransitionGate
 
 logger = logging.getLogger(__name__)
 
@@ -75,31 +72,6 @@ logger = logging.getLogger(__name__)
 _ROLLBACK_FAILED = (
     "Rollback failed while unwinding a failed boot; the framework was still "
     "returned to its inert state, and the boot's own failure is the one raised"
-)
-
-#: The frameworks whose lifecycle transition the current thread or task is
-#: *inside* — the transition's own hooks, module code, and anything they call.
-#:
-#: A ``ContextVar`` rather than thread state, because one mechanism has to answer
-#: for both lifecycle paths and its isolation rules already match them: a new
-#: thread starts with an empty context, so a racing caller on another thread is
-#: outside; a task carries the context copied when it was created, so a task that
-#: predates the transition is outside while the transition's own inline awaits are
-#: inside. Work a hook spawns inherits the marker, which is intended — work
-#: spawned by teardown is teardown. That inheritance follows the context, not the
-#: spawning: a task and `asyncio.to_thread` both copy it, a bare `threading.Thread`
-#: does not and is therefore outside, as it was under every earlier discriminator.
-#:
-#: This one marker answers membership for every refusal — a read, and a further
-#: lifecycle transition alike. Thread identity cannot: on the asynchronous path a
-#: racing task shares the transition's thread while carrying none of its context,
-#: so it would be called reentrant for running on the same event loop.
-#:
-#: A set, not a flag: nesting is per framework, so one framework's startup hook
-#: may legally start another, and a read on the outer one stays inside its own
-#: transition while the inner one runs.
-_active_transitions: contextvars.ContextVar[frozenset[Framework]] = (
-    contextvars.ContextVar("spoc_active_transitions", default=frozenset())
 )
 
 
@@ -252,14 +224,10 @@ class Framework:
         self.loader = Loader()
         self._ready_callbacks: list[Callable[[Registry], Any]] = []
         self._started = False
-        self._transition_lock = threading.Lock()
-        #: The transition in flight, named as the caller invoked it, or None when
-        #: settled. Answers *whether* a transition is running; `_active_transitions`
-        #: answers whether the asking code is inside it — the one question every
-        #: refusal here turns on, for a read and for a further transition alike.
-        #: Both are needed: one without the other would either refuse every read
-        #: or refuse none.
-        self._transitioning: str | None = None
+        #: Serializes this framework's transitions and answers who is inside one.
+        #: Built here and nowhere else: membership is keyed by the gate, so a
+        #: second gate on one framework would silently split it in two.
+        self._transitions = TransitionGate()
         self.base_dir: Path | None = None
         self.config: Config | None = None
         self.installed_apps: list[str] = []
@@ -295,23 +263,9 @@ class Framework:
         """True once ``start`` has completed successfully."""
         return self._started
 
-    def _refuse_racing_read(self, identifier: str) -> None:
-        """Refuse a read that arrived from outside an in-flight transition.
-
-        Checked on every read accessor rather than inside the registry: the
-        registry is a pure store with no notion of a lifecycle, and the framework
-        is what owns the transition. During one, the store is being populated app
-        by app, or has already been replaced — so an unrefused read either reports
-        a typo the caller did not make or hands back a component whose teardown has
-        run.
-        """
-        transition = self._transitioning
-        if transition is not None and not self._inside_transition():
-            raise FrameworkTransitioningError(identifier, transition)
-
     def resolve(self, identifier: str) -> Component[Any]:
         """Resolve ``kind:namespace.object_name`` to its registry record."""
-        self._refuse_racing_read(identifier)
+        self._transitions.refuse_racing_read(identifier)
         return self.registry.resolve(identifier)
 
     @property
@@ -330,7 +284,7 @@ class Framework:
         a project that never navigates. Typed as ``Any`` because the accurate
         type is the generated stub's description of *this* project's registry.
         """
-        self._refuse_racing_read("objects")
+        self._transitions.refuse_racing_read("objects")
         return navigator(self.registry)
 
     def resolve_type[T](self, identifier: str, contract: type[T]) -> type[T]:
@@ -345,7 +299,7 @@ class Framework:
         Only shape is checked here; see :meth:`resolve_object` for the rest of
         the contract this pair shares.
         """
-        self._refuse_racing_read(identifier)
+        self._transitions.refuse_racing_read(identifier)
         obj = self.registry.resolve(identifier).object
         if not isinstance(obj, type):
             raise ComponentShapeError(
@@ -366,7 +320,7 @@ class Framework:
         is visible; re-answering it at runtime would duplicate a known fact and
         put a validation engine in the kernel.
         """
-        self._refuse_racing_read(identifier)
+        self._transitions.refuse_racing_read(identifier)
         obj = self.registry.resolve(identifier).object
         if isinstance(obj, type):
             raise ComponentShapeError(
@@ -380,61 +334,6 @@ class Framework:
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
-    def _refuse_reentry(self, label: str) -> None:
-        """Refuse a transition called from inside one already in flight.
-
-        Membership is the same question a read asks, so it gets the same answer:
-        `_inside_transition`. Deciding it by thread identity instead would call a
-        racing task reentrant merely for sharing an event loop, and the two have
-        opposite remedies — a racing caller may retry once the transition settles,
-        a reentrant one never can. Callers this returns for fall through to the
-        lock, which is what reports a genuinely concurrent transition.
-        """
-        if self._inside_transition():
-            raise SpocError(
-                f"{label} was called from inside a lifecycle transition that is "
-                "still in flight. A ready callback, lifecycle hook, or module "
-                "initializer cannot start or shut down the framework that is "
-                "booting it"
-            )
-
-    def _begin_transition(self, label: str) -> contextvars.Token[frozenset[Framework]]:
-        """Mark a transition in flight and this context as being inside it.
-
-        Described once here because four entry points need it — the two paths that
-        hold the lock through a context manager and the two that acquire it by hand
-        — and a path that marked one half would either refuse the transition's own
-        teardown reads or refuse nobody's.
-        """
-        self._transitioning = label
-        return _active_transitions.set(_active_transitions.get() | {self})
-
-    def _end_transition(self, token: contextvars.Token[frozenset[Framework]]) -> None:
-        """Return to the settled state. Owed unconditionally, like `_reset`.
-
-        The context variable is reset by token rather than re-set to a computed
-        value: restoring the previous set is what makes nesting unwind correctly,
-        and a leaked marker would exempt every later read on this thread or task
-        and make every later transition on it look reentrant.
-        """
-        _active_transitions.reset(token)
-        self._transitioning = None
-
-    def _inside_transition(self) -> bool:
-        """Whether the calling code is part of this framework's in-flight transition."""
-        return self in _active_transitions.get()
-
-    @contextmanager
-    def _transition(self, label: str) -> Iterator[None]:
-        """Hold the transition lock, marking the window and this context as inside it."""
-        self._refuse_reentry(label)
-        with self._transition_lock:
-            token = self._begin_transition(label)
-            try:
-                yield
-            finally:
-                self._end_transition(token)
-
     def start(self, base_dir: Path | str) -> Framework:
         """Boot the project rooted at `base_dir`.
 
@@ -442,7 +341,7 @@ class Framework:
         framework returns to its inert pre-start state, so the caller can fix
         the cause and start again cleanly.
         """
-        with self._transition("start()"):
+        with self._transitions.hold("start()"):
             if self._started:
                 raise SpocError("Framework is already started")
 
@@ -466,11 +365,7 @@ class Framework:
         transition is a programming error and fails immediately — an event loop
         is never parked on a lock.
         """
-        self._refuse_reentry("astart()")
-        if not self._transition_lock.acquire(blocking=False):
-            raise SpocError("Framework lifecycle transition already in progress")
-        token = self._begin_transition("astart()")
-        try:
+        with self._transitions.claim("astart()"):
             if self._started:
                 raise SpocError("Framework is already started")
 
@@ -484,9 +379,6 @@ class Framework:
 
             self._started = True
             return self
-        finally:
-            self._end_transition(token)
-            self._transition_lock.release()
 
     def shutdown(self) -> Framework:
         """Tear down modules in reverse dependency order, then reset to pre-start state.
@@ -497,7 +389,7 @@ class Framework:
         and a subsequent ``start`` re-runs discovery against those cached
         modules rather than re-executing them. No-op if never started.
         """
-        with self._transition("shutdown()"):
+        with self._transitions.hold("shutdown()"):
             if not self._started:
                 return self
             try:
@@ -510,11 +402,7 @@ class Framework:
 
     async def ashutdown(self) -> Framework:
         """Asynchronous :meth:`shutdown`: awaits coroutine hooks and teardowns."""
-        self._refuse_reentry("ashutdown()")
-        if not self._transition_lock.acquire(blocking=False):
-            raise SpocError("Framework lifecycle transition already in progress")
-        token = self._begin_transition("ashutdown()")
-        try:
+        with self._transitions.claim("ashutdown()"):
             if not self._started:
                 return self
             try:
@@ -522,9 +410,6 @@ class Framework:
             finally:
                 self._reset()
             return self
-        finally:
-            self._end_transition(token)
-            self._transition_lock.release()
 
     def _rollback(self) -> None:
         """Tear down what came up, then reach the inert state whatever happened.

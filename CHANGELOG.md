@@ -117,6 +117,23 @@ down in [Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/).
   only moved when someone dispatched it by hand and drifted several releases behind the
   code. The release now calls the docs deploy directly, after publishing.
 
+- **`astart` / `ashutdown` refusing a busy framework is now a stated guarantee, not an
+  accident of how it was written.** Both have always taken the transition lock without
+  waiting, so a caller arriving during another transition is refused immediately rather
+  than queued. Nothing required that: the contract asked only that a reentrant call not
+  *deadlock*, which a blocking acquire also satisfies — it does eventually get the lock.
+  The behavior rested on two open-coded call sites and a docstring.
+
+  That is the wrong footing for this one, because waiting here is worse than slow. The
+  transition being waited for may be running on the very event loop the waiter would park,
+  in which case it could never finish and the wait would never end. Refusing is also the
+  more useful answer: a caller refused for a busy framework may retry once the transition
+  settles, unlike one refused for reentrancy, and it can only decide that if it is told.
+
+  The guarantee is now written down and covered by a test that fails — rather than hangs —
+  if the acquire ever starts blocking. No behavior changed; what changed is that it can no
+  longer change silently.
+
 ### Removed
 
 - **`spoc.scaffold.extract_archive`** — import it from `spoc.scaffold.archive`
