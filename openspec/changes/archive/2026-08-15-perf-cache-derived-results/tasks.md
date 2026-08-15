@@ -17,12 +17,12 @@
 
 ## 2. Codec failure caching (design D2)
 
-- [ ] 2.1 Add the failure map to `FormatRegistry.__init__`; on an `ImportError` from a
+- [x] 2.1 Add the failure map to `FormatRegistry.__init__`; on an `ImportError` from a
       factory, record `(name, direction)` → the context and extra, then raise. On a hit in
       `function`, construct and raise a fresh `MissingDependencyError` without re-running
       the factory. Leave `UnsupportedDirectionError` uncached. Comment the mid-process
       installation trade at the cache-write site.
-- [ ] 2.2 Tests for the delta scenarios: a second request for an unavailable format does not
+- [x] 2.2 Tests for the delta scenarios: a second request for an unavailable format does not
       re-invoke the factory (spy on the factory callable), repeated `supported()` calls
       report identical outcomes with one discovery per format/direction, and the raised
       message still names the extra actionably.
