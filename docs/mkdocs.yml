@@ -39,6 +39,7 @@ nav:
           - The Toolbox: api/tooling.md
           - Error Index: api/errors.md
           - Stability & Versioning: api/stability.md
+          - Upgrading: api/migration.md
       - The Storefront Example: examples.md
   # One home: CONTRIBUTING.md lives at the repo root, where GitHub surfaces it in the
   # issue and PR flows. It links into .canon/ and openspec/, which the site does not publish.

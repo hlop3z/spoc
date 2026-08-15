@@ -1,5 +1,13 @@
 # The Default Vocabulary
 
+!!! note "One word, two spellings"
+    The beginner pages say **block**; the API says **`Component`**. They are the
+    same thing: a block is what you decorate, and after `start()` it sits on the
+    shelf as a `Component` record in `framework.registry` — identifier, facets,
+    and the object itself. Everything a block "is" lives on that record; see
+    [Name Tags & the Registry](names-and-registry.md) for the mapping and
+    [the API reference](../api/public.md) for the record's fields.
+
 SPOC lets you invent any kinds you like — that's the whole point. But an ecosystem
 needs a shared language: a reusable app published by someone else can only declare
 components of kinds *your* project happens to have. So SPOC blesses one **default

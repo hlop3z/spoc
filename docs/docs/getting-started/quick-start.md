@@ -9,6 +9,11 @@ spoc init hello
 cd hello
 ```
 
+This generates the *default* template — the smallest project that runs, which
+is the right one to learn from. The README's demo used
+`spoc init myproject --template starter`, a fuller project with working CLI
+commands; that one is walked through in [The Starter](starter.md).
+
 `spoc init` creates a small project that runs **without editing anything**:
 
 ```

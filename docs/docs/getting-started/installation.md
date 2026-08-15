@@ -13,15 +13,22 @@ Or with [uv](https://docs.astral.sh/uv/):
 uv add spoc
 ```
 
-## Check it worked
+For an application you'll deploy, pin the major:
 
 ```bash
-python -c "import spoc; print(spoc.__version__)"
+pip install "spoc>=1.0,<2"
 ```
 
-The `spoc` command line tool comes with it:
+That range is exactly what the [stability contract](../api/stability.md)
+promises against — see [Upgrading](../api/migration.md) for why nothing
+tighter is needed.
+
+## Check it worked
+
+The `spoc` command line tool comes with the package:
 
 ```bash
+spoc --version
 spoc --help
 ```
 

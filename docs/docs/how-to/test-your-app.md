@@ -30,6 +30,31 @@ Run it:
 pytest
 ```
 
+## The pieces, used separately
+
+`spoc_framework` is one call over two smaller fixtures, and both are handed to
+you as well. `spoc_tree` builds a project tree under the test's `tmp_path`
+without booting it; `spoc_isolated` boots any tree inside an isolation scope
+and tears everything down — framework state, `sys.path`, imported modules — on
+the way out:
+
+```python title="test_pieces.py"
+from conftest import MODELS
+
+
+def test_a_prebuilt_tree_boots_in_isolation(spoc_tree, spoc_isolated):
+    base = spoc_tree(apps={"blog": {"models": MODELS}}, name="pieces")
+    with spoc_isolated(base, "models") as fw:
+        assert [c.identifier for c in fw.registry] == ["models:blog.post"]
+    assert not fw.started  # nothing outlives the scope
+```
+
+Splitting them matters the moment one test needs two projects, a tree it
+edits between boots, or a boot it never wants — `spoc_isolated(base, "models",
+start=False)` yields an inert framework for tests that exercise boot itself,
+and `framework=` takes a prebuilt declaration when hooks or `KindSpec`s are
+the thing under test.
+
 ```python title="main.py"
 """These docs run their own examples: pytest over the files above."""
 
@@ -39,13 +64,25 @@ import sys
 raise SystemExit(subprocess.run([sys.executable, "-m", "pytest", "-q"]).returncode)
 ```
 
+## In CI
+
+The fixtures test your app's *behavior*; `spoc check` tests its *structure* —
+settings, imports, dependency cycles, name collisions — without running any of
+it ([The Command Line](../tools/cli.md)). They catch different mistakes, and
+the second is one line:
+
+```bash
+pytest        # behavior: your tests, on the fixtures above
+spoc check    # structure: dry-boot, exit 0 when clean
+```
+
 Two things worth knowing before you write more:
 
 - The tree uses `spoc.component`, not a decorator from `framework.py` — a
   throwaway app has no `framework.py` to import, and the marker puts the same
   name tag on a block without one.
-- When the fixture isn't enough — prebuilt trees, inert boots, mode
-  switching — the pieces it's made of (`ProjectTree`, `isolated`, `mode`) are
-  all public: see [Testing Your Project](../tools/testing.md).
+- When the fixtures aren't enough — mode switching, custom layouts — the
+  pieces they're made of (`ProjectTree`, `isolated`, `mode`) are all public:
+  see [Testing Your Project](../tools/testing.md).
 
 Next: [ship a reusable app](ship-a-reusable-app.md).
