@@ -70,6 +70,74 @@ def test_class_without_init_still_constructs(mark):
         assert isinstance(Bare(), Bare)
 
 
+def test_subclass_of_deprecated_class_constructs_and_warns(mark):
+    """Rebinding ``__new__`` must not break inheritance: deriving from and
+    using a deprecated class warns, and the subclass gets *itself* back.
+
+    Where the warning fires is implementation detail, deliberately untested:
+    the stdlib decorator warns at subclass *creation* (``__init_subclass__``),
+    the 3.12 fallback at *instantiation*. Both are one warning for the same
+    act, and the fallback deletes itself when the floor reaches 3.13.
+    """
+
+    @mark(MESSAGE)
+    class Old:
+        def __init__(self, value):
+            self.value = value
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+
+        class Sub(Old):
+            pass
+
+        instance = Sub(7)
+
+    assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+    assert type(instance) is Sub
+    assert instance.value == 7
+
+
+def test_class_with_custom_new_still_constructs(mark):
+    """A class allocating through its own ``__new__`` keeps that path intact,
+    arguments and all."""
+
+    @mark(MESSAGE)
+    class Custom:
+        def __new__(cls, *args, **kwargs):
+            instance = super().__new__(cls)
+            instance.via_new = True
+            return instance
+
+        def __init__(self, value, *, flag=False):
+            self.value = value
+            self.flag = flag
+
+    with pytest.warns(DeprecationWarning):
+        instance = Custom(7, flag=True)
+
+    assert instance.via_new is True
+    assert instance.value == 7 and instance.flag is True
+
+
+def test_double_decoration_still_constructs_and_warns(mark):
+    """Decorating twice chains the patched allocators. Nothing legislates how
+    many warnings that emits — only that construction survives, at least one
+    warning fires, and the outer message wins ``__deprecated__``."""
+
+    @mark(MESSAGE)
+    @mark("an earlier message")
+    class Twice:
+        def __init__(self, value):
+            self.value = value
+
+    with pytest.warns(DeprecationWarning) as caught:
+        assert Twice(7).value == 7
+
+    assert len(caught) >= 1
+    assert Twice.__deprecated__ == MESSAGE
+
+
 def test_mark_is_visible_without_calling(mark):
     """`__deprecated__` is what a type checker and the docs projection read."""
 
