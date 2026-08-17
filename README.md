@@ -8,6 +8,31 @@
 ![PyPI](https://img.shields.io/pypi/v/spoc?color=blue)
 ![Downloads](https://img.shields.io/pypi/dm/spoc?color=darkgreen)
 
+## Install
+
+**Python 3.12+**
+
+```bash
+pip install spoc
+```
+
+The generated project imports `spoc` at runtime, so install it where you run the
+project from — [installation guide](https://hlop3z.github.io/spoc/getting-started/installation/).
+
+## Documentation
+
+**[Read the docs](https://hlop3z.github.io/spoc/)** — tutorials, how-to guides, and the
+full API reference.
+
+A good path in: [your first project](https://hlop3z.github.io/spoc/getting-started/quick-start/)
+→ [names & the registry](https://hlop3z.github.io/spoc/learn/names-and-registry/)
+→ [build a framework](https://hlop3z.github.io/spoc/learn/build-a-framework/).
+
+## Links
+
+- [PyPI](https://pypi.org/project/spoc)
+- [GitHub](https://github.com/hlop3z/spoc)
+
 ## Build a framework in 30 lines
 
 Say what kinds of things your app has:
@@ -158,28 +183,3 @@ underneath](https://hlop3z.github.io/spoc/learn/framework/) is in the docs.
 Weighing it against imports, entry points, pluggy, or a DI container specifically?
 [Why not just…?](https://hlop3z.github.io/spoc/#why-not-just) has the one-line answer
 for each.
-
-## Install
-
-**Python 3.12+**
-
-```bash
-pip install spoc
-```
-
-The generated project imports `spoc` at runtime, so install it where you run the
-project from — [installation guide](https://hlop3z.github.io/spoc/getting-started/installation/).
-
-## Documentation
-
-**[Read the docs](https://hlop3z.github.io/spoc/)** — tutorials, how-to guides, and the
-full API reference.
-
-A good path in: [your first project](https://hlop3z.github.io/spoc/getting-started/quick-start/)
-→ [names & the registry](https://hlop3z.github.io/spoc/learn/names-and-registry/)
-→ [build a framework](https://hlop3z.github.io/spoc/learn/build-a-framework/).
-
-## Links
-
-- [PyPI](https://pypi.org/project/spoc)
-- [GitHub](https://github.com/hlop3z/spoc)
