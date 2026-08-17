@@ -104,7 +104,7 @@ The form comes back on the record: `framework.resolve("views:blog.list_posts").m
 
 ## Start, ask, stop
 
-```python test="skip"
+```python {test="skip"}
 framework.start(BASE_DIR)        # boot: read settings, import apps, fill the shelf
 framework.started                # True
 

@@ -90,7 +90,7 @@ From the storefront example that ships with SPOC — the `orders` app uses the
 example's real file, included at build time, so the storefront's own test suite
 runs exactly what you read here:
 
-```python title="apps/orders/views.py" test="skip"
+```python {title="apps/orders/views.py" test="skip"}
 --8<-- "examples/apps/orders/views.py"
 ```
 

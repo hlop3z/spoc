@@ -73,7 +73,7 @@ Three fine points:
 A `hooks` component is a callable; _dispatching_ it is your surface's job, not
 SPOC's — the kernel describes, it never executes. The pattern is one loop:
 
-```python test="skip"
+```python {test="skip"}
 for record in framework.registry.by_kind("hooks"):
     record.object(event)          # your surface decides when, and with what
 ```

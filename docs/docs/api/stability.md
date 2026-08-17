@@ -73,7 +73,7 @@ So `spoc.Framework` is public because `spoc/__init__.py` exports it.
 underneath it. And `spoc.scaffold.Origin` is provisional because it says so, and says
 what would settle it:
 
-```python test="skip"
+```python {test="skip"}
 @dataclass(frozen=True, slots=True)
 class Origin:
     """The template set a project was generated from.

@@ -5,7 +5,7 @@ Nothing happens by accident, and every step either finishes or fails loudly.
 
 ## What `start()` does, in order
 
-```python test="skip"
+```python {test="skip"}
 framework.start(BASE_DIR)
 ```
 
@@ -98,7 +98,7 @@ framework = spoc.Framework(
 Everything above has an async twin. Declare coroutine hooks or an async
 `initialize()`/`teardown()`, and boot with:
 
-```python test="skip"
+```python {test="skip"}
 await framework.astart(BASE_DIR)
 ...
 await framework.ashutdown()
