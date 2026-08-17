@@ -13,7 +13,7 @@ kind never reaches another because the first came up empty.
 
 ```mermaid
 flowchart TB
-    ref["--template &lt;reference&gt;"]
+    ref["--template #lt;reference#gt;"]
 
     subgraph pure ["core — pure, no I/O"]
         parse["parse_reference<br/><i>total · stdlib only</i><br/>drive letter → scheme → separator"]

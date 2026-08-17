@@ -15,11 +15,11 @@ fence that doesn't run fails the suite, so silence is not a state.
 flowchart TB
     fences["Python fences in docs/docs/**/*.md"]
 
-    fences -->|"no title="| standalone["<b>Standalone</b><br/>runs as its own module<br/><i>prints must match #&gt; comments</i>"]
-    fences -->|"title=&quot;path&quot;"| tree["<b>Project file</b><br/>written verbatim into a per-page tree,<br/>in page order — later same title overwrites"]
-    fences -->|"test=&quot;skip&quot;"| skipped["<b>Marked</b><br/>display-only; counted against<br/>an explicit ceiling"]
+    fences -->|"no title="| standalone["<b>Standalone</b><br/>runs as its own module<br/><i>prints must match #> comments</i>"]
+    fences -->|"title=#quot;path#quot;"| tree["<b>Project file</b><br/>written verbatim into a per-page tree,<br/>in page order — later same title overwrites"]
+    fences -->|"test=#quot;skip#quot;"| skipped["<b>Marked</b><br/>display-only; counted against<br/>an explicit ceiling"]
 
-    tree --> entry["title=&quot;main.py&quot; runs as a subprocess<br/><i>exactly what a reader would type</i>"]
+    tree --> entry["title=#quot;main.py#quot; runs as a subprocess<br/><i>exactly what a reader would type</i>"]
     entry --> tutorial["Build a Framework page:<br/>own runner — boots the page's server on an<br/>ephemeral port and asserts the curl payloads"]
 
     standalone & entry & tutorial --> suite["tests/test_docs_examples.py<br/><i>the Unit tests gate row</i>"]

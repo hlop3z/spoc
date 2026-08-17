@@ -179,16 +179,6 @@ A good path in: [your first project](https://hlop3z.github.io/spoc/getting-start
 → [names & the registry](https://hlop3z.github.io/spoc/learn/names-and-registry/)
 → [build a framework](https://hlop3z.github.io/spoc/learn/build-a-framework/).
 
-## Stability
-
-SPOC is 1.0. A `public` name changes incompatibly only in a major release, and only
-after a completed deprecation cycle — so `spoc>=1.0,<2` is the pin that matters. Every
-name, command, and extra carries a tier (`public`, `provisional`, `internal`), and both
-the tiers and every change to them are checked on each CI run.
-
-**[Stability & Versioning](https://hlop3z.github.io/spoc/api/stability/)** — the tiers,
-the deprecation lifecycle, and the criteria 1.0 was cut against.
-
 ## Links
 
 - [PyPI](https://pypi.org/project/spoc)

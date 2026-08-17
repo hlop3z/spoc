@@ -50,8 +50,7 @@
 }
 
 /* DOCS */
-.doc code,
-.doc-heading * {
+.doc code {
   color: #4cae4f !important;
   /* font-size: 1em; */
 }
